@@ -63,4 +63,14 @@ static const struct rtwn8723be_pwr_step rtwn8723be_carde_mu_to_act[] = {
 #define RTWN8723BE_CARDEMU_TO_ACT_STEPS \
     (sizeof(rtwn8723be_carde_mu_to_act) / sizeof(rtwn8723be_carde_mu_to_act[0]))
 
+/* Linux RTL8723B_TRANS_CARDDIS_TO_CARDEMU: PCI-relevant entries only. */
+static const struct rtwn8723be_pwr_step rtwn8723be_carddis_to_carde_mu[] = {
+    { 0x0005, 0xff, 0x0f, 0x0f, 0x00, 1, 0x88, 0x00 },
+    { 0x0005, 0xff, 0x0f, 0x0f, 0x00, 1, 0x18, 0x00 },
+    { 0x0301, 0xff, 0x0f, 0x04, 0x00, 1, 0xff, 0x00 }
+};
+
+#define RTWN8723BE_CARDDIS_TO_CARDEMU_STEPS \
+    (sizeof(rtwn8723be_carddis_to_carde_mu) / sizeof(rtwn8723be_carddis_to_carde_mu[0]))
+
 #endif
