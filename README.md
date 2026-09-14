@@ -12,11 +12,11 @@ Experimental native NetBSD driver development for the Realtek RTL8723BE PCIe WLA
 
 ## Current state
 
-The project is currently at **F8.3** and version **0.1.0**. The driver can safely identify the PCI device, inspect PCI configuration, map the existing MMIO BAR, perform one proven-safe MMIO read at `0x00f0`, defer and validate firmware access after mountroot, and perform a source-only PCI power-sequence dry-run.
+The project is currently at **F8.4** and version **0.1.0**. F8.4 models the complete Linux `RTL8723_NIC_ENABLE_FLOW` ordering as a source-only dry-run: `CARDDIS->CARDEMU`, `CARDEMU->ACT`, and `END`, filtered for the PCI interface.
 
-No WLAN interface is functional yet. No power sequence has been executed against the hardware. No DMA, interrupt setup, bus mastering, firmware download, or production-kernel replacement has been performed.
+The F8.4 kernel builds successfully and is installed separately as `/netbsd.rtwn8723be-f8.4-dryrun`. It has a dedicated boot entry but has **not yet been boot-tested**. No WLAN interface is functional yet and no power sequence has been executed against the hardware.
 
-The last boot-proven-safe experimental kernel is **F6 #6**. F7/F7a are preserved as failure evidence because additional MMIO reads caused a black screen on the target machine.
+No DMA, interrupt setup, bus mastering, firmware download, or production-kernel replacement has been performed by F8.4. The last boot-proven-safe experimental kernel remains **F6 #6**. F7/F7a are preserved as failure evidence because additional MMIO reads caused a black screen on the target machine.
 
 ## Target hardware
 
