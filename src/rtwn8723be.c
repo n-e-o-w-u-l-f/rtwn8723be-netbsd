@@ -39,34 +39,41 @@ rtwn8723be_pwrseq_dryrun(device_t self)
 {
     size_t i;
     const struct rtwn8723be_pwr_step *s;
-    size_t executed = 0;
+    size_t selected = 0;
     size_t skipped = 0;
 
     aprint_normal_dev(self,
-        "F8.3 power-sequence dry-run: PCI interface only; "
-        "NO hardware access\n");
-
-    for (i = 0; i < RTWN8723BE_CARDEMU_TO_ACT_STEPS; i++) {
-        s = &rtwn8723be_carde_mu_to_act[i];
-
+        "F8.4 NIC_ENABLE_FLOW dry-run: PCI interface only; NO hardware access\n");
+    aprint_normal_dev(self, "F8.4 phase 1: CARDDIS->CARDEMU\n");
+    for (i = 0; i < RTWN8723BE_CARDDIS_TO_CARDEMU_STEPS; i++) {
+        s = &rtwn8723be_carddis_to_carde_mu[i];
         if ((s->intf_mask & RTWN8723BE_PWR_INTF_PCI) == 0) {
             skipped++;
             continue;
         }
-
-        executed++;
+        selected++;
         aprint_normal_dev(self,
-            "F8.3 step %zu: cmd=%u offset=0x%04x "
-            "mask=0x%02x value=0x%02x base=0x%x "
-            "cut=0x%02x fab=0x%02x\n",
-            i + 1, s->cmd, s->offset, s->mask, s->value,
-            s->base, s->cut_mask, s->fab_mask);
+            "F8.4 step %zu: cmd=%u offset=0x%04x mask=0x%02x value=0x%02x\n",
+            selected, s->cmd, s->offset, s->mask, s->value);
     }
 
+    aprint_normal_dev(self, "F8.4 phase 2: CARDEMU->ACT\n");
+    for (i = 0; i < RTWN8723BE_CARDEMU_TO_ACT_STEPS; i++) {
+        s = &rtwn8723be_carde_mu_to_act[i];
+        if ((s->intf_mask & RTWN8723BE_PWR_INTF_PCI) == 0) {
+            skipped++;
+            continue;
+        }
+        selected++;
+        aprint_normal_dev(self,
+            "F8.4 step %zu: cmd=%u offset=0x%04x mask=0x%02x value=0x%02x\n",
+            selected, s->cmd, s->offset, s->mask, s->value);
+    }
+
+    aprint_normal_dev(self, "F8.4 step %zu: END (model only)\n", selected + 1);
     aprint_normal_dev(self,
-        "F8.3 dry-run complete: %zu PCI steps selected, "
-        "%zu non-PCI steps skipped; no MMIO/PCI/DMA/IRQ access\n",
-        executed, skipped);
+        "F8.4 dry-run complete: %zu PCI steps selected, %zu non-PCI steps skipped; END modeled; no hardware access\n",
+        selected, skipped);
 }
 
 static void
