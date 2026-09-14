@@ -1,9 +1,16 @@
 # RTWN8723BE NetBSD project status
 
+**Project version:** 0.1.0  
 **Status date:** 2026-09-14  
 **Current stage:** F8.3 source-only dry-run  
 **Last boot-proven-safe kernel:** F6 #6  
 **Production `/netbsd`:** untouched
+
+## Version policy
+
+- **0.1.x:** experimental development and target hardware bring-up.
+- **1.0.0:** first functional software release proven on the target HP TPN-W121.
+- Version 1.0 is reached only when the resulting software is demonstrably functional on the target device, not merely when the source code is complete.
 
 ## Hardware
 
