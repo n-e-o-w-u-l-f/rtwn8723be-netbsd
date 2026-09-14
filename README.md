@@ -1,10 +1,18 @@
 # rtwn8723be-netbsd
 
+**Project version: 0.1.0**
+
 Experimental native NetBSD driver development for the Realtek RTL8723BE PCIe WLAN adapter, based on the Linux `rtlwifi/rtl8723be` reference implementation.
+
+## Versioning
+
+- **0.1.x** — experimental development, hardware bring-up, diagnostics and driver construction.
+- **1.0.0** — first functional software release proven on the target HP TPN-W121.
+- Version 1.0 is therefore a **functional target milestone**, not merely a source/API milestone.
 
 ## Current state
 
-The project is currently at **F8.3**. The driver can safely identify the PCI device, inspect PCI configuration, map the existing MMIO BAR, perform one proven-safe MMIO read at `0x00f0`, defer and validate firmware access after mountroot, and perform a source-only PCI power-sequence dry-run.
+The project is currently at **F8.3** and version **0.1.0**. The driver can safely identify the PCI device, inspect PCI configuration, map the existing MMIO BAR, perform one proven-safe MMIO read at `0x00f0`, defer and validate firmware access after mountroot, and perform a source-only PCI power-sequence dry-run.
 
 No WLAN interface is functional yet. No power sequence has been executed against the hardware. No DMA, interrupt setup, bus mastering, firmware download, or production-kernel replacement has been performed.
 
