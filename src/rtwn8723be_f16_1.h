@@ -4,10 +4,7 @@
 #include <sys/types.h>
 #include <sys/bus.h>
 
-/*
- * RTL8723BE hardware contract copied from the Linux rtl8723be reference
- * driver.  This header intentionally does not invent device offsets.
- */
+/* RTL8723BE hardware contract copied from the Linux rtl8723be reference. */
 #define RTWN8723BE_TX_DESC_SIZE        40
 #define RTWN8723BE_RX_DESC_SIZE        32
 #define RTWN8723BE_RX_DRV_INFO_UNIT    8
@@ -35,6 +32,48 @@
 #define R23BE_REG_HIMRE                0x00b8
 #define R23BE_REG_HISRE                0x00bc
 
+/* DW0 interrupt bits. */
+#define R23BE_IMR_ROK                  (1U << 0)
+#define R23BE_IMR_RDU                  (1U << 1)
+#define R23BE_IMR_VODOK                (1U << 2)
+#define R23BE_IMR_VIDOK                (1U << 3)
+#define R23BE_IMR_BEDOK                (1U << 4)
+#define R23BE_IMR_BKDOK                (1U << 5)
+#define R23BE_IMR_MGNTDOK              (1U << 6)
+#define R23BE_IMR_HIGHDOK              (1U << 7)
+#define R23BE_IMR_CPWM                 (1U << 8)
+#define R23BE_IMR_CPWM2                (1U << 9)
+#define R23BE_IMR_C2HCMD               (1U << 10)
+#define R23BE_IMR_HISR1_IND_INT        (1U << 11)
+#define R23BE_IMR_ATIMEND              (1U << 12)
+#define R23BE_IMR_HSISR_IND_ON_INT     (1U << 15)
+#define R23BE_IMR_BCNDOK0              (1U << 16)
+#define R23BE_IMR_BCNDMAINT0           (1U << 20)
+#define R23BE_IMR_TBDOK                (1U << 25)
+#define R23BE_IMR_TBDER                (1U << 26)
+#define R23BE_IMR_GTINT3               (1U << 27)
+#define R23BE_IMR_GTINT4               (1U << 28)
+#define R23BE_IMR_PSTIMEOUT            (1U << 29)
+#define R23BE_IMR_TXCCK                (1U << 30)
+
+/* DW1 interrupt bits at HIMR+4/HISR+4. */
+#define R23BE_IMR_RXFOVW               (1U << 8)
+#define R23BE_IMR_TXFOVW               (1U << 9)
+#define R23BE_IMR_RXERR                (1U << 10)
+#define R23BE_IMR_TXERR                (1U << 11)
+
+/* Linux 8723BE default interrupt contract. */
+#define R23BE_IMR0_DEFAULT (R23BE_IMR_PSTIMEOUT | \
+    R23BE_IMR_HSISR_IND_ON_INT | R23BE_IMR_C2HCMD | \
+    R23BE_IMR_HIGHDOK | R23BE_IMR_MGNTDOK | R23BE_IMR_BKDOK | \
+    R23BE_IMR_BEDOK | R23BE_IMR_VIDOK | R23BE_IMR_VODOK | \
+    R23BE_IMR_RDU | R23BE_IMR_ROK)
+#define R23BE_IMR1_DEFAULT R23BE_IMR_RXFOVW
+
+/* Host-system interrupt bits. */
+#define R23BE_HSIMR_PDN_INT_EN         (1U << 7)
+#define R23BE_HSIMR_RON_INT_EN         (1U << 6)
+
 /* MAC/DMA control. */
 #define R23BE_REG_CR                   0x0100
 #define R23BE_REG_PBP                  0x0104
@@ -49,6 +88,7 @@
 /* Firmware H2C/C2H mailbox block. */
 #define R23BE_REG_C2HEVT_MSG_NORMAL    0x01a0
 #define R23BE_REG_C2HEVT_CLEAR         0x01af
+#define R23BE_REG_HMETFR               0x01cc
 #define R23BE_REG_HMEBOX_0             0x01d0
 #define R23BE_REG_HMEBOX_1             0x01d4
 #define R23BE_REG_HMEBOX_2             0x01d8
@@ -77,12 +117,11 @@
 #define R23BE_REG_BKQ_DESA             0x0338
 #define R23BE_REG_RX_DESA              0x0340
 
-/*
- * Linux's rtl8723be/trx.h descriptor field definitions.  The TX descriptor
- * has a 40-byte hardware header; the Linux helper also accesses the
- * following PCIe TX-buffer/next-descriptor words.  Keep those accesses out
- * of the C struct until the PCIe TXBD allocation model is ported verbatim.
- */
+/* PCIe DMA control bits used by the Linux init/reset path. */
+#define R23BE_PCIE_CTRL_DMA_HANG_RST   (1U << 0)
+#define R23BE_RXDMA_PAUSE              (1U << 2)
+
+/* TX descriptor fields. */
 #define R23BE_TXD0_PKT_SIZE_MASK       0x0000ffffU
 #define R23BE_TXD0_OFFSET_MASK         0x00ff0000U
 #define R23BE_TXD0_BMC                0x01000000U
@@ -91,18 +130,15 @@
 #define R23BE_TXD0_FIRST_SEG          0x08000000U
 #define R23BE_TXD0_LINIP               0x10000000U
 #define R23BE_TXD0_OWN                 0x80000000U
-
 #define R23BE_TXD1_MACID_MASK          0x0000007fU
 #define R23BE_TXD1_QUEUE_MASK          0x00001f00U
 #define R23BE_TXD1_RATEID_MASK         0x001f0000U
 #define R23BE_TXD1_SECTYPE_MASK        0x00c00000U
 #define R23BE_TXD1_PKTOFFSET_MASK      0x1f000000U
-
 #define R23BE_TXD2_AGG_ENABLE          0x00001000U
 #define R23BE_TXD2_RDG_ENABLE          0x00002000U
 #define R23BE_TXD2_MORE_FRAG            0x00020000U
 #define R23BE_TXD2_AMPDU_DENSITY_MASK  0x00700000U
-
 #define R23BE_TXD3_HWSEQ_SEL_MASK      0x000000c0U
 #define R23BE_TXD3_USE_RATE            0x00000100U
 #define R23BE_TXD3_DISABLE_FB          0x00000400U
@@ -111,18 +147,15 @@
 #define R23BE_TXD3_HW_RTS_ENABLE       0x00002000U
 #define R23BE_TXD3_NAV_USE_HDR         0x00008000U
 #define R23BE_TXD3_MAX_AGG_NUM_MASK    0x003e0000U
-
 #define R23BE_TXD4_TX_RATE_MASK        0x0000007fU
 #define R23BE_TXD4_DATA_RATE_FB_MASK   0x00001f00U
 #define R23BE_TXD4_RTS_RATE_FB_MASK    0x0001e000U
 #define R23BE_TXD4_RTS_RATE_MASK       0x1f000000U
-
 #define R23BE_TXD5_SUBCARRIER_MASK     0x0000000fU
 #define R23BE_TXD5_SHORTGI              0x00000010U
 #define R23BE_TXD5_BW_MASK              0x00000060U
 #define R23BE_TXD5_RTS_SHORT            0x00001000U
 #define R23BE_TXD5_RTS_SC_MASK          0x0001e000U
-
 #define R23BE_TXD7_BUFSIZE_MASK         0x0000ffffU
 #define R23BE_TXD8_HWSEQ_EN             0x00008000U
 #define R23BE_TXD9_SEQ_MASK             0x00fff000U
@@ -135,17 +168,11 @@
 #define R23BE_RXD0_SHIFT_MASK           0x03000000U
 #define R23BE_RXD0_PHYST                0x04000000U
 #define R23BE_RXD0_SWDEC                0x08000000U
+#define R23BE_RXD0_EOR                  0x40000000U
 #define R23BE_RXD0_OWN                  0x80000000U
 
-/* Linux RX descriptor is exactly 32 bytes. */
-struct rtwn8723be_rx_desc {
-    uint32_t d[8];
-};
-
-/* 40-byte Linux hardware descriptor header. */
-struct rtwn8723be_tx_desc {
-    uint32_t d[10];
-};
+struct rtwn8723be_rx_desc { uint32_t d[8]; };
+struct rtwn8723be_tx_desc { uint32_t d[10]; };
 
 struct rtwn8723be_tx_ring {
     void *kva;
@@ -155,7 +182,6 @@ struct rtwn8723be_tx_ring {
     uint32_t producer;
     uint32_t consumer;
 };
-
 struct rtwn8723be_rx_ring {
     void *kva;
     bus_dmamap_t map;
@@ -164,28 +190,9 @@ struct rtwn8723be_rx_ring {
     uint32_t consumer;
 };
 
-static inline uint32_t
-r23be_get_own(const uint32_t v)
-{
-    return (v >> 31) & 1U;
-}
-
-static inline void
-r23be_set_own(uint32_t *v)
-{
-    *v |= R23BE_TXD0_OWN;
-}
-
-static inline void
-r23be_clear_own(uint32_t *v)
-{
-    *v &= ~R23BE_TXD0_OWN;
-}
-
-static inline uint32_t
-r23be_rx_pkt_len(const struct rtwn8723be_rx_desc *d)
-{
-    return d->d[0] & R23BE_RXD0_PKT_LEN_MASK;
-}
+static inline uint32_t r23be_get_own(const uint32_t v) { return (v >> 31) & 1U; }
+static inline void r23be_set_own(uint32_t *v) { *v |= R23BE_TXD0_OWN; }
+static inline void r23be_clear_own(uint32_t *v) { *v &= ~R23BE_TXD0_OWN; }
+static inline uint32_t r23be_rx_pkt_len(const struct rtwn8723be_rx_desc *d) { return d->d[0] & R23BE_RXD0_PKT_LEN_MASK; }
 
 #endif /* _RTWN8723BE_F16_1_H_ */
