@@ -4,6 +4,75 @@
 #include "rtwn8723be_linux_state.h"
 
 #define R23BE_REQUIRE(op) do { if ((op) == NULL) return ENOSYS; } while (0)
+static int
+rtwn8723be_probe_ops_ready(const struct rtwn8723be_linux_ops *ops)
+{
+    if (ops->pci_enable == NULL ||
+        ops->dma_configure == NULL ||
+        ops->pci_set_master == NULL ||
+        ops->alloc_softc == NULL ||
+        ops->map_bar == NULL ||
+        ops->pci_prepare_d0 == NULL ||
+        ops->find_adapter == NULL ||
+        ops->init_io == NULL ||
+        ops->read_eeprom_info == NULL ||
+        ops->init_sw_vars == NULL ||
+        ops->init_leds == NULL ||
+        ops->init_aspm == NULL ||
+        ops->init_core == NULL ||
+        ops->init_pci_rings == NULL ||
+        ops->register_ieee80211 == NULL ||
+        ops->init_rfkill == NULL ||
+        ops->establish_irq == NULL)
+        return ENOSYS;
+    return 0;
+}
+
+static int
+rtwn8723be_hw_ops_ready(const struct rtwn8723be_linux_ops *ops)
+{
+    if (ops->disable_aspm == NULL ||
+        ops->read_cr == NULL ||
+        ops->check_pcie_dma_hang == NULL ||
+        ops->reset_pcie_interface_dma == NULL ||
+        ops->poweroff_adapter == NULL ||
+        ops->init_mac == NULL ||
+        ops->sys_cfg_clear_bit7 == NULL ||
+        ops->download_firmware == NULL ||
+        ops->phy_mac_config == NULL ||
+        ops->rcr_postprocess == NULL ||
+        ops->phy_bb_config == NULL ||
+        ops->phy_rf_config == NULL ||
+        ops->rf_channel_state_init == NULL ||
+        ops->hw_configure == NULL ||
+        ops->cam_reset_all == NULL ||
+        ops->enable_hw_security == NULL ||
+        ops->set_mac_address == NULL ||
+        ops->enable_aspm_backdoor == NULL ||
+        ops->enable_aspm == NULL ||
+        ops->bt_hw_init == NULL ||
+        ops->rf_calibration == NULL ||
+        ops->set_nav_upper_235 == NULL ||
+        ops->release_rx_dma == NULL ||
+        ops->release_pcie_dma == NULL ||
+        ops->dm_init == NULL)
+        return ENOSYS;
+    return 0;
+}
+
+static int
+rtwn8723be_start_ops_ready(const struct rtwn8723be_linux_ops *ops)
+{
+    if (ops->reset_trx_ring == NULL ||
+        ops->bt_prepare == NULL ||
+        ops->set_retry_limit == NULL ||
+        ops->enable_interrupt == NULL ||
+        ops->init_rx_config == NULL ||
+        ops->mark_hal_start == NULL)
+        return ENOSYS;
+    return rtwn8723be_hw_ops_ready(ops);
+}
+
 #define R23BE_CALL(stage_id, op, ...) do { \
     R23BE_REQUIRE(op); \
     state->stage = (stage_id); \
@@ -21,6 +90,10 @@ rtwn8723be_linux_probe(void *ctx, struct rtwn8723be_linux_state *state,
 
     if (state == NULL || ops == NULL)
         return EINVAL;
+
+    error = rtwn8723be_probe_ops_ready(ops);
+    if (error != 0)
+        return error;
 
     state->stage = R23BE_STAGE_IDLE;
     state->started = false;
@@ -70,6 +143,10 @@ rtwn8723be_linux_hw_init(void *ctx, struct rtwn8723be_linux_state *state,
 
     if (state == NULL || ops == NULL)
         return EINVAL;
+
+    error = rtwn8723be_hw_ops_ready(ops);
+    if (error != 0)
+        return error;
 
     state->being_init_adapter = true;
     state->fw_ready = false;
@@ -158,6 +235,10 @@ rtwn8723be_linux_adapter_start(void *ctx,
 
     if (state == NULL || ops == NULL)
         return EINVAL;
+
+    error = rtwn8723be_start_ops_ready(ops);
+    if (error != 0)
+        return error;
 
     R23BE_CALL(R23BE_STAGE_RESET_RINGS, ops->reset_trx_ring, ctx);
     R23BE_CALL(R23BE_STAGE_BT_PREPARE, ops->bt_prepare, ctx);
