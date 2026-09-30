@@ -74,4 +74,23 @@ static const struct rtwn8723be_pwr_step rtwn8723be_carddis_to_carde_mu[] = {
 #define RTWN8723BE_CARDDIS_TO_CARDEMU_STEPS \
     (sizeof(rtwn8723be_carddis_to_carde_mu) / sizeof(rtwn8723be_carddis_to_carde_mu[0]))
 
+
+enum rtwn8723be_pwr_flow {
+    RTWN8723BE_PWR_FLOW_POWER_ON = 0,
+    RTWN8723BE_PWR_FLOW_RADIO_OFF,
+    RTWN8723BE_PWR_FLOW_CARD_DISABLE,
+    RTWN8723BE_PWR_FLOW_CARD_ENABLE,
+    RTWN8723BE_PWR_FLOW_SUSPEND,
+    RTWN8723BE_PWR_FLOW_RESUME,
+    RTWN8723BE_PWR_FLOW_HWPDN,
+    RTWN8723BE_PWR_FLOW_ENTER_LPS,
+    RTWN8723BE_PWR_FLOW_LEAVE_LPS
+};
+
+int rtwn8723be_pwrseq_exec(bus_space_tag_t, bus_space_handle_t,
+    const struct rtwn8723be_pwr_step *, size_t,
+    uint8_t, uint8_t, uint8_t);
+int rtwn8723be_pwrseq_flow_exec(bus_space_tag_t, bus_space_handle_t,
+    enum rtwn8723be_pwr_flow, uint8_t, uint8_t, uint8_t);
+
 #endif
