@@ -303,6 +303,10 @@ rtwn8723be_netbsd_init_sw_vars(void *arg)
     sc->sc_receive_config = RTWN8723BE_RCR_DEFAULT;
     sc->sc_firmware_name = RTWN8723BE_FIRMWARE_NAME;
     sc->sc_btcoexist = true;
+    sc->sc_bt_stop_coex_dm = false;
+    sc->sc_up_first_time = true;
+    sc->sc_led_opendrain = true;
+    sc->sc_rfoff_reason = 0; /* RF_CHANGE_BY_INIT */
     sc->sc_mac_func_enable = false;
 
     return 0;
@@ -769,6 +773,53 @@ rtwn8723be_netbsd_enable_aspm(void *arg)
     return 0;
 }
 
+static void
+rtwn8723be_netbsd_led0_on(struct rtwn8723be_softc *sc)
+{
+    uint8_t ledcfg;
+
+    ledcfg = rtwn8723be_read_1(sc, R23BE_REG_LEDCFG2);
+    ledcfg &= ~(1U << 6);
+    rtwn8723be_write_1(sc, R23BE_REG_LEDCFG2,
+        (ledcfg & 0xf0) | (1U << 5));
+}
+
+static void
+rtwn8723be_netbsd_led0_off(struct rtwn8723be_softc *sc)
+{
+    uint8_t ledcfg;
+
+    ledcfg = rtwn8723be_read_1(sc, R23BE_REG_LEDCFG2);
+    ledcfg &= 0xf0;
+
+    if (sc->sc_led_opendrain) {
+        ledcfg &= 0x90;
+        rtwn8723be_write_1(sc, R23BE_REG_LEDCFG2,
+            ledcfg | (1U << 3));
+        ledcfg = rtwn8723be_read_1(sc, R23BE_REG_MAC_PINMUX_CFG);
+        rtwn8723be_write_1(sc, R23BE_REG_MAC_PINMUX_CFG,
+            ledcfg & 0xfe);
+    } else {
+        ledcfg &= ~(1U << 6);
+        rtwn8723be_write_1(sc, R23BE_REG_LEDCFG2,
+            ledcfg | (1U << 3) | (1U << 5));
+    }
+}
+
+static void
+rtwn8723be_netbsd_refresh_led_state(struct rtwn8723be_softc *sc)
+{
+    if (sc->sc_up_first_time)
+        return;
+
+    /* Linux: RF_CHANGE_BY_INIT==0, RF_CHANGE_BY_IPS==BIT(28). */
+    if (sc->sc_rfoff_reason == 0 ||
+        sc->sc_rfoff_reason == (1U << 28))
+        rtwn8723be_netbsd_led0_on(sc);
+    else
+        rtwn8723be_netbsd_led0_off(sc);
+}
+
 int
 rtwn8723be_netbsd_bt_power_on_setting(struct rtwn8723be_softc *sc)
 {
@@ -954,6 +1005,133 @@ rtwn8723be_netbsd_program_ring_bases(struct rtwn8723be_softc *sc)
         (uint32_t)sc->sc_rx_ring[RTWN8723BE_RX_MPDU_QUEUE].desc_dma.paddr);
 
 #undef R23BE_RING_ADDR
+    return 0;
+}
+
+int
+rtwn8723be_netbsd_init_mac(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+    uint16_t wordtmp;
+    uint8_t bytetmp;
+    int error;
+
+    /*
+     * Preflight before the first hardware mutation.  Linux has already
+     * populated coexistence/EFUSE and PCI rings by this point.
+     */
+    if (!sc->sc_mapped || !sc->sc_rings_allocated)
+        return ENXIO;
+    if (sc->sc_btcoexist && !sc->sc_bt_ant_valid)
+        return ENXIO;
+
+    rtwn8723be_write_1(sc, R23BE_REG_RSV_CTRL, 0x00);
+
+    bytetmp = rtwn8723be_read_1(sc, R23BE_REG_APS_FSMCO + 1);
+    rtwn8723be_write_1(sc, R23BE_REG_APS_FSMCO + 1,
+        bytetmp & ~(1U << 7));
+
+    /*
+     * _rtl8723be_init_mac() uses RTL8723_NIC_ENABLE_FLOW:
+     * CARDDIS -> CARDEMU -> ACT, not the shorter power-on flow.
+     */
+    error = rtwn8723be_pwrseq_flow_exec(sc->sc_st, sc->sc_sh,
+        RTWN8723BE_PWR_FLOW_CARD_ENABLE, RTWN8723BE_PWR_CUT_ALL,
+        RTWN8723BE_PWR_FAB_ALL, RTWN8723BE_PWR_INTF_PCI);
+    if (error != 0)
+        return error;
+
+    error = rtwn8723be_netbsd_bt_power_on_setting(sc);
+    if (error != 0)
+        return error;
+
+    bytetmp = rtwn8723be_read_1(sc, R23BE_REG_MULTI_FUNC_CTRL);
+    rtwn8723be_write_1(sc, R23BE_REG_MULTI_FUNC_CTRL,
+        bytetmp | (1U << 3));
+
+    bytetmp = rtwn8723be_read_1(sc, R23BE_REG_APS_FSMCO);
+    rtwn8723be_write_1(sc, R23BE_REG_APS_FSMCO,
+        bytetmp | (1U << 4));
+
+    rtwn8723be_write_1(sc, R23BE_REG_CR, 0xff);
+    delay(2000);
+
+    bytetmp = rtwn8723be_read_1(sc, R23BE_REG_HWSEQ_CTRL);
+    rtwn8723be_write_1(sc, R23BE_REG_HWSEQ_CTRL,
+        bytetmp | 0x7f);
+    delay(2000);
+
+    bytetmp = rtwn8723be_read_1(sc, R23BE_REG_SYS_CFG + 3);
+    if ((bytetmp & (1U << 0)) != 0) {
+        bytetmp = rtwn8723be_read_1(sc, R23BE_REG_XCK_OUT_CTRL);
+        rtwn8723be_write_1(sc, R23BE_REG_XCK_OUT_CTRL,
+            bytetmp | (1U << 6));
+    }
+
+    bytetmp = rtwn8723be_read_1(sc, R23BE_REG_SYS_CLKR);
+    rtwn8723be_write_1(sc, R23BE_REG_SYS_CLKR,
+        bytetmp | (1U << 3));
+
+    bytetmp = rtwn8723be_read_1(sc, R23BE_REG_GPIO_MUXCFG + 1);
+    rtwn8723be_write_1(sc, R23BE_REG_GPIO_MUXCFG + 1,
+        bytetmp & ~(1U << 4));
+
+    rtwn8723be_write_2(sc, R23BE_REG_CR, 0x02ff);
+
+    if (!sc->sc_linux.mac_func_enable) {
+        error = rtwn8723be_netbsd_llt_table_init(sc);
+        if (error != 0)
+            return error;
+    }
+
+    rtwn8723be_write_4(sc, R23BE_REG_HISR, 0xffffffffU);
+    rtwn8723be_write_4(sc, R23BE_REG_HISRE, 0xffffffffU);
+
+    bytetmp = rtwn8723be_read_1(sc, R23BE_REG_FWIMR + 3);
+    rtwn8723be_write_1(sc, R23BE_REG_FWIMR + 3,
+        bytetmp | (1U << 6));
+
+    wordtmp = rtwn8723be_read_2(sc, R23BE_REG_TRXDMA_CTRL);
+    wordtmp &= 0x000f;
+    wordtmp |= 0xf5b1;
+    rtwn8723be_write_2(sc, R23BE_REG_TRXDMA_CTRL, wordtmp);
+
+    rtwn8723be_write_1(sc, R23BE_REG_FWHW_TXQ_CTRL + 1, 0x1f);
+    rtwn8723be_write_4(sc, R23BE_REG_RCR, sc->sc_receive_config);
+    rtwn8723be_write_2(sc, R23BE_REG_RXFLTMAP2, 0xffff);
+    rtwn8723be_write_4(sc, R23BE_REG_TCR, sc->sc_transmit_config);
+
+    error = rtwn8723be_netbsd_program_ring_bases(sc);
+    if (error != 0)
+        return error;
+
+    bytetmp = rtwn8723be_read_1(sc, R23BE_REG_PCIE_CTRL_REG + 3);
+    rtwn8723be_write_1(sc, R23BE_REG_PCIE_CTRL_REG + 3,
+        bytetmp | 0x77);
+
+    rtwn8723be_write_4(sc, R23BE_REG_INT_MIG, 0);
+    rtwn8723be_write_4(sc, R23BE_REG_MCUTST_1, 0);
+    rtwn8723be_write_1(sc, R23BE_REG_SECONDARY_CCA_CTRL, 0x03);
+
+    /*
+     * DPDT/fixed-board BB settings copied verbatim from pinned Linux.
+     */
+    rtwn8723be_netbsd_set_bbreg(sc, 0x0064, (1U << 20), 0);
+    rtwn8723be_netbsd_set_bbreg(sc, 0x0064, (1U << 24), 0);
+    rtwn8723be_netbsd_set_bbreg(sc, 0x0040, (1U << 4), 0);
+    rtwn8723be_netbsd_set_bbreg(sc, 0x0040, (1U << 3), 1);
+    rtwn8723be_netbsd_set_bbreg(sc, 0x004c,
+        (1U << 24) | (1U << 23), 2);
+    rtwn8723be_netbsd_set_bbreg(sc, 0x0944,
+        (1U << 1) | (1U << 0), 3);
+    rtwn8723be_netbsd_set_bbreg(sc, 0x0930, 0x000000ffU, 0x77);
+    rtwn8723be_netbsd_set_bbreg(sc, 0x0038, (1U << 11), 1);
+
+    bytetmp = rtwn8723be_read_1(sc, R23BE_REG_RXDMA_CONTROL);
+    rtwn8723be_write_1(sc, R23BE_REG_RXDMA_CONTROL,
+        bytetmp & ~R23BE_RXDMA_PAUSE);
+
+    rtwn8723be_netbsd_refresh_led_state(sc);
     return 0;
 }
 
@@ -1243,6 +1421,7 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .reset_pcie_interface_dma =
         rtwn8723be_netbsd_reset_pcie_interface_dma,
     .poweroff_adapter = rtwn8723be_netbsd_poweroff_adapter,
+    .init_mac = rtwn8723be_netbsd_init_mac,
     .sys_cfg_clear_bit7 = rtwn8723be_netbsd_sys_cfg_clear_bit7,
     .download_firmware = rtwn8723be_netbsd_download_firmware,
     .enable_aspm = rtwn8723be_netbsd_enable_aspm,
