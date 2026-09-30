@@ -513,6 +513,62 @@ rtwn8723be_netbsd_init_leds(void *arg)
     return 0;
 }
 
+int
+rtwn8723be_netbsd_init_core(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+    struct ieee80211com *ic = &sc->sc_ic;
+    struct ifnet *ifp = &sc->sc_ec.ec_if;
+    unsigned int i;
+
+    if (!sc->sc_efuse_autoload_ok)
+        return ENXIO;
+
+    /*
+     * Native NetBSD mapping of Linux rtl_init_core()/_rtl_init_mac80211():
+     * initialize the 802.11 software object and immutable HW capabilities.
+     * Registration and driver callbacks remain in register_ieee80211().
+     */
+    memset(ic, 0, sizeof(*ic));
+    memset(ifp, 0, sizeof(*ifp));
+
+    ic->ic_ifp = ifp;
+    ic->ic_phytype = IEEE80211_T_OFDM;
+    ic->ic_opmode = IEEE80211_M_STA;
+    ic->ic_state = IEEE80211_S_INIT;
+    ic->ic_caps =
+        IEEE80211_C_MONITOR |
+        IEEE80211_C_IBSS |
+        IEEE80211_C_HOSTAP |
+        IEEE80211_C_SHPREAMBLE |
+        IEEE80211_C_SHSLOT |
+        IEEE80211_C_WME |
+        IEEE80211_C_WPA;
+
+#ifndef IEEE80211_NO_HT
+    ic->ic_htcaps =
+        IEEE80211_HTCAP_CBW20_40 |
+        IEEE80211_HTCAP_DSSSCCK40;
+    /* RTL8723BE is a 1T1R WLAN path in this target. */
+    ic->ic_sup_mcs[0] = 0xff;
+#endif
+
+    ic->ic_sup_rates[IEEE80211_MODE_11B] = ieee80211_std_rateset_11b;
+    ic->ic_sup_rates[IEEE80211_MODE_11G] = ieee80211_std_rateset_11g;
+
+    for (i = 1; i <= 14; i++) {
+        ic->ic_channels[i].ic_freq =
+            ieee80211_ieee2mhz(i, IEEE80211_CHAN_2GHZ);
+        ic->ic_channels[i].ic_flags =
+            IEEE80211_CHAN_CCK | IEEE80211_CHAN_OFDM |
+            IEEE80211_CHAN_DYN | IEEE80211_CHAN_2GHZ;
+    }
+
+    IEEE80211_ADDR_COPY(ic->ic_myaddr, sc->sc_macaddr);
+    sc->sc_core_initialized = true;
+    return 0;
+}
+
 static uint32_t
 rtwn8723be_netbsd_tx_ring_count(unsigned int qid)
 {
@@ -1616,6 +1672,7 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .init_sw_vars = rtwn8723be_netbsd_init_sw_vars,
     .init_leds = rtwn8723be_netbsd_init_leds,
     .init_aspm = rtwn8723be_netbsd_init_aspm,
+    .init_core = rtwn8723be_netbsd_init_core,
     .init_pci_rings = rtwn8723be_netbsd_init_pci_rings,
     .reset_trx_ring = rtwn8723be_netbsd_reset_trx_ring,
     .disable_aspm = rtwn8723be_netbsd_disable_aspm,
