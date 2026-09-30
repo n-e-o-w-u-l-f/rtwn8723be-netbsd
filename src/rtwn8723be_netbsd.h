@@ -42,6 +42,10 @@ struct rtwn8723be_softc {
     bool sc_dmat_owned;
     bool sc_dma_32bit;
 
+    int sc_pcie_cap_off;
+    uint32_t sc_pcie_lcsr_initial;
+    bool sc_pcie_cap_valid;
+
     struct rtwn8723be_tx_ring sc_tx_ring[RTWN8723BE_TX_QUEUE_COUNT];
     struct rtwn8723be_rx_ring sc_rx_ring[RTWN8723BE_RX_QUEUE_COUNT];
     bool sc_rings_allocated;
@@ -91,6 +95,10 @@ int rtwn8723be_netbsd_init_sw_vars(void *);
 int rtwn8723be_netbsd_init_pci_rings(void *);
 int rtwn8723be_netbsd_reset_trx_ring(void *);
 void rtwn8723be_netbsd_free_pci_rings(struct rtwn8723be_softc *);
+
+int rtwn8723be_netbsd_init_aspm(void *);
+int rtwn8723be_netbsd_disable_aspm(void *);
+int rtwn8723be_netbsd_enable_aspm(void *);
 
 int rtwn8723be_netbsd_read_cr(void *, uint8_t *);
 int rtwn8723be_netbsd_check_pcie_dma_hang(void *, bool *);
