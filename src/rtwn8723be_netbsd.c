@@ -1082,6 +1082,10 @@ rtwn8723be_netbsd_download_firmware(void *arg)
     if (error != 0)
         goto out;
 
+    error = rtwn8723be_netbsd_bt_preload_firmware(sc);
+    if (error != 0)
+        goto out;
+
     /*
      * rtwn8723be_fw_download() preserves the pinned Linux transfer
      * semantics: RAM_DL_SEL recovery, page upload, checksum polling,
