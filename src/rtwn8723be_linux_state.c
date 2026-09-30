@@ -6,6 +6,54 @@
 #define R23BE_REQUIRE(op) do { if ((op) == NULL) return ENOSYS; } while (0)
 #define R23BE_CALL(stage_id, op, ...) do {     int _error;     R23BE_REQUIRE(op);     state->stage = (stage_id);     _error = (op)(__VA_ARGS__);     if (_error != 0)         goto fail; } while (0)
 
+
+int
+rtwn8723be_linux_probe(void *ctx, struct rtwn8723be_linux_state *state,
+    const struct rtwn8723be_linux_ops *ops)
+{
+    int error = 0;
+
+    if (state == NULL || ops == NULL)
+        return EINVAL;
+
+    state->stage = R23BE_STAGE_IDLE;
+    state->started = false;
+    state->fw_ready = false;
+    state->mac_func_enable = false;
+
+    R23BE_CALL(R23BE_STAGE_PCI_ENABLE, ops->pci_enable, ctx);
+    R23BE_CALL(R23BE_STAGE_DMA_CONFIG, ops->dma_configure, ctx);
+    R23BE_CALL(R23BE_STAGE_BUS_MASTER, ops->pci_set_master, ctx);
+    R23BE_CALL(R23BE_STAGE_SOFTC_ALLOC, ops->alloc_softc, ctx);
+    R23BE_CALL(R23BE_STAGE_BAR_MAP, ops->map_bar, ctx);
+    R23BE_CALL(R23BE_STAGE_PCI_D0, ops->pci_prepare_d0, ctx);
+    R23BE_CALL(R23BE_STAGE_ADAPTER_IDENTIFY, ops->find_adapter, ctx);
+    R23BE_CALL(R23BE_STAGE_IO_INIT, ops->init_io, ctx);
+    R23BE_CALL(R23BE_STAGE_EEPROM, ops->read_eeprom_info, ctx);
+    R23BE_CALL(R23BE_STAGE_SW_VARS, ops->init_sw_vars, ctx);
+    R23BE_CALL(R23BE_STAGE_LEDS, ops->init_leds, ctx);
+    R23BE_CALL(R23BE_STAGE_ASPM_INIT, ops->init_aspm, ctx);
+    R23BE_CALL(R23BE_STAGE_CORE_INIT, ops->init_core, ctx);
+
+    /*
+     * Linux rtl_pci_init() allocates and initializes all TX/RX rings before
+     * rtl_pci_start() calls rtl8723be_hw_init().  This ordering is mandatory:
+     * _rtl8723be_init_mac() programs the ring DMA addresses into hardware.
+     */
+    R23BE_CALL(R23BE_STAGE_PCI_RINGS, ops->init_pci_rings, ctx);
+
+    R23BE_CALL(R23BE_STAGE_IEEE80211_REGISTER,
+        ops->register_ieee80211, ctx);
+    R23BE_CALL(R23BE_STAGE_RFKILL, ops->init_rfkill, ctx);
+    R23BE_CALL(R23BE_STAGE_IRQ_ESTABLISH, ops->establish_irq, ctx);
+
+    state->stage = R23BE_STAGE_PROBED;
+    return 0;
+
+fail:
+    return error != 0 ? error : EIO;
+}
+
 int
 rtwn8723be_linux_hw_init(void *ctx, struct rtwn8723be_linux_state *state,
     const struct rtwn8723be_linux_ops *ops)
