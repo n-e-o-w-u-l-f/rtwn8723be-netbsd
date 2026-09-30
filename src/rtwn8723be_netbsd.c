@@ -12,6 +12,8 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <dev/pci/pcidevs.h>
 
 #include "rtwn8723be_netbsd.h"
+#include "rtwn8723be_fw.h"
+#include "rtwn8723be_pwrseq_plan.h"
 
 static int rtwn8723be_netbsd_intr(void *);
 static void rtwn8723be_netbsd_softintr(void *);
@@ -634,6 +636,63 @@ rtwn8723be_netbsd_softintr(void *arg)
 }
 
 int
+rtwn8723be_netbsd_poweroff_adapter(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+    uint8_t tmp;
+    int error;
+
+    if (!sc->sc_mapped)
+        return ENXIO;
+
+    sc->sc_mac_func_enable = false;
+    sc->sc_linux.mac_func_enable = false;
+
+    /*
+     * Pinned Linux _rtl8723be_poweroff_adapter():
+     * first enter the RTL8723B LPS/RF-off flow.
+     */
+    error = rtwn8723be_pwrseq_flow_exec(sc->sc_st, sc->sc_sh,
+        RTWN8723BE_PWR_FLOW_ENTER_LPS, RTWN8723BE_PWR_CUT_ALL,
+        RTWN8723BE_PWR_FAB_ALL, RTWN8723BE_PWR_INTF_PCI);
+    if (error != 0)
+        return error;
+
+    /*
+     * Linux self-resets firmware only when RAM firmware is selected and
+     * firmware had reached the ready state.
+     */
+    if ((rtwn8723be_read_1(sc, R23BE_REG_MCUFWDL) &
+        R23BE_MCUFWDL_RAM_DL_SEL) != 0 && sc->sc_linux.fw_ready)
+        rtwn8723be_fw_selfreset(sc->sc_st, sc->sc_sh);
+
+    /* Reset MCU and clear the firmware-ready state. */
+    tmp = rtwn8723be_read_1(sc, R23BE_REG_SYS_FUNC_EN + 1);
+    rtwn8723be_write_1(sc, R23BE_REG_SYS_FUNC_EN + 1,
+        tmp & ~(1U << 2));
+    rtwn8723be_write_1(sc, R23BE_REG_MCUFWDL, 0);
+    sc->sc_linux.fw_ready = false;
+
+    /* Hardware card-disable power flow: ACT -> CARDEMU -> CARDDIS. */
+    error = rtwn8723be_pwrseq_flow_exec(sc->sc_st, sc->sc_sh,
+        RTWN8723BE_PWR_FLOW_CARD_DISABLE, RTWN8723BE_PWR_CUT_ALL,
+        RTWN8723BE_PWR_FAB_ALL, RTWN8723BE_PWR_INTF_PCI);
+    if (error != 0)
+        return error;
+
+    /* Reset MCU I/O wrapper, then lock ISO/CLK/power control. */
+    tmp = rtwn8723be_read_1(sc, R23BE_REG_RSV_CTRL + 1);
+    rtwn8723be_write_1(sc, R23BE_REG_RSV_CTRL + 1,
+        tmp & ~(1U << 0));
+    tmp = rtwn8723be_read_1(sc, R23BE_REG_RSV_CTRL + 1);
+    rtwn8723be_write_1(sc, R23BE_REG_RSV_CTRL + 1,
+        tmp | (1U << 0));
+    rtwn8723be_write_1(sc, R23BE_REG_RSV_CTRL, 0x0e);
+
+    return 0;
+}
+
+int
 rtwn8723be_netbsd_read_cr(void *arg, uint8_t *value)
 {
     struct rtwn8723be_softc *sc = arg;
@@ -771,6 +830,7 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .check_pcie_dma_hang = rtwn8723be_netbsd_check_pcie_dma_hang,
     .reset_pcie_interface_dma =
         rtwn8723be_netbsd_reset_pcie_interface_dma,
+    .poweroff_adapter = rtwn8723be_netbsd_poweroff_adapter,
     .establish_irq = rtwn8723be_netbsd_establish_irq,
     .enable_interrupt = rtwn8723be_netbsd_enable_interrupt,
     .disable_interrupt = rtwn8723be_netbsd_disable_interrupt,
