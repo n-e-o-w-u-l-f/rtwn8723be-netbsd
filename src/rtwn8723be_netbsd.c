@@ -104,6 +104,45 @@ rtwn8723be_write_4(struct rtwn8723be_softc *sc, bus_size_t reg,
         BUS_SPACE_BARRIER_WRITE);
 }
 
+static unsigned int
+rtwn8723be_netbsd_bit_shift(uint32_t bitmask)
+{
+    unsigned int shift = 0;
+
+    KASSERT(bitmask != 0);
+    while ((bitmask & 1U) == 0) {
+        bitmask >>= 1;
+        shift++;
+    }
+    return shift;
+}
+
+uint32_t
+rtwn8723be_netbsd_get_bbreg(struct rtwn8723be_softc *sc,
+    bus_size_t reg, uint32_t bitmask)
+{
+    uint32_t value;
+
+    KASSERT(bitmask != 0);
+    value = rtwn8723be_read_4(sc, reg);
+    return (value & bitmask) >> rtwn8723be_netbsd_bit_shift(bitmask);
+}
+
+void
+rtwn8723be_netbsd_set_bbreg(struct rtwn8723be_softc *sc,
+    bus_size_t reg, uint32_t bitmask, uint32_t data)
+{
+    uint32_t value;
+
+    KASSERT(bitmask != 0);
+    if (bitmask != 0xffffffffU) {
+        value = rtwn8723be_read_4(sc, reg);
+        data = (value & ~bitmask) |
+            (data << rtwn8723be_netbsd_bit_shift(bitmask));
+    }
+    rtwn8723be_write_4(sc, reg, data);
+}
+
 int
 rtwn8723be_netbsd_pci_enable(void *arg)
 {
