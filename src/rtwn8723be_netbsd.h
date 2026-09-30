@@ -81,6 +81,10 @@ uint32_t rtwn8723be_read_4(struct rtwn8723be_softc *, bus_size_t);
 void rtwn8723be_write_1(struct rtwn8723be_softc *, bus_size_t, uint8_t);
 void rtwn8723be_write_2(struct rtwn8723be_softc *, bus_size_t, uint16_t);
 void rtwn8723be_write_4(struct rtwn8723be_softc *, bus_size_t, uint32_t);
+uint32_t rtwn8723be_netbsd_get_bbreg(struct rtwn8723be_softc *,
+    bus_size_t, uint32_t);
+void rtwn8723be_netbsd_set_bbreg(struct rtwn8723be_softc *,
+    bus_size_t, uint32_t, uint32_t);
 
 int rtwn8723be_netbsd_pci_enable(void *);
 int rtwn8723be_netbsd_dma_configure(void *);
