@@ -92,6 +92,10 @@ int rtwn8723be_netbsd_init_pci_rings(void *);
 int rtwn8723be_netbsd_reset_trx_ring(void *);
 void rtwn8723be_netbsd_free_pci_rings(struct rtwn8723be_softc *);
 
+int rtwn8723be_netbsd_read_cr(void *, uint8_t *);
+int rtwn8723be_netbsd_check_pcie_dma_hang(void *, bool *);
+int rtwn8723be_netbsd_reset_pcie_interface_dma(void *, bool);
+
 void rtwn8723be_netbsd_irq_set_dispatch(struct rtwn8723be_softc *,
     const struct rtwn8723be_irq_dispatch *, void *);
 int rtwn8723be_netbsd_establish_irq(void *);
