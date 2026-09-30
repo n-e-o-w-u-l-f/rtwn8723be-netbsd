@@ -18,6 +18,9 @@
 /* Linux enum bt_ant_num: ANT_X2=0, ANT_X1=1. */
 #define RTWN8723BE_ANT_X2              0
 #define RTWN8723BE_ANT_X1              1
+#define RTWN8723BE_LED_PIN_GPIO0       0
+#define RTWN8723BE_LED_PIN_LED0        1
+#define RTWN8723BE_LED_PIN_LED1        2
 
 /*
  * Linux rtlwifi dispatches RX/TX work from the shared PCI interrupt after
@@ -93,6 +96,8 @@ struct rtwn8723be_softc {
 
     bool sc_up_first_time;
     bool sc_led_opendrain;
+    uint8_t sc_sw_led0;
+    uint8_t sc_sw_led1;
     uint32_t sc_rfoff_reason;
 
     bool sc_mac_func_enable;
@@ -123,6 +128,7 @@ int rtwn8723be_netbsd_find_adapter(void *);
 int rtwn8723be_netbsd_init_io(void *);
 int rtwn8723be_netbsd_read_eeprom_info(void *);
 int rtwn8723be_netbsd_init_sw_vars(void *);
+int rtwn8723be_netbsd_init_leds(void *);
 int rtwn8723be_netbsd_init_pci_rings(void *);
 int rtwn8723be_netbsd_reset_trx_ring(void *);
 void rtwn8723be_netbsd_free_pci_rings(struct rtwn8723be_softc *);
