@@ -6,9 +6,37 @@
 
 /* RTL8723BE hardware contract copied from the Linux rtl8723be reference. */
 #define RTWN8723BE_TX_DESC_SIZE        40
+#define RTWN8723BE_TX_DESC_STRIDE      64
 #define RTWN8723BE_RX_DESC_SIZE        32
 #define RTWN8723BE_RX_DRV_INFO_UNIT    8
 #define RTWN8723BE_TX_DESC_NEXT_OFFSET 40
+#define RTWN8723BE_TX_NEXT_DESC_DW     12
+#define RTWN8723BE_RING_ALIGN          256
+#define RTWN8723BE_RX_BUFFER_SIZE      9100
+
+#define RTWN8723BE_RX_MPDU_QUEUE       0
+#define RTWN8723BE_RX_CMD_QUEUE        1
+#define RTWN8723BE_RX_QUEUE_COUNT      2
+#define RTWN8723BE_RX_RING_COUNT       512
+
+#define RTWN8723BE_BK_QUEUE            0
+#define RTWN8723BE_BE_QUEUE            1
+#define RTWN8723BE_VI_QUEUE            2
+#define RTWN8723BE_VO_QUEUE            3
+#define RTWN8723BE_BEACON_QUEUE        4
+#define RTWN8723BE_TXCMD_QUEUE         5
+#define RTWN8723BE_MGNT_QUEUE          6
+#define RTWN8723BE_HIGH_QUEUE          7
+#define RTWN8723BE_HCCA_QUEUE          8
+#define RTWN8723BE_TX_QUEUE_COUNT      9
+
+#define RTWN8723BE_TX_RING_COUNT       128
+#define RTWN8723BE_TX_RING_BE_COUNT    256
+#define RTWN8723BE_TX_RING_BCN_COUNT   2
+
+#define RTWN8723BE_FIRMWARE_NAME       "rtlwifi/rtl8723befw_36.bin"
+#define RTWN8723BE_TCR_DEFAULT         0x03008200U
+#define RTWN8723BE_RCR_DEFAULT         0xf0007a0eU
 
 /* System / firmware control. */
 #define R23BE_REG_SYS_ISO_CTRL         0x0000
@@ -30,6 +58,7 @@
 #define R23BE_REG_ROM_VERSION          0x00fd
 
 /* Host interrupt block. */
+#define R23BE_REG_HSIMR                0x0058
 #define R23BE_REG_HSISR                0x005c
 #define R23BE_REG_HIMR                 0x00b0
 #define R23BE_REG_HISR                 0x00b4
@@ -177,24 +206,61 @@
 #define R23BE_RXD0_EOR                  0x40000000U
 #define R23BE_RXD0_OWN                  0x80000000U
 
+struct mbuf;
+
 struct rtwn8723be_rx_desc { uint32_t d[8]; };
-struct rtwn8723be_tx_desc { uint32_t d[10]; };
+/*
+ * Linux struct rtl_tx_desc is 16 DWORDs (64-byte coherent ring stride).
+ * RTL8723BE actively fills the first 40 bytes; DWORD 10 carries the TX
+ * buffer address and DWORD 12 carries the linked next-descriptor address.
+ */
+struct rtwn8723be_tx_desc { uint32_t d[16]; };
+
+struct rtwn8723be_dma_mem {
+    bus_dmamap_t map;
+    bus_dma_segment_t seg;
+    int nsegs;
+    void *kva;
+    bus_addr_t paddr;
+    bus_size_t size;
+};
+
+struct rtwn8723be_dma_slot {
+    bus_dmamap_t map;
+    struct mbuf *m;
+};
 
 struct rtwn8723be_tx_ring {
-    void *kva;
-    bus_dmamap_t map;
-    bus_addr_t paddr;
+    struct rtwn8723be_dma_mem desc_dma;
+    struct rtwn8723be_dma_slot *slot;
     uint32_t count;
     uint32_t producer;
     uint32_t consumer;
 };
+
 struct rtwn8723be_rx_ring {
-    void *kva;
-    bus_dmamap_t map;
-    bus_addr_t paddr;
+    struct rtwn8723be_dma_mem desc_dma;
+    struct rtwn8723be_dma_slot *slot;
     uint32_t count;
     uint32_t consumer;
 };
+
+int rtwn8723be_f16_1_dma_mem_alloc(bus_dma_tag_t,
+    struct rtwn8723be_dma_mem *, bus_size_t, bus_size_t);
+void rtwn8723be_f16_1_dma_mem_free(bus_dma_tag_t,
+    struct rtwn8723be_dma_mem *);
+void rtwn8723be_f16_1_dma_sync_for_device(bus_dma_tag_t,
+    struct rtwn8723be_dma_mem *, bus_addr_t, bus_size_t);
+void rtwn8723be_f16_1_dma_sync_for_cpu(bus_dma_tag_t,
+    struct rtwn8723be_dma_mem *, bus_addr_t, bus_size_t);
+int rtwn8723be_f16_1_tx_ring_alloc(bus_dma_tag_t,
+    struct rtwn8723be_tx_ring *, uint32_t);
+void rtwn8723be_f16_1_tx_ring_free(bus_dma_tag_t,
+    struct rtwn8723be_tx_ring *);
+int rtwn8723be_f16_1_rx_ring_alloc(bus_dma_tag_t,
+    struct rtwn8723be_rx_ring *, uint32_t);
+void rtwn8723be_f16_1_rx_ring_free(bus_dma_tag_t,
+    struct rtwn8723be_rx_ring *);
 
 static inline uint32_t r23be_get_own(const uint32_t v) { return (v >> 31) & 1U; }
 static inline void r23be_set_own(uint32_t *v) { *v |= R23BE_TXD0_OWN; }
