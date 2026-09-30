@@ -769,6 +769,83 @@ rtwn8723be_netbsd_enable_aspm(void *arg)
     return 0;
 }
 
+int
+rtwn8723be_netbsd_bt_power_on_setting(struct rtwn8723be_softc *sc)
+{
+    uint16_t value16;
+    uint8_t local = 0;
+
+    if (!sc->sc_btcoexist)
+        return 0;
+    if (!sc->sc_bt_ant_valid)
+        return ENXIO;
+    if (sc->sc_btdm_ant_num != 1 && sc->sc_btdm_ant_num != 2)
+        return EINVAL;
+    if (sc->sc_single_ant_path > 1)
+        return EINVAL;
+
+    /*
+     * Pinned Linux 8723B coexistence power-on common prefix.
+     */
+    rtwn8723be_write_1(sc, 0x0067, 0x20);
+    value16 = rtwn8723be_read_2(sc, R23BE_REG_SYS_FUNC_EN);
+    rtwn8723be_write_2(sc, R23BE_REG_SYS_FUNC_EN, value16 | 0x0003);
+
+    if (sc->sc_btdm_ant_num == 1) {
+        sc->sc_bt_stop_coex_dm = true;
+
+        /* GRANT_BT=1 and WLAN_ACT=0 from ex_btc8723b1ant_power_on_setting. */
+        rtwn8723be_write_1(sc, 0x0765, 0x18);
+        rtwn8723be_write_1(sc, 0x076e, 0x04);
+
+        if (sc->sc_single_ant_path == 0) {
+            rtwn8723be_write_4(sc, 0x0948, 0x00000280U);
+            sc->sc_btdm_ant_pos = RTWN8723BE_ANT_MAIN;
+            sc->sc_ant_pos_registry_ctrl = 1;
+        } else {
+            rtwn8723be_write_4(sc, 0x0948, 0x00000000U);
+            local |= 0x01;
+            sc->sc_btdm_ant_pos = RTWN8723BE_ANT_AUX;
+            sc->sc_ant_pos_registry_ctrl = 0;
+        }
+
+        /* PCI local register write in Linux maps to normal MMIO byte access. */
+        rtwn8723be_write_1(sc, 0x0384, local);
+        return 0;
+    }
+
+    /*
+     * Two-antenna power-on uses S0 here; the antenna-count/local-register
+     * byte is completed by ex_btc8723b2ant_pre_load_firmware().
+     */
+    rtwn8723be_write_4(sc, 0x0948, 0x00000000U);
+    sc->sc_btdm_ant_pos = sc->sc_single_ant_path == 0 ?
+        RTWN8723BE_ANT_MAIN : RTWN8723BE_ANT_AUX;
+    sc->sc_ant_pos_registry_ctrl = 0;
+    return 0;
+}
+
+int
+rtwn8723be_netbsd_bt_preload_firmware(struct rtwn8723be_softc *sc)
+{
+    uint8_t local;
+
+    if (!sc->sc_btcoexist || sc->sc_btdm_ant_num != 2)
+        return 0;
+    if (!sc->sc_bt_ant_valid || sc->sc_single_ant_path > 1)
+        return ENXIO;
+
+    /*
+     * Pinned Linux ex_btc8723b2ant_pre_load_firmware(), PCI branch.
+     * BIT2 advertises two antennas; BIT0 selects the inverse/S0 path.
+     */
+    local = 0x04;
+    if (sc->sc_single_ant_path == 1)
+        local |= 0x01;
+    rtwn8723be_write_1(sc, 0x0384, local);
+    return 0;
+}
+
 static int
 rtwn8723be_netbsd_llt_write(struct rtwn8723be_softc *sc,
     uint8_t address, uint8_t data)
