@@ -10,6 +10,24 @@
 #define RTWN8723BE_RX_DRV_INFO_UNIT    8
 #define RTWN8723BE_TX_DESC_NEXT_OFFSET 40
 
+/* Linux rtlwifi/pci.c ring topology for RTL8723BE old-TRX flow. */
+#define RTWN8723BE_RX_RING_COUNT       512
+#define RTWN8723BE_TX_QUEUE_COUNT      9
+#define RTWN8723BE_TX_RING_COUNT       128
+#define RTWN8723BE_TX_RING_BE_COUNT    256
+#define RTWN8723BE_TX_RING_BCN_COUNT   2
+#define RTWN8723BE_RX_BUFFER_SIZE      9100
+
+#define RTWN8723BE_BK_QUEUE            0
+#define RTWN8723BE_BE_QUEUE            1
+#define RTWN8723BE_VI_QUEUE            2
+#define RTWN8723BE_VO_QUEUE            3
+#define RTWN8723BE_BEACON_QUEUE        4
+#define RTWN8723BE_TXCMD_QUEUE         5
+#define RTWN8723BE_MGNT_QUEUE          6
+#define RTWN8723BE_HIGH_QUEUE          7
+#define RTWN8723BE_HCCA_QUEUE          8
+
 /* System / firmware control. */
 #define R23BE_REG_SYS_ISO_CTRL         0x0000
 #define R23BE_REG_SYS_FUNC_EN          0x0002
@@ -26,7 +44,9 @@
 #define R23BE_REG_SYS_CFG1             0x00fc
 #define R23BE_REG_ROM_VERSION          0x00fd
 
-/* Host interrupt block. */
+/* Host/system interrupt block. */
+#define R23BE_REG_HSIMR                0x0058
+#define R23BE_REG_HSISR                0x005c
 #define R23BE_REG_HIMR                 0x00b0
 #define R23BE_REG_HISR                 0x00b4
 #define R23BE_REG_HIMRE                0x00b8
