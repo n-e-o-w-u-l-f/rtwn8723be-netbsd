@@ -17,6 +17,7 @@
 #define R23BE_MCUFWDL_WINTINI_RDY       (1U << 6)
 #define R23BE_MCUFWDL_RAM_DL_SEL        (1U << 7)
 
+void rtwn8723be_fw_selfreset(bus_space_tag_t, bus_space_handle_t);
 int rtwn8723be_fw_download(bus_space_tag_t, bus_space_handle_t,
     const uint8_t *, size_t);
 int rtwn8723be_fw_free_to_go(bus_space_tag_t, bus_space_handle_t);
