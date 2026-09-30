@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <sys/bus.h>
 
+#define R23BE_FW_HEADER_SIZE            32
 #define R23BE_FW_START_ADDR             0x1000
 #define R23BE_FW_PAGE_SIZE              4096
 #define R23BE_FW_MAX_PAGES              8
