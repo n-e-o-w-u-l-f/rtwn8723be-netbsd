@@ -58,6 +58,8 @@
 #define R23BE_REG_SYS_CFG              0x00f0
 #define R23BE_REG_SYS_CFG1             0x00fc
 #define R23BE_REG_ROM_VERSION          0x00fd
+#define R23BE_REG_GPIO_MUXCFG          0x0040
+#define R23BE_REG_MULTI_FUNC_CTRL      0x0068
 
 /* Host interrupt block. */
 #define R23BE_REG_HSIMR                0x0058
@@ -119,6 +121,11 @@
 #define R23BE_REG_RXFF_PTR             0x011c
 #define R23BE_REG_FWIMR                0x0130
 #define R23BE_REG_FWISR                0x0134
+#define R23BE_REG_FWHW_TXQ_CTRL        0x0420
+#define R23BE_REG_HWSEQ_CTRL           0x0423
+#define R23BE_REG_TCR                  0x0604
+#define R23BE_REG_RCR                  0x0608
+#define R23BE_REG_RXFLTMAP2            0x06a4
 
 /* Firmware H2C/C2H mailbox block. */
 #define R23BE_REG_C2HEVT_MSG_NORMAL    0x01a0
