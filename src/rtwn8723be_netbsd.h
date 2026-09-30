@@ -77,6 +77,11 @@ struct rtwn8723be_softc {
     uint8_t sc_ant_pos_registry_ctrl;
     bool sc_bt_ant_valid;
     bool sc_bt_stop_coex_dm;
+
+    bool sc_up_first_time;
+    bool sc_led_opendrain;
+    uint32_t sc_rfoff_reason;
+
     bool sc_mac_func_enable;
 };
 
