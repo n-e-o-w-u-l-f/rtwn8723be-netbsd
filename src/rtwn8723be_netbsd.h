@@ -37,8 +37,14 @@ struct rtwn8723be_softc {
     bus_size_t sc_mapsize;
     bool sc_mapped;
 
+    bus_dma_tag_t sc_dmat_parent;
     bus_dma_tag_t sc_dmat;
+    bool sc_dmat_owned;
     bool sc_dma_32bit;
+
+    struct rtwn8723be_tx_ring sc_tx_ring[RTWN8723BE_TX_QUEUE_COUNT];
+    struct rtwn8723be_rx_ring sc_rx_ring[RTWN8723BE_RX_QUEUE_COUNT];
+    bool sc_rings_allocated;
 
     pci_intr_handle_t *sc_pihp;
     void *sc_ih;
@@ -68,12 +74,16 @@ void rtwn8723be_write_4(struct rtwn8723be_softc *, bus_size_t, uint32_t);
 
 int rtwn8723be_netbsd_pci_enable(void *);
 int rtwn8723be_netbsd_dma_configure(void *);
+void rtwn8723be_netbsd_dma_release(struct rtwn8723be_softc *);
 int rtwn8723be_netbsd_pci_set_master(void *);
 int rtwn8723be_netbsd_alloc_softc(void *);
 int rtwn8723be_netbsd_map_bar(void *);
 int rtwn8723be_netbsd_pci_prepare_d0(void *);
 int rtwn8723be_netbsd_find_adapter(void *);
 int rtwn8723be_netbsd_init_io(void *);
+int rtwn8723be_netbsd_init_pci_rings(void *);
+int rtwn8723be_netbsd_reset_trx_ring(void *);
+void rtwn8723be_netbsd_free_pci_rings(struct rtwn8723be_softc *);
 
 void rtwn8723be_netbsd_irq_set_dispatch(struct rtwn8723be_softc *,
     const struct rtwn8723be_irq_dispatch *, void *);
