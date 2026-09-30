@@ -26,7 +26,7 @@ none
 | COV-RTL-002 | MMIO/register access | rtl_read/write helpers | bus_space adapter | after BAR mapping | unmap | OPEN | register access audit |
 | COV-RTL-003 | DMA rings/LLT/descriptors allocation | LLT, rtlwifi PCI ring ownership | bus_dma rings preserving Linux descriptor layout/OWN semantics | before release/traffic | free/unmap/sync | IN_PROGRESS | descriptor/ring audit |
 | COV-RTL-004 | Firmware file/header validation | rtl8723befw_36.bin, 0x5300 signature | firmware(9) loading/header validation | before transfer | close/reject invalid image | IN_PROGRESS | signature/size evidence |
-| COV-RTL-005 | Firmware transfer/self-reset/ready | rtl8723_download_fw, rtl8723_write_fw, rtl8723_fw_free_to_go | page upload, self-reset, checksum, MCUFWDL_RDY/WINTINI_RDY | after MAC power, before BB/RF | disable/reset on failure | OPEN | firmware-ready evidence |
+| COV-RTL-005 | Firmware transfer/self-reset/ready | rtl8723_download_fw, rtl8723_write_fw, rtl8723_fw_free_to_go | page upload, self-reset, checksum, MCUFWDL_RDY/WINTINI_RDY | after MAC power, before BB/RF | disable/reset on failure | IN_PROGRESS | source implemented from pinned Linux; isolated -Wall/-Wextra/-Werror syntax/type check passed; NetBSD integration build and hardware-ready evidence pending |
 | COV-RTL-006 | MAC init/table | _rtl8723be_init_mac + phy_mac_config | exact register/state translation | after power, around firmware order per Linux | MAC reset | OPEN | MAC-state audit |
 | COV-RTL-007 | BB/RF configuration | rtl8723be_phy_bb_config/phy_rf_config | BB/RF tables + RF adapter | after firmware/MAC | RF cleanup | OPEN | channel/RF evidence |
 | COV-RTL-008 | HW policy/configuration | _rtl8723be_hw_configure | RRSR/ARFR/retry/TBTT/NAV/aggregation | after BB/RF | restore/reset | OPEN | register-state audit |
@@ -44,7 +44,7 @@ none
 Complete COV-RTL-001 power-sequence semantics, then implement COV-RTL-005 firmware transfer/ready handshake and continue into COV-RTL-003/COV-RTL-012 ordering closure; do not treat firmware load or one working register path as completion of the WLAN port.
 
 ## NEXT_UNRESOLVED
-All COV-RTL-000 through COV-RTL-017 remain unresolved; COV-RTL-001, COV-RTL-003, COV-RTL-004, and COV-RTL-013 are currently IN_PROGRESS.
+All COV-RTL-000 through COV-RTL-017 remain unresolved; COV-RTL-001, COV-RTL-003, COV-RTL-004, COV-RTL-005, and COV-RTL-013 are currently IN_PROGRESS.
 
 ## PARENT_STATUS
 IN_PROGRESS
