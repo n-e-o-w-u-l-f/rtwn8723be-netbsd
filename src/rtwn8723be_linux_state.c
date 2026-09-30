@@ -4,7 +4,13 @@
 #include "rtwn8723be_linux_state.h"
 
 #define R23BE_REQUIRE(op) do { if ((op) == NULL) return ENOSYS; } while (0)
-#define R23BE_CALL(stage_id, op, ...) do {     int _error;     R23BE_REQUIRE(op);     state->stage = (stage_id);     _error = (op)(__VA_ARGS__);     if (_error != 0)         goto fail; } while (0)
+#define R23BE_CALL(stage_id, op, ...) do { \
+    R23BE_REQUIRE(op); \
+    state->stage = (stage_id); \
+    error = (op)(__VA_ARGS__); \
+    if (error != 0) \
+        goto fail; \
+} while (0)
 
 
 int
