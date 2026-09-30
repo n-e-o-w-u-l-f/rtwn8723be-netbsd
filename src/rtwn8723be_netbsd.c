@@ -247,6 +247,24 @@ rtwn8723be_netbsd_init_io(void *arg)
     return sc->sc_mapped ? 0 : ENXIO;
 }
 
+int
+rtwn8723be_netbsd_init_sw_vars(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+
+    /*
+     * Exact pinned-Linux rtl8723be_init_sw_vars() state relevant to the
+     * PCI/MAC hardware path.  BT coexistence is mandatory for 8723BE.
+     */
+    sc->sc_transmit_config = RTWN8723BE_TCR_DEFAULT;
+    sc->sc_receive_config = RTWN8723BE_RCR_DEFAULT;
+    sc->sc_firmware_name = RTWN8723BE_FIRMWARE_NAME;
+    sc->sc_btcoexist = true;
+    sc->sc_mac_func_enable = false;
+
+    return 0;
+}
+
 static uint32_t
 rtwn8723be_netbsd_tx_ring_count(unsigned int qid)
 {
@@ -630,6 +648,7 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .pci_prepare_d0 = rtwn8723be_netbsd_pci_prepare_d0,
     .find_adapter = rtwn8723be_netbsd_find_adapter,
     .init_io = rtwn8723be_netbsd_init_io,
+    .init_sw_vars = rtwn8723be_netbsd_init_sw_vars,
     .init_pci_rings = rtwn8723be_netbsd_init_pci_rings,
     .reset_trx_ring = rtwn8723be_netbsd_reset_trx_ring,
     .establish_irq = rtwn8723be_netbsd_establish_irq,
