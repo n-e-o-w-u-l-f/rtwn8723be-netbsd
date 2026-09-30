@@ -51,6 +51,25 @@
 #define R23BE_REG_RSV_CTRL             0x001c
 #define R23BE_REG_PMC_DBG_CTRL2        0x00cc
 #define R23BE_REG_EFUSE_CTRL           0x0030
+#define R23BE_REG_EFUSE_TEST           0x0034
+#define R23BE_REG_EFUSE_ACCESS         0x00cf
+
+/* Pinned Linux rtl8723be EFUSE geometry and map contract. */
+#define R23BE_EFUSE_REAL_CONTENT_LEN   256
+#define R23BE_EFUSE_HWSET_MAX_SIZE     512
+#define R23BE_EFUSE_MAX_SECTION        64
+#define R23BE_EFUSE_MAX_WORD_UNIT      4
+#define R23BE_EFUSE_FEN_ELDR           (1U << 12)
+#define R23BE_EFUSE_LOADER_CLK_EN      (1U << 5)
+#define R23BE_EFUSE_ANA8M              (1U << 1)
+
+#define R23BE_EEPROM_ID                0x8129
+#define R23BE_EEPROM_MAC_ADDR          0x00d0
+#define R23BE_EEPROM_VID               0x00d6
+#define R23BE_EEPROM_DID               0x00d8
+#define R23BE_EEPROM_SVID              0x00da
+#define R23BE_EEPROM_SMID              0x00dc
+#define R23BE_EEPROM_RF_BT_SETTING     0x00c3
 #define R23BE_REG_MCUFWDL              0x0080
 #define R23BE_REG_FW_START_ADDR        0x1000
 #define R23BE_REG_MCUTSTCFG            0x0084
