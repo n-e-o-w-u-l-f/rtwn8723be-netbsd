@@ -126,6 +126,8 @@
 #define R23BE_REG_TCR                  0x0604
 #define R23BE_REG_RCR                  0x0608
 #define R23BE_REG_RXFLTMAP2            0x06a4
+#define R23BE_REG_MCUTST_1             0x01c0
+#define R23BE_REG_SECONDARY_CCA_CTRL   0x0577
 
 /* Firmware H2C/C2H mailbox block. */
 #define R23BE_REG_C2HEVT_MSG_NORMAL    0x01a0
@@ -146,6 +148,7 @@
 #define R23BE_REG_RQPN_NPQ             0x0214
 #define R23BE_REG_TXPKTBUF_BCNQ_BDNY   0x0424
 #define R23BE_REG_TXPKTBUF_MGQ_BDNY    0x0425
+#define R23BE_REG_TXPKTBUF_WMAC_LBK_BF_HD 0x045d
 #define R23BE_REG_RX_DRVINFO_SZ         0x060f
 #define R23BE_LLT_POLL_MAX              20
 #define R23BE_LLT_WRITE_ACCESS          1U
