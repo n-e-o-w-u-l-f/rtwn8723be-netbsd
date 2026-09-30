@@ -498,7 +498,6 @@ rtwn8723be_netbsd_init_sw_vars(void *arg)
     sc->sc_up_first_time = true;
     sc->sc_led_opendrain = true;
     sc->sc_rfoff_reason = 0; /* RF_CHANGE_BY_INIT */
-    sc->sc_mac_func_enable = false;
 
     return 0;
 }
@@ -1348,8 +1347,6 @@ rtwn8723be_netbsd_poweroff_adapter(void *arg)
 
     if (!sc->sc_mapped)
         return ENXIO;
-
-    sc->sc_mac_func_enable = false;
     sc->sc_linux.mac_func_enable = false;
 
     /*
