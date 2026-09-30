@@ -13,6 +13,8 @@
 
 #define RTWN8723BE_PCI_BAR_MMIO        0x18
 #define RTWN8723BE_DMA_MAXADDR         0xffffffffULL
+#define RTWN8723BE_ANT_MAIN            0
+#define RTWN8723BE_ANT_AUX             1
 
 /*
  * Linux rtlwifi dispatches RX/TX work from the shared PCI interrupt after
@@ -74,6 +76,7 @@ struct rtwn8723be_softc {
     uint8_t sc_btdm_ant_pos;
     uint8_t sc_ant_pos_registry_ctrl;
     bool sc_bt_ant_valid;
+    bool sc_bt_stop_coex_dm;
     bool sc_mac_func_enable;
 };
 
@@ -114,6 +117,7 @@ int rtwn8723be_netbsd_check_pcie_dma_hang(void *, bool *);
 int rtwn8723be_netbsd_reset_pcie_interface_dma(void *, bool);
 int rtwn8723be_netbsd_poweroff_adapter(void *);
 int rtwn8723be_netbsd_bt_power_on_setting(struct rtwn8723be_softc *);
+int rtwn8723be_netbsd_bt_preload_firmware(struct rtwn8723be_softc *);
 int rtwn8723be_netbsd_init_mac(void *);
 int rtwn8723be_netbsd_sys_cfg_clear_bit7(void *);
 int rtwn8723be_netbsd_download_firmware(void *);
