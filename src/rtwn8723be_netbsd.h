@@ -73,6 +73,16 @@ struct rtwn8723be_softc {
     uint32_t sc_receive_config;
     uint32_t sc_transmit_config;
     const char *sc_firmware_name;
+
+    uint8_t sc_efuse_map[R23BE_EFUSE_HWSET_MAX_SIZE];
+    uint16_t sc_eeprom_id;
+    uint16_t sc_eeprom_vid;
+    uint16_t sc_eeprom_did;
+    uint16_t sc_eeprom_svid;
+    uint16_t sc_eeprom_smid;
+    uint8_t sc_macaddr[6];
+    bool sc_efuse_autoload_ok;
+    bool sc_boot_from_efuse;
     bool sc_btcoexist;
     uint8_t sc_btdm_ant_num;
     uint8_t sc_single_ant_path;
@@ -111,6 +121,7 @@ int rtwn8723be_netbsd_map_bar(void *);
 int rtwn8723be_netbsd_pci_prepare_d0(void *);
 int rtwn8723be_netbsd_find_adapter(void *);
 int rtwn8723be_netbsd_init_io(void *);
+int rtwn8723be_netbsd_read_eeprom_info(void *);
 int rtwn8723be_netbsd_init_sw_vars(void *);
 int rtwn8723be_netbsd_init_pci_rings(void *);
 int rtwn8723be_netbsd_reset_trx_ring(void *);
