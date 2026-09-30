@@ -69,6 +69,11 @@ struct rtwn8723be_softc {
     uint32_t sc_transmit_config;
     const char *sc_firmware_name;
     bool sc_btcoexist;
+    uint8_t sc_btdm_ant_num;
+    uint8_t sc_single_ant_path;
+    uint8_t sc_btdm_ant_pos;
+    uint8_t sc_ant_pos_registry_ctrl;
+    bool sc_bt_ant_valid;
     bool sc_mac_func_enable;
 };
 
@@ -108,6 +113,8 @@ int rtwn8723be_netbsd_read_cr(void *, uint8_t *);
 int rtwn8723be_netbsd_check_pcie_dma_hang(void *, bool *);
 int rtwn8723be_netbsd_reset_pcie_interface_dma(void *, bool);
 int rtwn8723be_netbsd_poweroff_adapter(void *);
+int rtwn8723be_netbsd_bt_power_on_setting(struct rtwn8723be_softc *);
+int rtwn8723be_netbsd_init_mac(void *);
 int rtwn8723be_netbsd_sys_cfg_clear_bit7(void *);
 int rtwn8723be_netbsd_download_firmware(void *);
 
