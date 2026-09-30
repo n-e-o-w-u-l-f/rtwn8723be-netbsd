@@ -830,7 +830,8 @@ rtwn8723be_netbsd_bt_power_on_setting(struct rtwn8723be_softc *sc)
         return 0;
     if (!sc->sc_bt_ant_valid)
         return ENXIO;
-    if (sc->sc_btdm_ant_num != 1 && sc->sc_btdm_ant_num != 2)
+    if (sc->sc_btdm_ant_num != RTWN8723BE_ANT_X1 &&
+        sc->sc_btdm_ant_num != RTWN8723BE_ANT_X2)
         return EINVAL;
     if (sc->sc_single_ant_path > 1)
         return EINVAL;
@@ -842,7 +843,7 @@ rtwn8723be_netbsd_bt_power_on_setting(struct rtwn8723be_softc *sc)
     value16 = rtwn8723be_read_2(sc, R23BE_REG_SYS_FUNC_EN);
     rtwn8723be_write_2(sc, R23BE_REG_SYS_FUNC_EN, value16 | 0x0003);
 
-    if (sc->sc_btdm_ant_num == 1) {
+    if (sc->sc_btdm_ant_num == RTWN8723BE_ANT_X1) {
         sc->sc_bt_stop_coex_dm = true;
 
         /* GRANT_BT=1 and WLAN_ACT=0 from ex_btc8723b1ant_power_on_setting. */
@@ -881,7 +882,8 @@ rtwn8723be_netbsd_bt_preload_firmware(struct rtwn8723be_softc *sc)
 {
     uint8_t local;
 
-    if (!sc->sc_btcoexist || sc->sc_btdm_ant_num != 2)
+    if (!sc->sc_btcoexist ||
+        sc->sc_btdm_ant_num != RTWN8723BE_ANT_X2)
         return 0;
     if (!sc->sc_bt_ant_valid || sc->sc_single_ant_path > 1)
         return ENXIO;
