@@ -5,10 +5,20 @@
 #include <sys/bus.h>
 
 /* RTL8723BE hardware contract copied from the Linux rtl8723be reference. */
-#define RTWN8723BE_TX_DESC_SIZE        40
+/*
+ * Linux rtl8723be/trx.h calls the first 40 bytes TX_DESC_SIZE: this is the
+ * hardware TX information header that is cleared/populated for a packet.
+ * The PCI ring itself is an array of struct rtl_tx_desc from rtlwifi/pci.h,
+ * which is 16 DWORDs = 64 bytes.  DWORD 10 is the buffer address and DWORD
+ * 12 is the next-descriptor address.
+ */
+#define RTWN8723BE_TX_HW_DESC_SIZE     40
+#define RTWN8723BE_TX_RING_DESC_SIZE   64
 #define RTWN8723BE_RX_DESC_SIZE        32
 #define RTWN8723BE_RX_DRV_INFO_UNIT    8
-#define RTWN8723BE_TX_DESC_NEXT_OFFSET 40
+#define RTWN8723BE_TX_BUFFER_ADDR_DW   10
+#define RTWN8723BE_TX_NEXT_DESC_DW     12
+#define RTWN8723BE_RING_ALIGN          256
 
 /* Linux rtlwifi/pci.c ring topology for RTL8723BE old-TRX flow. */
 #define RTWN8723BE_RX_RING_COUNT       512
@@ -192,20 +202,25 @@
 #define R23BE_RXD0_OWN                  0x80000000U
 
 struct rtwn8723be_rx_desc { uint32_t d[8]; };
-struct rtwn8723be_tx_desc { uint32_t d[10]; };
+struct rtwn8723be_tx_desc { uint32_t d[16]; };
 
-struct rtwn8723be_tx_ring {
+struct rtwn8723be_dma_mem {
     void *kva;
     bus_dmamap_t map;
+    bus_dma_segment_t seg;
+    int nsegs;
     bus_addr_t paddr;
+    bus_size_t size;
+};
+
+struct rtwn8723be_tx_ring {
+    struct rtwn8723be_dma_mem desc_dma;
     uint32_t count;
     uint32_t producer;
     uint32_t consumer;
 };
 struct rtwn8723be_rx_ring {
-    void *kva;
-    bus_dmamap_t map;
-    bus_addr_t paddr;
+    struct rtwn8723be_dma_mem desc_dma;
     uint32_t count;
     uint32_t consumer;
 };
