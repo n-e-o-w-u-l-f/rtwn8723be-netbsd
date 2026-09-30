@@ -5,47 +5,10 @@
 #include <sys/bus.h>
 
 /* RTL8723BE hardware contract copied from the Linux rtl8723be reference. */
-/*
- * Linux rtl8723be/trx.h calls the first 40 bytes TX_DESC_SIZE: this is the
- * hardware TX information header that is cleared/populated for a packet.
- * The PCI ring itself is an array of struct rtl_tx_desc from rtlwifi/pci.h,
- * which is 16 DWORDs = 64 bytes.  DWORD 10 is the buffer address and DWORD
- * 12 is the next-descriptor address.
- */
-#define RTWN8723BE_TX_HW_DESC_SIZE     40
-#define RTWN8723BE_TX_RING_DESC_SIZE   64
+#define RTWN8723BE_TX_DESC_SIZE        40
 #define RTWN8723BE_RX_DESC_SIZE        32
 #define RTWN8723BE_RX_DRV_INFO_UNIT    8
-#define RTWN8723BE_TX_BUFFER_ADDR_DW   10
-#define RTWN8723BE_TX_NEXT_DESC_DW     12
-#define RTWN8723BE_RING_ALIGN          256
-
-#define RTWN8723BE_FIRMWARE_NAME       "rtlwifi/rtl8723befw_36.bin"
-
-/* Pinned Linux rtl8723be_init_sw_vars() defaults. */
-#define RTWN8723BE_TCR_DEFAULT          0x03008200U
-#define RTWN8723BE_RCR_DEFAULT          0xf0007a0eU
-#define RTWN8723BE_MASKDWORD            0xffffffffU
-#define RTWN8723BE_MASKBYTE0            0x000000ffU
-
-/* Linux rtlwifi/pci.c ring topology for RTL8723BE old-TRX flow. */
-#define RTWN8723BE_RX_QUEUE_COUNT      2
-#define RTWN8723BE_RX_RING_COUNT       512
-#define RTWN8723BE_TX_QUEUE_COUNT      9
-#define RTWN8723BE_TX_RING_COUNT       128
-#define RTWN8723BE_TX_RING_BE_COUNT    256
-#define RTWN8723BE_TX_RING_BCN_COUNT   2
-#define RTWN8723BE_RX_BUFFER_SIZE      9100
-
-#define RTWN8723BE_BK_QUEUE            0
-#define RTWN8723BE_BE_QUEUE            1
-#define RTWN8723BE_VI_QUEUE            2
-#define RTWN8723BE_VO_QUEUE            3
-#define RTWN8723BE_BEACON_QUEUE        4
-#define RTWN8723BE_TXCMD_QUEUE         5
-#define RTWN8723BE_MGNT_QUEUE          6
-#define RTWN8723BE_HIGH_QUEUE          7
-#define RTWN8723BE_HCCA_QUEUE          8
+#define RTWN8723BE_TX_DESC_NEXT_OFFSET 40
 
 /* System / firmware control. */
 #define R23BE_REG_SYS_ISO_CTRL         0x0000
@@ -55,19 +18,16 @@
 #define R23BE_REG_9346CR               0x000a
 #define R23BE_REG_RF_CTRL              0x001f
 #define R23BE_REG_MAC_PHY_CTRL         0x002c
-#define R23BE_REG_GPIO_MUXCFG           0x0040
-#define R23BE_REG_MULTI_FUNC_CTRL       0x0068
 #define R23BE_REG_RSV_CTRL             0x001c
 #define R23BE_REG_EFUSE_CTRL           0x0030
 #define R23BE_REG_MCUFWDL              0x0080
+#define R23BE_REG_FW_START_ADDR        0x1000
 #define R23BE_REG_MCUTSTCFG            0x0084
 #define R23BE_REG_SYS_CFG              0x00f0
 #define R23BE_REG_SYS_CFG1             0x00fc
 #define R23BE_REG_ROM_VERSION          0x00fd
 
-/* Host/system interrupt block. */
-#define R23BE_REG_HSIMR                0x0058
-#define R23BE_REG_HSISR                0x005c
+/* Host interrupt block. */
 #define R23BE_REG_HIMR                 0x00b0
 #define R23BE_REG_HISR                 0x00b4
 #define R23BE_REG_HIMRE                0x00b8
@@ -125,16 +85,6 @@
 #define R23BE_REG_RXFF_PTR             0x011c
 #define R23BE_REG_FWIMR                0x0130
 #define R23BE_REG_FWISR                0x0134
-#define R23BE_REG_MCUTST_1             0x01c0
-#define R23BE_REG_LLT_INIT             0x01e0
-
-#define R23BE_LLT_NO_ACTIVE            0U
-#define R23BE_LLT_WRITE_ACCESS         1U
-#define R23BE_LLT_POLL_THRESHOLD       20U
-#define R23BE_LLT_DATA(x)              ((uint32_t)(x) & 0xffU)
-#define R23BE_LLT_ADDR(x)              (((uint32_t)(x) & 0xffU) << 8)
-#define R23BE_LLT_OP(x)                (((uint32_t)(x) & 0x3U) << 30)
-#define R23BE_LLT_OP_VALUE(x)          (((uint32_t)(x) >> 30) & 0x3U)
 
 /* Firmware H2C/C2H mailbox block. */
 #define R23BE_REG_C2HEVT_MSG_NORMAL    0x01a0
@@ -151,10 +101,8 @@
 
 /* TX/RX DMA queue and PCIe descriptor registers. */
 #define R23BE_REG_RQPN                 0x0200
-#define R23BE_REG_TDECTRL              0x0208
 #define R23BE_REG_TXDMA_OFFSET_CHK     0x020c
 #define R23BE_REG_TXDMA_STATUS         0x0210
-#define R23BE_REG_RQPN_NPQ             0x0214
 #define R23BE_REG_RXDMA_AGG_PG_TH      0x0280
 #define R23BE_REG_FW_UPD_RDPTR         0x0284
 #define R23BE_REG_RXDMA_CONTROL        0x0286
@@ -169,15 +117,6 @@
 #define R23BE_REG_BEQ_DESA             0x0330
 #define R23BE_REG_BKQ_DESA             0x0338
 #define R23BE_REG_RX_DESA              0x0340
-#define R23BE_REG_FWHW_TXQ_CTRL        0x0420
-#define R23BE_REG_TXPKTBUF_BCNQ_BDNY   0x0424
-#define R23BE_REG_TXPKTBUF_MGQ_BDNY    0x0425
-#define R23BE_REG_HWSEQ_CTRL           0x0423
-#define R23BE_REG_SECONDARY_CCA_CTRL   0x0577
-#define R23BE_REG_TCR                  0x0604
-#define R23BE_REG_RCR                  0x0608
-#define R23BE_REG_RX_DRVINFO_SZ        0x060f
-#define R23BE_REG_RXFLTMAP2            0x06a4
 
 /* PCIe DMA control bits used by the Linux init/reset path. */
 #define R23BE_PCIE_CTRL_DMA_HANG_RST   (1U << 0)
@@ -234,34 +173,20 @@
 #define R23BE_RXD0_OWN                  0x80000000U
 
 struct rtwn8723be_rx_desc { uint32_t d[8]; };
-struct rtwn8723be_tx_desc { uint32_t d[16]; };
-
-struct rtwn8723be_dma_mem {
-    void *kva;
-    bus_dmamap_t map;
-    bus_dma_segment_t seg;
-    int nsegs;
-    bus_addr_t paddr;
-    bus_size_t size;
-};
-
-struct mbuf;
-
-struct rtwn8723be_packet_slot {
-    struct mbuf *m;
-    bus_dmamap_t map;
-};
+struct rtwn8723be_tx_desc { uint32_t d[10]; };
 
 struct rtwn8723be_tx_ring {
-    struct rtwn8723be_dma_mem desc_dma;
-    struct rtwn8723be_packet_slot *slot;
+    void *kva;
+    bus_dmamap_t map;
+    bus_addr_t paddr;
     uint32_t count;
     uint32_t producer;
     uint32_t consumer;
 };
 struct rtwn8723be_rx_ring {
-    struct rtwn8723be_dma_mem desc_dma;
-    struct rtwn8723be_packet_slot *slot;
+    void *kva;
+    bus_dmamap_t map;
+    bus_addr_t paddr;
     uint32_t count;
     uint32_t consumer;
 };
@@ -270,30 +195,5 @@ static inline uint32_t r23be_get_own(const uint32_t v) { return (v >> 31) & 1U; 
 static inline void r23be_set_own(uint32_t *v) { *v |= R23BE_TXD0_OWN; }
 static inline void r23be_clear_own(uint32_t *v) { *v &= ~R23BE_TXD0_OWN; }
 static inline uint32_t r23be_rx_pkt_len(const struct rtwn8723be_rx_desc *d) { return d->d[0] & R23BE_RXD0_PKT_LEN_MASK; }
-
-int rtwn8723be_f16_1_dma_mem_alloc(bus_dma_tag_t,
-    struct rtwn8723be_dma_mem *, bus_size_t, bus_size_t);
-void rtwn8723be_f16_1_dma_mem_free(bus_dma_tag_t,
-    struct rtwn8723be_dma_mem *);
-void rtwn8723be_f16_1_dma_sync_for_device(bus_dma_tag_t,
-    struct rtwn8723be_dma_mem *, bus_addr_t, bus_size_t);
-void rtwn8723be_f16_1_dma_sync_for_cpu(bus_dma_tag_t,
-    struct rtwn8723be_dma_mem *, bus_addr_t, bus_size_t);
-
-int rtwn8723be_f16_1_tx_ring_alloc(bus_dma_tag_t,
-    struct rtwn8723be_tx_ring *, uint32_t);
-void rtwn8723be_f16_1_tx_ring_free(bus_dma_tag_t,
-    struct rtwn8723be_tx_ring *);
-int rtwn8723be_f16_1_rx_ring_alloc(bus_dma_tag_t,
-    struct rtwn8723be_rx_ring *, uint32_t);
-void rtwn8723be_f16_1_rx_ring_free(bus_dma_tag_t,
-    struct rtwn8723be_rx_ring *);
-
-struct rtwn8723be_softc;
-int rtwn8723be_f16_1_llt_init(struct rtwn8723be_softc *);
-void rtwn8723be_f16_1_bb_set(struct rtwn8723be_softc *,
-    uint32_t, uint32_t, uint32_t);
-uint32_t rtwn8723be_f16_1_bb_get(struct rtwn8723be_softc *,
-    uint32_t, uint32_t);
 
 #endif /* _RTWN8723BE_F16_1_H_ */
