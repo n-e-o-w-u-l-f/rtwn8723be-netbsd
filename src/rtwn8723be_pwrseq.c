@@ -87,46 +87,59 @@ rtwn8723be_pwrseq_flow_exec(bus_space_tag_t st, bus_space_handle_t sh,
 {
     int error;
 
-#define RUN_TRANSITION(name) do {                                         \
-    error = rtwn8723be_pwrseq_transition(st, sh,                         \
-        rtwn8723be_trans_##name, RTWN8723BE_TRANS_##name##_COUNT,       \
-        cut, fab, intf);                                                  \
-    if (error != 0)                                                       \
-        return error;                                                     \
+#define RUN_TRANSITION(array, count) do {                               \
+    error = rtwn8723be_pwrseq_transition(st, sh, (array), (count),        \
+        cut, fab, intf);                                                   \
+    if (error != 0)                                                        \
+        return error;                                                      \
 } while (0)
 
     switch (flow) {
     case RTWN8723BE_PWR_FLOW_POWER_ON:
-        RUN_TRANSITION(CARDEMU_TO_ACT);
+        RUN_TRANSITION(rtwn8723be_trans_cardemu_to_act,
+            RTWN8723BE_TRANS_CARDEMU_TO_ACT_COUNT);
         break;
     case RTWN8723BE_PWR_FLOW_RADIO_OFF:
-        RUN_TRANSITION(ACT_TO_CARDEMU);
+        RUN_TRANSITION(rtwn8723be_trans_act_to_cardemu,
+            RTWN8723BE_TRANS_ACT_TO_CARDEMU_COUNT);
         break;
     case RTWN8723BE_PWR_FLOW_CARD_DISABLE:
-        RUN_TRANSITION(ACT_TO_CARDEMU);
-        RUN_TRANSITION(CARDEMU_TO_CARDDIS);
+        RUN_TRANSITION(rtwn8723be_trans_act_to_cardemu,
+            RTWN8723BE_TRANS_ACT_TO_CARDEMU_COUNT);
+        RUN_TRANSITION(rtwn8723be_trans_cardemu_to_carddis,
+            RTWN8723BE_TRANS_CARDEMU_TO_CARDDIS_COUNT);
         break;
     case RTWN8723BE_PWR_FLOW_CARD_ENABLE:
-        RUN_TRANSITION(CARDDIS_TO_CARDEMU);
-        RUN_TRANSITION(CARDEMU_TO_ACT);
+        RUN_TRANSITION(rtwn8723be_trans_carddis_to_cardemu,
+            RTWN8723BE_TRANS_CARDDIS_TO_CARDEMU_COUNT);
+        RUN_TRANSITION(rtwn8723be_trans_cardemu_to_act,
+            RTWN8723BE_TRANS_CARDEMU_TO_ACT_COUNT);
         break;
     case RTWN8723BE_PWR_FLOW_SUSPEND:
-        RUN_TRANSITION(ACT_TO_CARDEMU);
-        RUN_TRANSITION(CARDEMU_TO_SUS);
+        RUN_TRANSITION(rtwn8723be_trans_act_to_cardemu,
+            RTWN8723BE_TRANS_ACT_TO_CARDEMU_COUNT);
+        RUN_TRANSITION(rtwn8723be_trans_cardemu_to_sus,
+            RTWN8723BE_TRANS_CARDEMU_TO_SUS_COUNT);
         break;
     case RTWN8723BE_PWR_FLOW_RESUME:
-        RUN_TRANSITION(SUS_TO_CARDEMU);
-        RUN_TRANSITION(CARDEMU_TO_ACT);
+        RUN_TRANSITION(rtwn8723be_trans_sus_to_cardemu,
+            RTWN8723BE_TRANS_SUS_TO_CARDEMU_COUNT);
+        RUN_TRANSITION(rtwn8723be_trans_cardemu_to_act,
+            RTWN8723BE_TRANS_CARDEMU_TO_ACT_COUNT);
         break;
     case RTWN8723BE_PWR_FLOW_HWPDN:
-        RUN_TRANSITION(ACT_TO_CARDEMU);
-        RUN_TRANSITION(CARDEMU_TO_PDN);
+        RUN_TRANSITION(rtwn8723be_trans_act_to_cardemu,
+            RTWN8723BE_TRANS_ACT_TO_CARDEMU_COUNT);
+        RUN_TRANSITION(rtwn8723be_trans_cardemu_to_pdn,
+            RTWN8723BE_TRANS_CARDEMU_TO_PDN_COUNT);
         break;
     case RTWN8723BE_PWR_FLOW_ENTER_LPS:
-        RUN_TRANSITION(ACT_TO_LPS);
+        RUN_TRANSITION(rtwn8723be_trans_act_to_lps,
+            RTWN8723BE_TRANS_ACT_TO_LPS_COUNT);
         break;
     case RTWN8723BE_PWR_FLOW_LEAVE_LPS:
-        RUN_TRANSITION(LPS_TO_ACT);
+        RUN_TRANSITION(rtwn8723be_trans_lps_to_act,
+            RTWN8723BE_TRANS_LPS_TO_ACT_COUNT);
         break;
     default:
         return EINVAL;
