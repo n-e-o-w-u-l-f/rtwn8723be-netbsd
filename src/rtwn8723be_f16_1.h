@@ -21,6 +21,7 @@
 #define RTWN8723BE_RING_ALIGN          256
 
 /* Linux rtlwifi/pci.c ring topology for RTL8723BE old-TRX flow. */
+#define RTWN8723BE_RX_QUEUE_COUNT      2
 #define RTWN8723BE_RX_RING_COUNT       512
 #define RTWN8723BE_TX_QUEUE_COUNT      9
 #define RTWN8723BE_TX_RING_COUNT       128
@@ -213,14 +214,23 @@ struct rtwn8723be_dma_mem {
     bus_size_t size;
 };
 
+struct mbuf;
+
+struct rtwn8723be_packet_slot {
+    struct mbuf *m;
+    bus_dmamap_t map;
+};
+
 struct rtwn8723be_tx_ring {
     struct rtwn8723be_dma_mem desc_dma;
+    struct rtwn8723be_packet_slot *slot;
     uint32_t count;
     uint32_t producer;
     uint32_t consumer;
 };
 struct rtwn8723be_rx_ring {
     struct rtwn8723be_dma_mem desc_dma;
+    struct rtwn8723be_packet_slot *slot;
     uint32_t count;
     uint32_t consumer;
 };
@@ -229,5 +239,23 @@ static inline uint32_t r23be_get_own(const uint32_t v) { return (v >> 31) & 1U; 
 static inline void r23be_set_own(uint32_t *v) { *v |= R23BE_TXD0_OWN; }
 static inline void r23be_clear_own(uint32_t *v) { *v &= ~R23BE_TXD0_OWN; }
 static inline uint32_t r23be_rx_pkt_len(const struct rtwn8723be_rx_desc *d) { return d->d[0] & R23BE_RXD0_PKT_LEN_MASK; }
+
+int rtwn8723be_f16_1_dma_mem_alloc(bus_dma_tag_t,
+    struct rtwn8723be_dma_mem *, bus_size_t, bus_size_t);
+void rtwn8723be_f16_1_dma_mem_free(bus_dma_tag_t,
+    struct rtwn8723be_dma_mem *);
+void rtwn8723be_f16_1_dma_sync_for_device(bus_dma_tag_t,
+    struct rtwn8723be_dma_mem *, bus_addr_t, bus_size_t);
+void rtwn8723be_f16_1_dma_sync_for_cpu(bus_dma_tag_t,
+    struct rtwn8723be_dma_mem *, bus_addr_t, bus_size_t);
+
+int rtwn8723be_f16_1_tx_ring_alloc(bus_dma_tag_t,
+    struct rtwn8723be_tx_ring *, uint32_t);
+void rtwn8723be_f16_1_tx_ring_free(bus_dma_tag_t,
+    struct rtwn8723be_tx_ring *);
+int rtwn8723be_f16_1_rx_ring_alloc(bus_dma_tag_t,
+    struct rtwn8723be_rx_ring *, uint32_t);
+void rtwn8723be_f16_1_rx_ring_free(bus_dma_tag_t,
+    struct rtwn8723be_rx_ring *);
 
 #endif /* _RTWN8723BE_F16_1_H_ */
