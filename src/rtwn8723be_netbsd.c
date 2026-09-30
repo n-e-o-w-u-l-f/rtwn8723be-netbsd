@@ -503,6 +503,17 @@ rtwn8723be_netbsd_init_sw_vars(void *arg)
     return 0;
 }
 
+int
+rtwn8723be_netbsd_init_leds(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+
+    /* Exact rtl_init_sw_leds() defaults from pinned Linux. */
+    sc->sc_sw_led0 = RTWN8723BE_LED_PIN_LED0;
+    sc->sc_sw_led1 = RTWN8723BE_LED_PIN_LED1;
+    return 0;
+}
+
 static uint32_t
 rtwn8723be_netbsd_tx_ring_count(unsigned int qid)
 {
@@ -1606,6 +1617,7 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .init_io = rtwn8723be_netbsd_init_io,
     .read_eeprom_info = rtwn8723be_netbsd_read_eeprom_info,
     .init_sw_vars = rtwn8723be_netbsd_init_sw_vars,
+    .init_leds = rtwn8723be_netbsd_init_leds,
     .init_aspm = rtwn8723be_netbsd_init_aspm,
     .init_pci_rings = rtwn8723be_netbsd_init_pci_rings,
     .reset_trx_ring = rtwn8723be_netbsd_reset_trx_ring,
