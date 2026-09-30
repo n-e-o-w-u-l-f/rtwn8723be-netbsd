@@ -290,6 +290,198 @@ rtwn8723be_netbsd_init_io(void *arg)
     return sc->sc_mapped ? 0 : ENXIO;
 }
 
+static uint16_t
+rtwn8723be_le16(const uint8_t *p)
+{
+    return (uint16_t)p[0] | ((uint16_t)p[1] << 8);
+}
+
+static void
+rtwn8723be_netbsd_efuse_power(struct rtwn8723be_softc *sc, bool on)
+{
+    uint16_t value;
+
+    if (on) {
+        /* Pinned Linux efuse_power_switch(), RTL8723BE read path. */
+        rtwn8723be_write_1(sc, R23BE_REG_EFUSE_ACCESS, 0x69);
+
+        value = rtwn8723be_read_2(sc, R23BE_REG_SYS_FUNC_EN);
+        if ((value & R23BE_EFUSE_FEN_ELDR) == 0)
+            rtwn8723be_write_2(sc, R23BE_REG_SYS_FUNC_EN,
+                value | R23BE_EFUSE_FEN_ELDR);
+
+        value = rtwn8723be_read_2(sc, R23BE_REG_SYS_CLKR);
+        if ((value & (R23BE_EFUSE_LOADER_CLK_EN |
+            R23BE_EFUSE_ANA8M)) !=
+            (R23BE_EFUSE_LOADER_CLK_EN | R23BE_EFUSE_ANA8M))
+            rtwn8723be_write_2(sc, R23BE_REG_SYS_CLKR,
+                value | R23BE_EFUSE_LOADER_CLK_EN |
+                R23BE_EFUSE_ANA8M);
+    } else {
+        rtwn8723be_write_1(sc, R23BE_REG_EFUSE_ACCESS, 0x00);
+    }
+}
+
+static int
+rtwn8723be_netbsd_efuse_read_1(struct rtwn8723be_softc *sc,
+    uint16_t addr, uint8_t *data)
+{
+    uint8_t value8;
+    uint32_t value32;
+    unsigned int retry;
+
+    if (addr >= R23BE_EFUSE_REAL_CONTENT_LEN || data == NULL)
+        return EINVAL;
+
+    rtwn8723be_write_1(sc, R23BE_REG_EFUSE_CTRL + 1,
+        (uint8_t)(addr & 0xff));
+
+    value8 = rtwn8723be_read_1(sc, R23BE_REG_EFUSE_CTRL + 2);
+    rtwn8723be_write_1(sc, R23BE_REG_EFUSE_CTRL + 2,
+        (uint8_t)(((addr >> 8) & 0x03) | (value8 & 0xfc)));
+
+    value8 = rtwn8723be_read_1(sc, R23BE_REG_EFUSE_CTRL + 3);
+    rtwn8723be_write_1(sc, R23BE_REG_EFUSE_CTRL + 3,
+        value8 & 0x7f);
+
+    for (retry = 0; retry < 10000; retry++) {
+        value32 = rtwn8723be_read_4(sc, R23BE_REG_EFUSE_CTRL);
+        if ((value32 & 0x80000000U) != 0)
+            break;
+    }
+    if (retry == 10000)
+        return ETIMEDOUT;
+
+    delay(50);
+    value32 = rtwn8723be_read_4(sc, R23BE_REG_EFUSE_CTRL);
+    *data = (uint8_t)(value32 & 0xff);
+    return 0;
+}
+
+static int
+rtwn8723be_netbsd_efuse_shadow_read(struct rtwn8723be_softc *sc)
+{
+    uint16_t addr = 0;
+    uint8_t header, ext, offset, wren;
+    unsigned int word;
+    int error = 0;
+
+    memset(sc->sc_efuse_map, 0xff, sizeof(sc->sc_efuse_map));
+    rtwn8723be_netbsd_efuse_power(sc, true);
+
+    while (addr < R23BE_EFUSE_REAL_CONTENT_LEN) {
+        error = rtwn8723be_netbsd_efuse_read_1(sc, addr++, &header);
+        if (error != 0)
+            goto out;
+        if (header == 0xff)
+            break;
+
+        if ((header & 0x1f) == 0x0f) {
+            if (addr >= R23BE_EFUSE_REAL_CONTENT_LEN)
+                break;
+            error = rtwn8723be_netbsd_efuse_read_1(sc, addr++, &ext);
+            if (error != 0)
+                goto out;
+
+            /* Linux skips extended headers with all words disabled. */
+            if ((ext & 0x0f) == 0x0f)
+                continue;
+
+            offset = (uint8_t)(((ext & 0xf0) >> 1) |
+                ((header & 0xe0) >> 5));
+            wren = ext & 0x0f;
+        } else {
+            offset = (header >> 4) & 0x0f;
+            wren = header & 0x0f;
+        }
+
+        if (offset >= R23BE_EFUSE_MAX_SECTION)
+            continue;
+
+        for (word = 0; word < R23BE_EFUSE_MAX_WORD_UNIT; word++) {
+            size_t mapoff = (size_t)offset * 8 + word * 2;
+
+            if ((wren & 0x01) == 0) {
+                if (addr + 1 >= R23BE_EFUSE_REAL_CONTENT_LEN) {
+                    error = EINVAL;
+                    goto out;
+                }
+                error = rtwn8723be_netbsd_efuse_read_1(sc, addr++,
+                    &sc->sc_efuse_map[mapoff]);
+                if (error != 0)
+                    goto out;
+                error = rtwn8723be_netbsd_efuse_read_1(sc, addr++,
+                    &sc->sc_efuse_map[mapoff + 1]);
+                if (error != 0)
+                    goto out;
+            }
+            wren >>= 1;
+        }
+    }
+
+out:
+    rtwn8723be_netbsd_efuse_power(sc, false);
+    return error;
+}
+
+int
+rtwn8723be_netbsd_read_eeprom_info(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+    uint8_t cr9346, bt;
+    int error;
+
+    if (!sc->sc_mapped)
+        return ENXIO;
+
+    cr9346 = rtwn8723be_read_1(sc, R23BE_REG_9346CR);
+    sc->sc_boot_from_efuse = (cr9346 & (1U << 4)) == 0;
+    sc->sc_efuse_autoload_ok = (cr9346 & (1U << 5)) != 0;
+
+    /*
+     * Pinned rtlwifi does not implement the 93C46 path for this device;
+     * reject it rather than silently treating EEPROM bytes as EFUSE.
+     */
+    if (!sc->sc_boot_from_efuse)
+        return EOPNOTSUPP;
+    if (!sc->sc_efuse_autoload_ok)
+        return EIO;
+
+    error = rtwn8723be_netbsd_efuse_shadow_read(sc);
+    if (error != 0)
+        return error;
+
+    sc->sc_eeprom_id = rtwn8723be_le16(&sc->sc_efuse_map[0]);
+    if (sc->sc_eeprom_id != R23BE_EEPROM_ID)
+        return EINVAL;
+
+    sc->sc_eeprom_vid =
+        rtwn8723be_le16(&sc->sc_efuse_map[R23BE_EEPROM_VID]);
+    sc->sc_eeprom_did =
+        rtwn8723be_le16(&sc->sc_efuse_map[R23BE_EEPROM_DID]);
+    sc->sc_eeprom_svid =
+        rtwn8723be_le16(&sc->sc_efuse_map[R23BE_EEPROM_SVID]);
+    sc->sc_eeprom_smid =
+        rtwn8723be_le16(&sc->sc_efuse_map[R23BE_EEPROM_SMID]);
+    memcpy(sc->sc_macaddr,
+        &sc->sc_efuse_map[R23BE_EEPROM_MAC_ADDR],
+        sizeof(sc->sc_macaddr));
+
+    sc->sc_btcoexist =
+        (rtwn8723be_read_4(sc, R23BE_REG_MULTI_FUNC_CTRL) &
+        (1U << 18)) != 0;
+
+    bt = sc->sc_efuse_map[R23BE_EEPROM_RF_BT_SETTING];
+    sc->sc_btdm_ant_num = bt & 0x01; /* Linux enum ANT_X2=0, ANT_X1=1. */
+    sc->sc_single_ant_path = (bt & 0x40) != 0 ?
+        RTWN8723BE_ANT_AUX : RTWN8723BE_ANT_MAIN;
+    sc->sc_bt_ant_valid = true;
+
+    /* _rtl8723be_hal_customized_behavior() always enables open-drain LED. */
+    sc->sc_led_opendrain = true;
+    return 0;
+}
+
 int
 rtwn8723be_netbsd_init_sw_vars(void *arg)
 {
@@ -302,7 +494,6 @@ rtwn8723be_netbsd_init_sw_vars(void *arg)
     sc->sc_transmit_config = RTWN8723BE_TCR_DEFAULT;
     sc->sc_receive_config = RTWN8723BE_RCR_DEFAULT;
     sc->sc_firmware_name = RTWN8723BE_FIRMWARE_NAME;
-    sc->sc_btcoexist = true;
     sc->sc_bt_stop_coex_dm = false;
     sc->sc_up_first_time = true;
     sc->sc_led_opendrain = true;
@@ -1413,6 +1604,7 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .pci_prepare_d0 = rtwn8723be_netbsd_pci_prepare_d0,
     .find_adapter = rtwn8723be_netbsd_find_adapter,
     .init_io = rtwn8723be_netbsd_init_io,
+    .read_eeprom_info = rtwn8723be_netbsd_read_eeprom_info,
     .init_sw_vars = rtwn8723be_netbsd_init_sw_vars,
     .init_aspm = rtwn8723be_netbsd_init_aspm,
     .init_pci_rings = rtwn8723be_netbsd_init_pci_rings,
