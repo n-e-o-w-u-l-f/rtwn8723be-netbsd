@@ -35,7 +35,7 @@ r23be_write_4(bus_space_tag_t st, bus_space_handle_t sh, bus_size_t reg,
     bus_space_write_4(st, sh, reg, val);
 }
 
-static void
+void
 rtwn8723be_fw_selfreset(bus_space_tag_t st, bus_space_handle_t sh)
 {
     uint8_t v;
