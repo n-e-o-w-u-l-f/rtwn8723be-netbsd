@@ -635,6 +635,99 @@ rtwn8723be_netbsd_softintr(void *arg)
     (void)rtwn8723be_netbsd_enable_interrupt(sc);
 }
 
+static int
+rtwn8723be_netbsd_pcie_lcsr(struct rtwn8723be_softc *sc, uint32_t *value)
+{
+    if (!sc->sc_pcie_cap_valid) {
+        if (!pci_get_capability(sc->sc_pc, sc->sc_tag,
+            PCI_CAP_PCIEXPRESS, &sc->sc_pcie_cap_off, NULL))
+            return ENODEV;
+        sc->sc_pcie_cap_valid = true;
+    }
+
+    *value = pci_conf_read(sc->sc_pc, sc->sc_tag,
+        sc->sc_pcie_cap_off + PCIE_LCSR);
+    return 0;
+}
+
+int
+rtwn8723be_netbsd_init_aspm(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+    uint32_t lcsr;
+    int error;
+
+    error = rtwn8723be_netbsd_pcie_lcsr(sc, &lcsr);
+    if (error != 0)
+        return error;
+
+    /*
+     * Pinned Linux rtl8723be_init_aspm_vars() selects const_pci_aspm=3:
+     * ASPM is kept enabled from initialization to halt, with Clock Request.
+     * Preserve the complete original LCSR for audit/recovery while changing
+     * only the device Link Control bits used by rtlwifi.
+     */
+    sc->sc_pcie_lcsr_initial = lcsr;
+    lcsr |= PCIE_LCSR_ASPM_L0S | PCIE_LCSR_ASPM_L1 |
+        PCIE_LCSR_COMCLKCFG | PCIE_LCSR_ENCLKPM;
+    pci_conf_write(sc->sc_pc, sc->sc_tag,
+        sc->sc_pcie_cap_off + PCIE_LCSR, lcsr);
+    return 0;
+}
+
+int
+rtwn8723be_netbsd_disable_aspm(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+    uint32_t lcsr;
+    int error;
+
+    error = rtwn8723be_netbsd_pcie_lcsr(sc, &lcsr);
+    if (error != 0)
+        return error;
+
+    /*
+     * Linux __rtl_pci_disable_aspm(): clear Clock Request first, then L0s/L1.
+     * The 8723BE path keeps Common Clock Configuration asserted.
+     */
+    lcsr &= ~PCIE_LCSR_ENCLKPM;
+    pci_conf_write(sc->sc_pc, sc->sc_tag,
+        sc->sc_pcie_cap_off + PCIE_LCSR, lcsr);
+
+    lcsr &= ~(PCIE_LCSR_ASPM_L0S | PCIE_LCSR_ASPM_L1);
+    lcsr |= PCIE_LCSR_COMCLKCFG;
+    pci_conf_write(sc->sc_pc, sc->sc_tag,
+        sc->sc_pcie_cap_off + PCIE_LCSR, lcsr);
+    return 0;
+}
+
+int
+rtwn8723be_netbsd_enable_aspm(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+    uint32_t lcsr;
+    int error;
+
+    error = rtwn8723be_netbsd_pcie_lcsr(sc, &lcsr);
+    if (error != 0)
+        return error;
+
+    /*
+     * Linux rtl_pci_enable_aspm(): device ASPM L0s/L1 + Common Clock,
+     * followed by Clock Request for the const_pci_aspm=3 policy.
+     */
+    lcsr |= PCIE_LCSR_ASPM_L0S | PCIE_LCSR_ASPM_L1 |
+        PCIE_LCSR_COMCLKCFG;
+    pci_conf_write(sc->sc_pc, sc->sc_tag,
+        sc->sc_pcie_cap_off + PCIE_LCSR, lcsr);
+
+    lcsr |= PCIE_LCSR_ENCLKPM;
+    pci_conf_write(sc->sc_pc, sc->sc_tag,
+        sc->sc_pcie_cap_off + PCIE_LCSR, lcsr);
+    delay(100);
+    return 0;
+}
+
 int
 rtwn8723be_netbsd_poweroff_adapter(void *arg)
 {
@@ -824,13 +917,16 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .find_adapter = rtwn8723be_netbsd_find_adapter,
     .init_io = rtwn8723be_netbsd_init_io,
     .init_sw_vars = rtwn8723be_netbsd_init_sw_vars,
+    .init_aspm = rtwn8723be_netbsd_init_aspm,
     .init_pci_rings = rtwn8723be_netbsd_init_pci_rings,
     .reset_trx_ring = rtwn8723be_netbsd_reset_trx_ring,
+    .disable_aspm = rtwn8723be_netbsd_disable_aspm,
     .read_cr = rtwn8723be_netbsd_read_cr,
     .check_pcie_dma_hang = rtwn8723be_netbsd_check_pcie_dma_hang,
     .reset_pcie_interface_dma =
         rtwn8723be_netbsd_reset_pcie_interface_dma,
     .poweroff_adapter = rtwn8723be_netbsd_poweroff_adapter,
+    .enable_aspm = rtwn8723be_netbsd_enable_aspm,
     .establish_irq = rtwn8723be_netbsd_establish_irq,
     .enable_interrupt = rtwn8723be_netbsd_enable_interrupt,
     .disable_interrupt = rtwn8723be_netbsd_disable_interrupt,
