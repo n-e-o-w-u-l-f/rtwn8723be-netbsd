@@ -60,6 +60,12 @@ struct rtwn8723be_softc {
     void *sc_irq_arg;
 
     struct rtwn8723be_linux_state sc_linux;
+
+    uint32_t sc_receive_config;
+    uint32_t sc_transmit_config;
+    const char *sc_firmware_name;
+    bool sc_btcoexist;
+    bool sc_mac_func_enable;
 };
 
 void rtwn8723be_netbsd_context_init(struct rtwn8723be_softc *,
@@ -81,6 +87,7 @@ int rtwn8723be_netbsd_map_bar(void *);
 int rtwn8723be_netbsd_pci_prepare_d0(void *);
 int rtwn8723be_netbsd_find_adapter(void *);
 int rtwn8723be_netbsd_init_io(void *);
+int rtwn8723be_netbsd_init_sw_vars(void *);
 int rtwn8723be_netbsd_init_pci_rings(void *);
 int rtwn8723be_netbsd_reset_trx_ring(void *);
 void rtwn8723be_netbsd_free_pci_rings(struct rtwn8723be_softc *);
