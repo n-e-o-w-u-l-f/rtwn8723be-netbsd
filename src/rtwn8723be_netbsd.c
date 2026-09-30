@@ -6,10 +6,12 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <sys/intr.h>
 #include <sys/mbuf.h>
 #include <sys/endian.h>
+#include <sys/kmem.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcidevs.h>
+#include <dev/firmload.h>
 
 #include "rtwn8723be_netbsd.h"
 #include "rtwn8723be_fw.h"
@@ -786,6 +788,90 @@ rtwn8723be_netbsd_poweroff_adapter(void *arg)
 }
 
 int
+rtwn8723be_netbsd_sys_cfg_clear_bit7(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+    uint8_t value;
+
+    if (!sc->sc_mapped)
+        return ENXIO;
+
+    /*
+     * Pinned Linux rtl8723be_hw_init(): immediately after _init_mac(),
+     * clear SYS_CFG bit 7 before the firmware transfer starts.
+     */
+    value = rtwn8723be_read_1(sc, R23BE_REG_SYS_CFG);
+    rtwn8723be_write_1(sc, R23BE_REG_SYS_CFG, value & 0x7f);
+    return 0;
+}
+
+int
+rtwn8723be_netbsd_download_firmware(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+    firmware_handle_t fwh = NULL;
+    uint8_t hdr[R23BE_FW_HEADER_SIZE];
+    uint8_t *payload = NULL;
+    off_t fwsize;
+    size_t payload_len;
+    uint16_t signature, ramcodesize;
+    int error;
+
+    if (!sc->sc_mapped)
+        return ENXIO;
+
+    error = firmware_open(RTWN8723BE_FIRMWARE_DRIVER,
+        RTWN8723BE_FIRMWARE_FILE, &fwh);
+    if (error != 0)
+        return error;
+
+    fwsize = firmware_get_size(fwh);
+    if (fwsize < (off_t)R23BE_FW_HEADER_SIZE) {
+        error = EINVAL;
+        goto out;
+    }
+
+    payload_len = (size_t)fwsize - R23BE_FW_HEADER_SIZE;
+    if (payload_len == 0 ||
+        payload_len > (size_t)R23BE_FW_MAX_PAGES * R23BE_FW_PAGE_SIZE) {
+        error = EFBIG;
+        goto out;
+    }
+
+    error = firmware_read(fwh, 0, hdr, sizeof(hdr));
+    if (error != 0)
+        goto out;
+
+    signature = (uint16_t)hdr[0] | ((uint16_t)hdr[1] << 8);
+    ramcodesize = (uint16_t)hdr[12] | ((uint16_t)hdr[13] << 8);
+    if ((signature & 0xfff0U) != 0x5300U ||
+        (size_t)ramcodesize != payload_len) {
+        error = EINVAL;
+        goto out;
+    }
+
+    payload = kmem_alloc(payload_len, KM_SLEEP);
+    error = firmware_read(fwh, R23BE_FW_HEADER_SIZE, payload, payload_len);
+    if (error != 0)
+        goto out;
+
+    /*
+     * rtwn8723be_fw_download() preserves the pinned Linux transfer
+     * semantics: RAM_DL_SEL recovery, page upload, checksum polling,
+     * MCUFWDL_RDY, MCU self-reset and WINTINI_RDY handshake.
+     */
+    error = rtwn8723be_fw_download(sc->sc_st, sc->sc_sh,
+        payload, payload_len);
+
+out:
+    if (payload != NULL)
+        kmem_free(payload, payload_len);
+    if (fwh != NULL)
+        firmware_close(fwh);
+    return error;
+}
+
+int
 rtwn8723be_netbsd_read_cr(void *arg, uint8_t *value)
 {
     struct rtwn8723be_softc *sc = arg;
@@ -926,6 +1012,8 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .reset_pcie_interface_dma =
         rtwn8723be_netbsd_reset_pcie_interface_dma,
     .poweroff_adapter = rtwn8723be_netbsd_poweroff_adapter,
+    .sys_cfg_clear_bit7 = rtwn8723be_netbsd_sys_cfg_clear_bit7,
+    .download_firmware = rtwn8723be_netbsd_download_firmware,
     .enable_aspm = rtwn8723be_netbsd_enable_aspm,
     .establish_irq = rtwn8723be_netbsd_establish_irq,
     .enable_interrupt = rtwn8723be_netbsd_enable_interrupt,
