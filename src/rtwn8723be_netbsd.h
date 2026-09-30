@@ -15,6 +15,9 @@
 #define RTWN8723BE_DMA_MAXADDR         0xffffffffULL
 #define RTWN8723BE_ANT_MAIN            0
 #define RTWN8723BE_ANT_AUX             1
+/* Linux enum bt_ant_num: ANT_X2=0, ANT_X1=1. */
+#define RTWN8723BE_ANT_X2              0
+#define RTWN8723BE_ANT_X1              1
 
 /*
  * Linux rtlwifi dispatches RX/TX work from the shared PCI interrupt after
