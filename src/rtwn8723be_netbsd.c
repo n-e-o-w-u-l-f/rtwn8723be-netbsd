@@ -4,6 +4,8 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/intr.h>
+#include <sys/mbuf.h>
+#include <sys/endian.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -45,7 +47,7 @@ rtwn8723be_netbsd_context_init(struct rtwn8723be_softc *sc,
      * selects the 32-bit DMA mask/coherent mask path.  dma_configure()
      * turns this into a NetBSD bus_dma subregion tag.
      */
-    sc->sc_dma_32bit = true;
+    sc->sc_dma_32bit = false;
 
     sc->sc_irq_mask[0] = R23BE_IMR0_DEFAULT;
     sc->sc_irq_mask[1] = R23BE_IMR1_DEFAULT;
@@ -211,7 +213,13 @@ rtwn8723be_netbsd_pci_prepare_d0(void *arg)
      * writes are retained because they are part of the RTL PCI reference
      * sequence, not an inferred workaround.
      */
-    pci_set_powerstate(sc->sc_pc, sc->sc_tag, PCI_PMCSR_STATE_D0);
+    int error;
+
+    error = pci_set_powerstate(sc->sc_pc, sc->sc_tag,
+        PCI_PMCSR_STATE_D0);
+    if (error != 0)
+        return error;
+
     rtwn8723be_pci_conf_write_1(sc, 0x81, 0x00);
     rtwn8723be_pci_conf_write_1(sc, 0x44, 0x00);
     rtwn8723be_pci_conf_write_1(sc, 0x04, 0x06);
@@ -374,7 +382,7 @@ rtwn8723be_netbsd_reset_trx_ring(void *arg)
             next = ring->desc_dma.paddr +
                 (bus_addr_t)(((i + 1) % ring->count) *
                 sizeof(*desc));
-            KASSERT(next <= UINT32_MAX);
+            KASSERT(next <= (bus_addr_t)RTWN8723BE_DMA_MAXADDR);
             desc[i].d[RTWN8723BE_TX_NEXT_DESC_DW] =
                 htole32((uint32_t)next);
         }
