@@ -8,6 +8,10 @@
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
+#include <net/if.h>
+#include <net/if_ether.h>
+#include <net80211/ieee80211_var.h>
+
 #include "rtwn8723be_f16_1.h"
 #include "rtwn8723be_linux_state.h"
 
@@ -35,6 +39,8 @@ struct rtwn8723be_irq_dispatch {
 
 struct rtwn8723be_softc {
     device_t sc_dev;
+    struct ethercom sc_ec;
+    struct ieee80211com sc_ic;
     struct pci_attach_args sc_pa;
     pci_chipset_tag_t sc_pc;
     pcitag_t sc_tag;
@@ -98,6 +104,7 @@ struct rtwn8723be_softc {
     bool sc_led_opendrain;
     uint8_t sc_sw_led0;
     uint8_t sc_sw_led1;
+    bool sc_core_initialized;
     uint32_t sc_rfoff_reason;
 };
 
