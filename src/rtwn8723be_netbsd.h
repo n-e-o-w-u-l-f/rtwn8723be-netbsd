@@ -99,8 +99,6 @@ struct rtwn8723be_softc {
     uint8_t sc_sw_led0;
     uint8_t sc_sw_led1;
     uint32_t sc_rfoff_reason;
-
-    bool sc_mac_func_enable;
 };
 
 void rtwn8723be_netbsd_context_init(struct rtwn8723be_softc *,
