@@ -20,6 +20,14 @@
 #define RTWN8723BE_TX_NEXT_DESC_DW     12
 #define RTWN8723BE_RING_ALIGN          256
 
+#define RTWN8723BE_FIRMWARE_NAME       "rtlwifi/rtl8723befw_36.bin"
+
+/* Pinned Linux rtl8723be_init_sw_vars() defaults. */
+#define RTWN8723BE_TCR_DEFAULT          0x03008200U
+#define RTWN8723BE_RCR_DEFAULT          0xf0007a0eU
+#define RTWN8723BE_MASKDWORD            0xffffffffU
+#define RTWN8723BE_MASKBYTE0            0x000000ffU
+
 /* Linux rtlwifi/pci.c ring topology for RTL8723BE old-TRX flow. */
 #define RTWN8723BE_RX_QUEUE_COUNT      2
 #define RTWN8723BE_RX_RING_COUNT       512
@@ -280,5 +288,12 @@ int rtwn8723be_f16_1_rx_ring_alloc(bus_dma_tag_t,
     struct rtwn8723be_rx_ring *, uint32_t);
 void rtwn8723be_f16_1_rx_ring_free(bus_dma_tag_t,
     struct rtwn8723be_rx_ring *);
+
+struct rtwn8723be_softc;
+int rtwn8723be_f16_1_llt_init(struct rtwn8723be_softc *);
+void rtwn8723be_f16_1_bb_set(struct rtwn8723be_softc *,
+    uint32_t, uint32_t, uint32_t);
+uint32_t rtwn8723be_f16_1_bb_get(struct rtwn8723be_softc *,
+    uint32_t, uint32_t);
 
 #endif /* _RTWN8723BE_F16_1_H_ */
