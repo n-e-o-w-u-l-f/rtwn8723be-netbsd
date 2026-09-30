@@ -6,6 +6,24 @@
 
 enum rtwn8723be_linux_stage {
     R23BE_STAGE_IDLE = 0,
+    R23BE_STAGE_PCI_ENABLE,
+    R23BE_STAGE_DMA_CONFIG,
+    R23BE_STAGE_BUS_MASTER,
+    R23BE_STAGE_SOFTC_ALLOC,
+    R23BE_STAGE_BAR_MAP,
+    R23BE_STAGE_PCI_D0,
+    R23BE_STAGE_ADAPTER_IDENTIFY,
+    R23BE_STAGE_IO_INIT,
+    R23BE_STAGE_EEPROM,
+    R23BE_STAGE_SW_VARS,
+    R23BE_STAGE_LEDS,
+    R23BE_STAGE_ASPM_INIT,
+    R23BE_STAGE_CORE_INIT,
+    R23BE_STAGE_PCI_RINGS,
+    R23BE_STAGE_IEEE80211_REGISTER,
+    R23BE_STAGE_RFKILL,
+    R23BE_STAGE_IRQ_ESTABLISH,
+    R23BE_STAGE_PROBED,
     R23BE_STAGE_RESET_RINGS,
     R23BE_STAGE_BT_PREPARE,
     R23BE_STAGE_DISABLE_ASPM,
@@ -44,6 +62,24 @@ struct rtwn8723be_linux_state {
 };
 
 struct rtwn8723be_linux_ops {
+    int (*pci_enable)(void *);
+    int (*dma_configure)(void *);
+    int (*pci_set_master)(void *);
+    int (*alloc_softc)(void *);
+    int (*map_bar)(void *);
+    int (*pci_prepare_d0)(void *);
+    int (*find_adapter)(void *);
+    int (*init_io)(void *);
+    int (*read_eeprom_info)(void *);
+    int (*init_sw_vars)(void *);
+    int (*init_leds)(void *);
+    int (*init_aspm)(void *);
+    int (*init_core)(void *);
+    int (*init_pci_rings)(void *);
+    int (*register_ieee80211)(void *);
+    int (*init_rfkill)(void *);
+    int (*establish_irq)(void *);
+
     int (*reset_trx_ring)(void *);
     int (*bt_prepare)(void *);
 
@@ -88,6 +124,8 @@ struct rtwn8723be_linux_ops {
     int (*hw_disable)(void *);
 };
 
+int rtwn8723be_linux_probe(void *, struct rtwn8723be_linux_state *,
+    const struct rtwn8723be_linux_ops *);
 int rtwn8723be_linux_hw_init(void *, struct rtwn8723be_linux_state *,
     const struct rtwn8723be_linux_ops *);
 int rtwn8723be_linux_adapter_start(void *, struct rtwn8723be_linux_state *,
