@@ -730,6 +730,117 @@ rtwn8723be_netbsd_enable_aspm(void *arg)
     return 0;
 }
 
+static int
+rtwn8723be_netbsd_llt_write(struct rtwn8723be_softc *sc,
+    uint8_t address, uint8_t data)
+{
+    uint32_t value;
+    unsigned int n;
+
+    value = (uint32_t)data |
+        ((uint32_t)address << 8) |
+        ((uint32_t)R23BE_LLT_WRITE_ACCESS << 30);
+    rtwn8723be_write_4(sc, R23BE_REG_LLT_INIT, value);
+
+    for (n = 0; n <= R23BE_LLT_POLL_MAX; n++) {
+        value = rtwn8723be_read_4(sc, R23BE_REG_LLT_INIT);
+        if (((value >> 30) & 0x3U) == R23BE_LLT_NO_ACTIVE)
+            return 0;
+    }
+
+    return ETIMEDOUT;
+}
+
+static int
+rtwn8723be_netbsd_llt_table_init(struct rtwn8723be_softc *sc)
+{
+    const uint8_t txpktbuf_bndy = 245;
+    const uint8_t maxpage = 255;
+    unsigned int i;
+    int error;
+
+    /*
+     * Exact pinned-Linux _rtl8723be_llt_table_init() register order.
+     */
+    rtwn8723be_write_4(sc, R23BE_REG_TRXFF_BNDY,
+        0x27ff0000U | txpktbuf_bndy);
+    rtwn8723be_write_1(sc, R23BE_REG_TDECTRL + 1, txpktbuf_bndy);
+    rtwn8723be_write_1(sc, R23BE_REG_TXPKTBUF_BCNQ_BDNY, txpktbuf_bndy);
+    rtwn8723be_write_1(sc, R23BE_REG_TXPKTBUF_MGQ_BDNY, txpktbuf_bndy);
+    rtwn8723be_write_1(sc, R23BE_REG_TXPKTBUF_WMAC_LBK_BF_HD,
+        txpktbuf_bndy);
+    rtwn8723be_write_1(sc, R23BE_REG_PBP, 0x31);
+    rtwn8723be_write_1(sc, R23BE_REG_RX_DRVINFO_SZ, 0x04);
+
+    for (i = 0; i < (unsigned int)txpktbuf_bndy - 1; i++) {
+        error = rtwn8723be_netbsd_llt_write(sc, (uint8_t)i,
+            (uint8_t)(i + 1));
+        if (error != 0)
+            return error;
+    }
+
+    error = rtwn8723be_netbsd_llt_write(sc,
+        (uint8_t)(txpktbuf_bndy - 1), 0xff);
+    if (error != 0)
+        return error;
+
+    for (i = txpktbuf_bndy; i < maxpage; i++) {
+        error = rtwn8723be_netbsd_llt_write(sc, (uint8_t)i,
+            (uint8_t)(i + 1));
+        if (error != 0)
+            return error;
+    }
+
+    error = rtwn8723be_netbsd_llt_write(sc, maxpage, txpktbuf_bndy);
+    if (error != 0)
+        return error;
+
+    rtwn8723be_write_4(sc, R23BE_REG_RQPN, 0x80e40808U);
+    rtwn8723be_write_1(sc, R23BE_REG_RQPN_NPQ, 0x00);
+    return 0;
+}
+
+static int
+rtwn8723be_netbsd_program_ring_bases(struct rtwn8723be_softc *sc)
+{
+    if (!sc->sc_rings_allocated)
+        return ENXIO;
+
+#define R23BE_RING_ADDR(_addr) do { \
+    if ((_addr) > (bus_addr_t)RTWN8723BE_DMA_MAXADDR) \
+        return EFBIG; \
+} while (0)
+
+    R23BE_RING_ADDR(sc->sc_tx_ring[RTWN8723BE_BEACON_QUEUE].desc_dma.paddr);
+    R23BE_RING_ADDR(sc->sc_tx_ring[RTWN8723BE_MGNT_QUEUE].desc_dma.paddr);
+    R23BE_RING_ADDR(sc->sc_tx_ring[RTWN8723BE_VO_QUEUE].desc_dma.paddr);
+    R23BE_RING_ADDR(sc->sc_tx_ring[RTWN8723BE_VI_QUEUE].desc_dma.paddr);
+    R23BE_RING_ADDR(sc->sc_tx_ring[RTWN8723BE_BE_QUEUE].desc_dma.paddr);
+    R23BE_RING_ADDR(sc->sc_tx_ring[RTWN8723BE_BK_QUEUE].desc_dma.paddr);
+    R23BE_RING_ADDR(sc->sc_tx_ring[RTWN8723BE_HIGH_QUEUE].desc_dma.paddr);
+    R23BE_RING_ADDR(sc->sc_rx_ring[RTWN8723BE_RX_MPDU_QUEUE].desc_dma.paddr);
+
+    rtwn8723be_write_4(sc, R23BE_REG_BCNQ_DESA,
+        (uint32_t)sc->sc_tx_ring[RTWN8723BE_BEACON_QUEUE].desc_dma.paddr);
+    rtwn8723be_write_4(sc, R23BE_REG_MGQ_DESA,
+        (uint32_t)sc->sc_tx_ring[RTWN8723BE_MGNT_QUEUE].desc_dma.paddr);
+    rtwn8723be_write_4(sc, R23BE_REG_VOQ_DESA,
+        (uint32_t)sc->sc_tx_ring[RTWN8723BE_VO_QUEUE].desc_dma.paddr);
+    rtwn8723be_write_4(sc, R23BE_REG_VIQ_DESA,
+        (uint32_t)sc->sc_tx_ring[RTWN8723BE_VI_QUEUE].desc_dma.paddr);
+    rtwn8723be_write_4(sc, R23BE_REG_BEQ_DESA,
+        (uint32_t)sc->sc_tx_ring[RTWN8723BE_BE_QUEUE].desc_dma.paddr);
+    rtwn8723be_write_4(sc, R23BE_REG_BKQ_DESA,
+        (uint32_t)sc->sc_tx_ring[RTWN8723BE_BK_QUEUE].desc_dma.paddr);
+    rtwn8723be_write_4(sc, R23BE_REG_HQ_DESA,
+        (uint32_t)sc->sc_tx_ring[RTWN8723BE_HIGH_QUEUE].desc_dma.paddr);
+    rtwn8723be_write_4(sc, R23BE_REG_RX_DESA,
+        (uint32_t)sc->sc_rx_ring[RTWN8723BE_RX_MPDU_QUEUE].desc_dma.paddr);
+
+#undef R23BE_RING_ADDR
+    return 0;
+}
+
 int
 rtwn8723be_netbsd_poweroff_adapter(void *arg)
 {
