@@ -131,6 +131,17 @@
 #define R23BE_REG_HMEBOX_EXT_2         0x01f8
 #define R23BE_REG_HMEBOX_EXT_3         0x01fc
 
+/* Linked-list table / TX packet-buffer setup from pinned Linux 8723BE. */
+#define R23BE_REG_LLT_INIT             0x01e0
+#define R23BE_REG_TDECTRL              0x0208
+#define R23BE_REG_RQPN_NPQ             0x0214
+#define R23BE_REG_TXPKTBUF_BCNQ_BDNY   0x0424
+#define R23BE_REG_TXPKTBUF_MGQ_BDNY    0x0425
+#define R23BE_REG_RX_DRVINFO_SZ         0x060f
+#define R23BE_LLT_POLL_MAX              20
+#define R23BE_LLT_WRITE_ACCESS          1U
+#define R23BE_LLT_NO_ACTIVE             0U
+
 /* TX/RX DMA queue and PCIe descriptor registers. */
 #define R23BE_REG_RQPN                 0x0200
 #define R23BE_REG_TXDMA_OFFSET_CHK     0x020c
