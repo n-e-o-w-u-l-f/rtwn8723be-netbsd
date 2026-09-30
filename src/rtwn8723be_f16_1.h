@@ -19,15 +19,18 @@
 #define R23BE_REG_RF_CTRL              0x001f
 #define R23BE_REG_MAC_PHY_CTRL         0x002c
 #define R23BE_REG_RSV_CTRL             0x001c
+#define R23BE_REG_PMC_DBG_CTRL2        0x00cc
 #define R23BE_REG_EFUSE_CTRL           0x0030
 #define R23BE_REG_MCUFWDL              0x0080
 #define R23BE_REG_FW_START_ADDR        0x1000
 #define R23BE_REG_MCUTSTCFG            0x0084
+#define R23BE_REG_MAC_PHY_CTRL_NORMAL  0x00f8
 #define R23BE_REG_SYS_CFG              0x00f0
 #define R23BE_REG_SYS_CFG1             0x00fc
 #define R23BE_REG_ROM_VERSION          0x00fd
 
 /* Host interrupt block. */
+#define R23BE_REG_HSISR                0x005c
 #define R23BE_REG_HIMR                 0x00b0
 #define R23BE_REG_HISR                 0x00b4
 #define R23BE_REG_HIMRE                0x00b8
@@ -108,6 +111,7 @@
 #define R23BE_REG_RXDMA_CONTROL        0x0286
 #define R23BE_REG_RXPKT_NUM            0x0287
 #define R23BE_REG_PCIE_CTRL_REG        0x0300
+#define R23BE_REG_DBI_CTRL             0x0350
 #define R23BE_REG_INT_MIG              0x0304
 #define R23BE_REG_BCNQ_DESA            0x0308
 #define R23BE_REG_HQ_DESA              0x0310
@@ -117,6 +121,7 @@
 #define R23BE_REG_BEQ_DESA             0x0330
 #define R23BE_REG_BKQ_DESA             0x0338
 #define R23BE_REG_RX_DESA              0x0340
+#define R23BE_REG_NAV_UPPER            0x0652
 
 /* PCIe DMA control bits used by the Linux init/reset path. */
 #define R23BE_PCIE_CTRL_DMA_HANG_RST   (1U << 0)
