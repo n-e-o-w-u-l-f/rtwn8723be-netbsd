@@ -633,6 +633,122 @@ rtwn8723be_netbsd_softintr(void *arg)
     (void)rtwn8723be_netbsd_enable_interrupt(sc);
 }
 
+int
+rtwn8723be_netbsd_read_cr(void *arg, uint8_t *value)
+{
+    struct rtwn8723be_softc *sc = arg;
+
+    if (value == NULL || !sc->sc_mapped)
+        return EINVAL;
+
+    *value = rtwn8723be_read_1(sc, R23BE_REG_CR);
+    return 0;
+}
+
+int
+rtwn8723be_netbsd_check_pcie_dma_hang(void *arg, bool *hung)
+{
+    struct rtwn8723be_softc *sc = arg;
+    uint8_t tmp;
+
+    if (hung == NULL || !sc->sc_mapped)
+        return EINVAL;
+
+    /*
+     * Pinned Linux _rtl8723be_check_pcie_dma_hang():
+     * DBI_CTRL+3 bit 2 enables the debug port.  After the required 100 ms
+     * settle delay, bits 0/1 report RX/TX PCIe DMA hang respectively.
+     */
+    tmp = rtwn8723be_read_1(sc, R23BE_REG_DBI_CTRL + 3);
+    if ((tmp & (1U << 2)) == 0) {
+        rtwn8723be_write_1(sc, R23BE_REG_DBI_CTRL + 3,
+            tmp | (1U << 2));
+        delay(100000);
+    }
+
+    tmp = rtwn8723be_read_1(sc, R23BE_REG_DBI_CTRL + 3);
+    *hung = (tmp & ((1U << 0) | (1U << 1))) != 0;
+    return 0;
+}
+
+int
+rtwn8723be_netbsd_reset_pcie_interface_dma(void *arg, bool mac_power_on)
+{
+    struct rtwn8723be_softc *sc = arg;
+    bool release_mac_rx_pause;
+    uint8_t backup_pcie_dma_pause;
+    uint8_t tmp;
+
+    if (!sc->sc_mapped)
+        return ENXIO;
+
+    /* 1. Disable the RTL8723BE system-register write lock. */
+    tmp = rtwn8723be_read_1(sc, R23BE_REG_RSV_CTRL);
+    tmp &= ~((1U << 1) | (1U << 0));
+    rtwn8723be_write_1(sc, R23BE_REG_RSV_CTRL, tmp);
+
+    tmp = rtwn8723be_read_1(sc, R23BE_REG_PMC_DBG_CTRL2);
+    tmp |= (1U << 2);
+    rtwn8723be_write_1(sc, R23BE_REG_PMC_DBG_CTRL2, tmp);
+
+    /* 2. Pause RX and PCIe TRX DMA, preserving the pre-existing state. */
+    tmp = rtwn8723be_read_1(sc, R23BE_REG_RXDMA_CONTROL);
+    if ((tmp & R23BE_RXDMA_PAUSE) != 0) {
+        release_mac_rx_pause = false;
+    } else {
+        rtwn8723be_write_1(sc, R23BE_REG_RXDMA_CONTROL,
+            tmp | R23BE_RXDMA_PAUSE);
+        release_mac_rx_pause = true;
+    }
+
+    backup_pcie_dma_pause =
+        rtwn8723be_read_1(sc, R23BE_REG_PCIE_CTRL_REG + 1);
+    if (backup_pcie_dma_pause != 0xff)
+        rtwn8723be_write_1(sc, R23BE_REG_PCIE_CTRL_REG + 1, 0xff);
+
+    /* 3. If MAC is live, stop TRX before toggling the PCIe DMA block. */
+    if (mac_power_on)
+        rtwn8723be_write_1(sc, R23BE_REG_CR, 0);
+
+    /* 4/5. Reset then re-enable PCIe DMA through SYS_FUNC_EN+1 bit 0. */
+    tmp = rtwn8723be_read_1(sc, R23BE_REG_SYS_FUNC_EN + 1);
+    rtwn8723be_write_1(sc, R23BE_REG_SYS_FUNC_EN + 1,
+        tmp & ~(1U << 0));
+    tmp = rtwn8723be_read_1(sc, R23BE_REG_SYS_FUNC_EN + 1);
+    rtwn8723be_write_1(sc, R23BE_REG_SYS_FUNC_EN + 1,
+        tmp | (1U << 0));
+
+    /* 6. Restore TRX only when it was live on entry. */
+    if (mac_power_on)
+        rtwn8723be_write_1(sc, R23BE_REG_CR, 0xff);
+
+    /* 7. Restore PCIe autoload-down state: MAC_PHY_CTRL_NORMAL bit 17. */
+    tmp = rtwn8723be_read_1(sc, R23BE_REG_MAC_PHY_CTRL_NORMAL + 2);
+    rtwn8723be_write_1(sc, R23BE_REG_MAC_PHY_CTRL_NORMAL + 2,
+        tmp | (1U << 1));
+
+    /*
+     * 8. Linux deliberately keeps DMA paused when MAC was powered on;
+     * _rtl8723be_init_mac() must rebuild LLT/RQPN/descriptor addresses first.
+     */
+    if (!mac_power_on) {
+        if (release_mac_rx_pause) {
+            tmp = rtwn8723be_read_1(sc, R23BE_REG_RXDMA_CONTROL);
+            rtwn8723be_write_1(sc, R23BE_REG_RXDMA_CONTROL,
+                tmp & ~R23BE_RXDMA_PAUSE);
+        }
+        rtwn8723be_write_1(sc, R23BE_REG_PCIE_CTRL_REG + 1,
+            backup_pcie_dma_pause);
+    }
+
+    /* 9. Re-lock the system register. */
+    tmp = rtwn8723be_read_1(sc, R23BE_REG_PMC_DBG_CTRL2);
+    rtwn8723be_write_1(sc, R23BE_REG_PMC_DBG_CTRL2,
+        tmp & ~(1U << 2));
+
+    return 0;
+}
+
 /*
  * Foundation of the full Linux probe/start state machine.  Unspecified
  * callbacks remain NULL until their exact Linux hardware semantics have been
@@ -651,6 +767,10 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .init_sw_vars = rtwn8723be_netbsd_init_sw_vars,
     .init_pci_rings = rtwn8723be_netbsd_init_pci_rings,
     .reset_trx_ring = rtwn8723be_netbsd_reset_trx_ring,
+    .read_cr = rtwn8723be_netbsd_read_cr,
+    .check_pcie_dma_hang = rtwn8723be_netbsd_check_pcie_dma_hang,
+    .reset_pcie_interface_dma =
+        rtwn8723be_netbsd_reset_pcie_interface_dma,
     .establish_irq = rtwn8723be_netbsd_establish_irq,
     .enable_interrupt = rtwn8723be_netbsd_enable_interrupt,
     .disable_interrupt = rtwn8723be_netbsd_disable_interrupt,
