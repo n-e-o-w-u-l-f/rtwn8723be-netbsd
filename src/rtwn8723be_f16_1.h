@@ -120,6 +120,14 @@
 #define R23BE_REG_MCUTST_1             0x01c0
 #define R23BE_REG_LLT_INIT             0x01e0
 
+#define R23BE_LLT_NO_ACTIVE            0U
+#define R23BE_LLT_WRITE_ACCESS         1U
+#define R23BE_LLT_POLL_THRESHOLD       20U
+#define R23BE_LLT_DATA(x)              ((uint32_t)(x) & 0xffU)
+#define R23BE_LLT_ADDR(x)              (((uint32_t)(x) & 0xffU) << 8)
+#define R23BE_LLT_OP(x)                (((uint32_t)(x) & 0x3U) << 30)
+#define R23BE_LLT_OP_VALUE(x)          (((uint32_t)(x) >> 30) & 0x3U)
+
 /* Firmware H2C/C2H mailbox block. */
 #define R23BE_REG_C2HEVT_MSG_NORMAL    0x01a0
 #define R23BE_REG_C2HEVT_CLEAR         0x01af
@@ -135,8 +143,10 @@
 
 /* TX/RX DMA queue and PCIe descriptor registers. */
 #define R23BE_REG_RQPN                 0x0200
+#define R23BE_REG_TDECTRL              0x0208
 #define R23BE_REG_TXDMA_OFFSET_CHK     0x020c
 #define R23BE_REG_TXDMA_STATUS         0x0210
+#define R23BE_REG_RQPN_NPQ             0x0214
 #define R23BE_REG_RXDMA_AGG_PG_TH      0x0280
 #define R23BE_REG_FW_UPD_RDPTR         0x0284
 #define R23BE_REG_RXDMA_CONTROL        0x0286
@@ -152,8 +162,13 @@
 #define R23BE_REG_BKQ_DESA             0x0338
 #define R23BE_REG_RX_DESA              0x0340
 #define R23BE_REG_FWHW_TXQ_CTRL        0x0420
+#define R23BE_REG_TXPKTBUF_BCNQ_BDNY   0x0424
+#define R23BE_REG_TXPKTBUF_MGQ_BDNY    0x0425
 #define R23BE_REG_HWSEQ_CTRL           0x0423
 #define R23BE_REG_SECONDARY_CCA_CTRL   0x0577
+#define R23BE_REG_TCR                  0x0604
+#define R23BE_REG_RCR                  0x0608
+#define R23BE_REG_RX_DRVINFO_SZ        0x060f
 #define R23BE_REG_RXFLTMAP2            0x06a4
 
 /* PCIe DMA control bits used by the Linux init/reset path. */
