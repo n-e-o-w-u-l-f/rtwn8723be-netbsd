@@ -59,6 +59,10 @@
 #define R23BE_REG_SYS_CFG1             0x00fc
 #define R23BE_REG_ROM_VERSION          0x00fd
 #define R23BE_REG_GPIO_MUXCFG          0x0040
+#define R23BE_REG_MAC_PINMUX_CFG       0x0043
+#define R23BE_REG_LEDCFG1              0x004d
+#define R23BE_REG_LEDCFG2              0x004e
+#define R23BE_REG_XCK_OUT_CTRL         0x007c
 #define R23BE_REG_MULTI_FUNC_CTRL      0x0068
 
 /* Host interrupt block. */
