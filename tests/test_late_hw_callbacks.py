@@ -11,6 +11,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = (ROOT / "src/rtwn8723be_netbsd.c").read_text()
 NAMES = (
+    "rtwn8723be_netbsd_phy_mac_config",
     "rtwn8723be_netbsd_rcr_postprocess",
     "rtwn8723be_netbsd_set_nav_upper_235",
     "rtwn8723be_netbsd_release_rx_dma",
@@ -38,6 +39,7 @@ PRELUDE = r"""
 #include <stdio.h>
 #include <assert.h>
 #include <errno.h>
+#include "rtwn8723be_mac_table.h"
 struct rtwn8723be_softc { int sc_mapped; uint32_t sc_receive_config; uint8_t sc_retry_limit; };
 #define R23BE_REG_RCR 0x608
 #define R23BE_REG_RETRY_LIMIT 0x42a
@@ -64,6 +66,7 @@ MAIN = r"""
 int main(void)
 {
     struct rtwn8723be_softc sc = {0};
+    assert(rtwn8723be_netbsd_phy_mac_config(&sc) == ENXIO);
     assert(rtwn8723be_netbsd_rcr_postprocess(&sc) == ENXIO);
     assert(rtwn8723be_netbsd_set_nav_upper_235(&sc) == ENXIO);
     assert(rtwn8723be_netbsd_release_rx_dma(&sc) == ENXIO);
@@ -71,6 +74,12 @@ int main(void)
     assert(rtwn8723be_netbsd_set_retry_limit(&sc) == ENXIO);
     assert(writes == 0);
     sc.sc_mapped = 1;
+    assert(RTWN8723BE_MAC_TABLE_COUNT == 103);
+    assert(rtwn8723be_netbsd_phy_mac_config(&sc) == 0);
+    assert(writes == RTWN8723BE_MAC_TABLE_COUNT + 1);
+    assert(regmap[0x02f] == 0x30);
+    assert(regmap[0x76e] == 0x04);
+    assert(regmap[0x04ca] == 0x0b);
     regmap[R23BE_REG_RCR] = 0xffffffffU;
     assert(rtwn8723be_netbsd_rcr_postprocess(&sc) == 0);
     assert(sc.sc_receive_config == 0xfffffcffU);
@@ -91,7 +100,7 @@ int main(void)
     assert(rtwn8723be_netbsd_set_retry_limit(&sc) == 0);
     assert(regmap[R23BE_REG_RETRY_LIMIT] == 0x0707);
     assert(writes == n + 2);
-    puts("CALLBACK_TESTS_OK: RCR NAV RXDMA PCIE RETRY");
+    puts("CALLBACK_TESTS_OK: MAC RCR NAV RXDMA PCIE RETRY");
     return 0;
 }
 """
@@ -103,6 +112,7 @@ def main():
         src.write_text(body)
         subprocess.run(
             ["cc", "-std=c11", "-Wall", "-Wextra", "-Werror",
+             "-I", str(ROOT / "src"),
              "-pedantic", str(src), "-o", str(binary)],
             check=True,
         )
