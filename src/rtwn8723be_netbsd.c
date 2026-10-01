@@ -1796,6 +1796,42 @@ rtwn8723be_netbsd_init_rx_config(void *arg)
 }
 
 /*
+ * Frozen Linux rtl8723be/hw.c:_rtl8723be_hw_configure().
+ * Preserve all 17 MMIO writes, their width and their order.  The Linux
+ * RATE_ALL_CCK | RATE_ALL_OFDM_AG expression is 0x00000fff, from the
+ * explicit RATR_1M..RATR_54M bit definitions in rtl8723be/reg.h.
+ */
+int
+rtwn8723be_netbsd_hw_configure(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+
+    if (!sc->sc_mapped)
+        return ENXIO;
+
+    rtwn8723be_write_4(sc, R23BE_REG_RRSR, 0x00000fffU);
+    rtwn8723be_write_4(sc, R23BE_REG_ARFR0 + 4, 0xfffff000U);
+    rtwn8723be_write_4(sc, R23BE_REG_ARFR1 + 4, 0x003ff000U);
+    rtwn8723be_write_2(sc, R23BE_REG_FWHW_TXQ_CTRL, 0x1f00U);
+    rtwn8723be_write_1(sc, R23BE_REG_AMPDU_MAX_TIME, 0x70);
+    rtwn8723be_write_2(sc, R23BE_REG_RETRY_LIMIT, 0x0707U);
+    rtwn8723be_write_4(sc, R23BE_REG_DARFRC, 0x01000000U);
+    rtwn8723be_write_4(sc, R23BE_REG_DARFRC + 4, 0x07060504U);
+    rtwn8723be_write_4(sc, R23BE_REG_RARFRC, 0x01000000U);
+    rtwn8723be_write_4(sc, R23BE_REG_RARFRC + 4, 0x07060504U);
+
+    sc->sc_bcn_ctrl_val = 0x1d;
+    rtwn8723be_write_1(sc, R23BE_REG_BCN_CTRL, sc->sc_bcn_ctrl_val);
+    rtwn8723be_write_1(sc, R23BE_REG_TBTT_PROHIBIT + 1, 0xff);
+    rtwn8723be_write_2(sc, R23BE_REG_NAV_PROT_LEN, 0x0040U);
+    rtwn8723be_write_4(sc, R23BE_REG_FAST_EDCA_CTRL, 0x03086666U);
+    rtwn8723be_write_1(sc, R23BE_REG_HT_SINGLE_AMPDU, 0x80);
+    rtwn8723be_write_1(sc, R23BE_REG_RX_PKT_LIMIT, 0x20);
+    rtwn8723be_write_1(sc, R23BE_REG_MAX_AGGR_NUM, 0x1f);
+    return 0;
+}
+
+/*
  * Foundation of the full Linux probe/start state machine.  Unspecified
  * callbacks remain NULL until their exact Linux hardware semantics have been
  * ported; rtwn8723be_linux_state.c will reject such an incomplete transition
@@ -1828,6 +1864,7 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .download_firmware = rtwn8723be_netbsd_download_firmware,
     .phy_mac_config = rtwn8723be_netbsd_phy_mac_config,
     .rcr_postprocess = rtwn8723be_netbsd_rcr_postprocess,
+    .hw_configure = rtwn8723be_netbsd_hw_configure,
     .cam_reset_all = rtwn8723be_netbsd_cam_reset_all,
     .set_mac_address = rtwn8723be_netbsd_set_mac_address,
     .set_nav_upper_235 = rtwn8723be_netbsd_set_nav_upper_235,
