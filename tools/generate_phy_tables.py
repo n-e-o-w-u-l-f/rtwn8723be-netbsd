@@ -70,10 +70,8 @@ def main() -> None:
         "#ifndef _RTWN8723BE_PHY_TABLES_H_",
         "#define _RTWN8723BE_PHY_TABLES_H_",
         "#include <sys/types.h>",
+        "#include \"rtwn8723be_phy_exec.h\"",
         "struct rtwn8723be_init_pair { uint32_t reg; uint32_t value; };",
-        "struct rtwn8723be_pg_entry {",
-        "    uint32_t band, path, txnum, reg, mask, value;",
-        "};",
     ]
     for name, dest, stride, count in TABLES:
         entries, digest = extract(source, name, stride, count)
