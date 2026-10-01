@@ -152,6 +152,7 @@ int rtwn8723be_netbsd_bt_preload_firmware(struct rtwn8723be_softc *);
 int rtwn8723be_netbsd_init_mac(void *);
 int rtwn8723be_netbsd_sys_cfg_clear_bit7(void *);
 int rtwn8723be_netbsd_download_firmware(void *);
+int rtwn8723be_netbsd_phy_mac_config(void *);
 int rtwn8723be_netbsd_rcr_postprocess(void *);
 int rtwn8723be_netbsd_set_nav_upper_235(void *);
 int rtwn8723be_netbsd_release_rx_dma(void *);
