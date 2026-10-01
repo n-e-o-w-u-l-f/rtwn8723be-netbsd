@@ -15,6 +15,7 @@ NAMES = (
     "rtwn8723be_netbsd_rcr_postprocess",
     "rtwn8723be_netbsd_cam_reset_all",
     "rtwn8723be_netbsd_set_mac_address",
+    "rtwn8723be_netbsd_init_rx_config",
     "rtwn8723be_netbsd_set_nav_upper_235",
     "rtwn8723be_netbsd_release_rx_dma",
     "rtwn8723be_netbsd_release_pcie_dma",
@@ -42,7 +43,7 @@ PRELUDE = r"""
 #include <assert.h>
 #include <errno.h>
 #include "rtwn8723be_mac_table.h"
-struct rtwn8723be_softc { int sc_mapped; int sc_efuse_autoload_ok; uint32_t sc_receive_config; uint8_t sc_retry_limit; uint8_t sc_macaddr[6]; };
+struct rtwn8723be_softc { int sc_mapped; int sc_efuse_autoload_ok; int sc_core_initialized; uint32_t sc_receive_config; uint32_t sc_mac_rx_conf; uint8_t sc_retry_limit; uint8_t sc_macaddr[6]; };
 #define R23BE_REG_RCR 0x608
 #define R23BE_REG_CAMCMD 0x670
 #define R23BE_REG_MACID 0x610
@@ -74,6 +75,7 @@ int main(void)
     assert(rtwn8723be_netbsd_rcr_postprocess(&sc) == ENXIO);
     assert(rtwn8723be_netbsd_cam_reset_all(&sc) == ENXIO);
     assert(rtwn8723be_netbsd_set_mac_address(&sc) == ENXIO);
+    assert(rtwn8723be_netbsd_init_rx_config(&sc) == ENXIO);
     assert(rtwn8723be_netbsd_set_nav_upper_235(&sc) == ENXIO);
     assert(rtwn8723be_netbsd_release_rx_dma(&sc) == ENXIO);
     assert(rtwn8723be_netbsd_release_pcie_dma(&sc) == ENXIO);
@@ -101,6 +103,10 @@ int main(void)
     regmap[R23BE_REG_RCR] = 0xffffffffU;
     assert(rtwn8723be_netbsd_rcr_postprocess(&sc) == 0);
     assert(sc.sc_receive_config == 0xfffffcffU);
+    assert(rtwn8723be_netbsd_init_rx_config(&sc) == ENXIO);
+    sc.sc_core_initialized = 1;
+    assert(rtwn8723be_netbsd_init_rx_config(&sc) == 0);
+    assert(sc.sc_mac_rx_conf == sc.sc_receive_config);
     assert(regmap[R23BE_REG_RCR] == sc.sc_receive_config);
     assert(rtwn8723be_netbsd_set_nav_upper_235(&sc) == 0);
     assert(regmap[R23BE_REG_NAV_UPPER] == 235);
@@ -118,7 +124,7 @@ int main(void)
     assert(rtwn8723be_netbsd_set_retry_limit(&sc) == 0);
     assert(regmap[R23BE_REG_RETRY_LIMIT] == 0x0707);
     assert(writes == n + 2);
-    puts("CALLBACK_TESTS_OK: MAC RCR CAM MACADDR NAV RXDMA PCIE RETRY");
+    puts("CALLBACK_TESTS_OK: MAC RCR CAM MACADDR RXCONFIG NAV RXDMA PCIE RETRY");
     return 0;
 }
 """
