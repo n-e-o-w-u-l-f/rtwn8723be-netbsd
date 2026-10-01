@@ -7,10 +7,8 @@
 #ifndef _RTWN8723BE_PHY_TABLES_H_
 #define _RTWN8723BE_PHY_TABLES_H_
 #include <sys/types.h>
+#include "rtwn8723be_phy_exec.h"
 struct rtwn8723be_init_pair { uint32_t reg; uint32_t value; };
-struct rtwn8723be_pg_entry {
-    uint32_t band, path, txnum, reg, mask, value;
-};
 /* Linux RTL8723BEPHY_REG_1TARRAY SHA256: d9553f337df2a7e05bed85f0dba283b8a1100b3d755e60d94ffb8d8d4ddc7910 */
 static const struct rtwn8723be_init_pair rtwn8723be_phy_table[] = {
     { 0x00000800U, 0x80040000U },
