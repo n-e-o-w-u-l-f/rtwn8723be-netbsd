@@ -149,6 +149,9 @@
 #define R23BE_REG_HWSEQ_CTRL           0x0423
 #define R23BE_REG_TCR                  0x0604
 #define R23BE_REG_RCR                  0x0608
+/* Pinned Linux rtl8723be/reg.h: REG_MACID/REG_CAMCMD. */
+#define R23BE_REG_MACID                0x0610
+#define R23BE_REG_CAMCMD               0x0670
 #define R23BE_REG_RXFLTMAP2            0x06a4
 #define R23BE_REG_MCUTST_1             0x01c0
 #define R23BE_REG_SECONDARY_CCA_CTRL   0x0577
