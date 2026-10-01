@@ -1653,6 +1653,61 @@ rtwn8723be_netbsd_reset_pcie_interface_dma(void *arg, bool mac_power_on)
     return 0;
 }
 
+/* Linux rtl8723be_hw_init: update RCR after phy_mac_config(). */
+int
+rtwn8723be_netbsd_rcr_postprocess(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+
+    if (!sc->sc_mapped)
+        return ENXIO;
+    sc->sc_receive_config = rtwn8723be_read_4(sc, R23BE_REG_RCR);
+    /* Pinned Linux rtl8723be/reg.h: RCR_ACRC32=BIT(8), RCR_AICV=BIT(9). */
+    sc->sc_receive_config &= ~((1U << 8) | (1U << 9));
+    rtwn8723be_write_4(sc, R23BE_REG_RCR, sc->sc_receive_config);
+    return 0;
+}
+
+/* Linux rtl8723be_hw_init: ((30000 + 127) / 128) == 235. */
+int
+rtwn8723be_netbsd_set_nav_upper_235(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+
+    if (!sc->sc_mapped)
+        return ENXIO;
+    rtwn8723be_write_1(sc, R23BE_REG_NAV_UPPER, 235);
+    return 0;
+}
+
+/* Release RX DMA only after initialization and calibration have succeeded. */
+int
+rtwn8723be_netbsd_release_rx_dma(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+    uint8_t value;
+
+    if (!sc->sc_mapped)
+        return ENXIO;
+    value = rtwn8723be_read_1(sc, R23BE_REG_RXDMA_CONTROL);
+    if (value & (1U << 2))
+        rtwn8723be_write_1(sc, R23BE_REG_RXDMA_CONTROL,
+            value & ~(1U << 2));
+    return 0;
+}
+
+/* Pinned Linux rtl8723be_hw_init: release PCIe TX/RX DMA after RX DMA. */
+int
+rtwn8723be_netbsd_release_pcie_dma(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+
+    if (!sc->sc_mapped)
+        return ENXIO;
+    rtwn8723be_write_1(sc, R23BE_REG_PCIE_CTRL_REG + 1, 0);
+    return 0;
+}
+
 /*
  * Foundation of the full Linux probe/start state machine.  Unspecified
  * callbacks remain NULL until their exact Linux hardware semantics have been
@@ -1684,6 +1739,10 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .init_mac = rtwn8723be_netbsd_init_mac,
     .sys_cfg_clear_bit7 = rtwn8723be_netbsd_sys_cfg_clear_bit7,
     .download_firmware = rtwn8723be_netbsd_download_firmware,
+    .rcr_postprocess = rtwn8723be_netbsd_rcr_postprocess,
+    .set_nav_upper_235 = rtwn8723be_netbsd_set_nav_upper_235,
+    .release_rx_dma = rtwn8723be_netbsd_release_rx_dma,
+    .release_pcie_dma = rtwn8723be_netbsd_release_pcie_dma,
     .enable_aspm = rtwn8723be_netbsd_enable_aspm,
     .establish_irq = rtwn8723be_netbsd_establish_irq,
     .enable_interrupt = rtwn8723be_netbsd_enable_interrupt,
