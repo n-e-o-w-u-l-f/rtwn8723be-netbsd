@@ -49,6 +49,9 @@ def makefile_object_sources(src_root: Path, rel_makefile: Path,
     for raw in text.splitlines():
         line = raw.split("#", 1)[0].rstrip()
         if not line.strip():
+            if pending:
+                logical.append(pending)
+                pending = ""
             continue
         pending += (" " if pending else "") + line.strip()
         if pending.endswith("\\"):
@@ -56,6 +59,8 @@ def makefile_object_sources(src_root: Path, rel_makefile: Path,
             continue
         logical.append(pending)
         pending = ""
+    if pending:
+        logical.append(pending)
 
     sources = []
     for line in logical:
