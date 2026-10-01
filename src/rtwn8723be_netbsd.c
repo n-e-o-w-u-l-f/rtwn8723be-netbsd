@@ -1780,6 +1780,22 @@ rtwn8723be_netbsd_set_retry_limit(void *arg)
 }
 
 /*
+ * rtlwifi/base.c:rtl_init_rx_config() reads HW_VAR_RCR, which
+ * rtl8723be_get_hw_reg() supplies from rtlpci->receive_config.
+ * Keep a distinct MAC copy as in Linux instead of rereading RCR MMIO.
+ */
+int
+rtwn8723be_netbsd_init_rx_config(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+
+    if (!sc->sc_core_initialized || !sc->sc_mapped)
+        return ENXIO;
+    sc->sc_mac_rx_conf = sc->sc_receive_config;
+    return 0;
+}
+
+/*
  * Foundation of the full Linux probe/start state machine.  Unspecified
  * callbacks remain NULL until their exact Linux hardware semantics have been
  * ported; rtwn8723be_linux_state.c will reject such an incomplete transition
@@ -1821,5 +1837,6 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .enable_aspm = rtwn8723be_netbsd_enable_aspm,
     .establish_irq = rtwn8723be_netbsd_establish_irq,
     .enable_interrupt = rtwn8723be_netbsd_enable_interrupt,
+    .init_rx_config = rtwn8723be_netbsd_init_rx_config,
     .disable_interrupt = rtwn8723be_netbsd_disable_interrupt,
 };
