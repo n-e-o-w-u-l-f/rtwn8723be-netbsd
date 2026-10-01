@@ -16,6 +16,7 @@ NAMES = (
     "rtwn8723be_netbsd_cam_reset_all",
     "rtwn8723be_netbsd_set_mac_address",
     "rtwn8723be_netbsd_init_rx_config",
+    "rtwn8723be_netbsd_hw_configure",
     "rtwn8723be_netbsd_set_nav_upper_235",
     "rtwn8723be_netbsd_release_rx_dma",
     "rtwn8723be_netbsd_release_pcie_dma",
@@ -43,7 +44,7 @@ PRELUDE = r"""
 #include <assert.h>
 #include <errno.h>
 #include "rtwn8723be_mac_table.h"
-struct rtwn8723be_softc { int sc_mapped; int sc_efuse_autoload_ok; int sc_core_initialized; uint32_t sc_receive_config; uint32_t sc_mac_rx_conf; uint8_t sc_retry_limit; uint8_t sc_macaddr[6]; };
+struct rtwn8723be_softc { int sc_mapped; int sc_efuse_autoload_ok; int sc_core_initialized; uint32_t sc_receive_config; uint32_t sc_mac_rx_conf; uint8_t sc_retry_limit; uint8_t sc_bcn_ctrl_val; uint8_t sc_macaddr[6]; };
 #define R23BE_REG_RCR 0x608
 #define R23BE_REG_CAMCMD 0x670
 #define R23BE_REG_MACID 0x610
@@ -51,21 +52,37 @@ struct rtwn8723be_softc { int sc_mapped; int sc_efuse_autoload_ok; int sc_core_i
 #define R23BE_REG_NAV_UPPER 0x652
 #define R23BE_REG_RXDMA_CONTROL 0x286
 #define R23BE_REG_PCIE_CTRL_REG 0x300
+#define R23BE_REG_FWHW_TXQ_CTRL 0x420
+#define R23BE_REG_DARFRC 0x430
+#define R23BE_REG_RARFRC 0x438
+#define R23BE_REG_RRSR 0x440
+#define R23BE_REG_ARFR0 0x444
+#define R23BE_REG_ARFR1 0x44c
+#define R23BE_REG_AMPDU_MAX_TIME 0x456
+#define R23BE_REG_FAST_EDCA_CTRL 0x460
+#define R23BE_REG_HT_SINGLE_AMPDU 0x4c7
+#define R23BE_REG_MAX_AGGR_NUM 0x4ca
+#define R23BE_REG_TBTT_PROHIBIT 0x540
+#define R23BE_REG_NAV_PROT_LEN 0x546
+#define R23BE_REG_BCN_CTRL 0x550
+#define R23BE_REG_RX_PKT_LIMIT 0x60c
 static uint32_t regmap[0x800];
 static unsigned writes;
+struct write_event { unsigned reg, width; uint32_t val; };
+static struct write_event log_events[256];
 static uint32_t rtwn8723be_read_4(struct rtwn8723be_softc *s, unsigned r)
 { (void)s; return regmap[r]; }
 static uint8_t rtwn8723be_read_1(struct rtwn8723be_softc *s, unsigned r)
 { (void)s; return (uint8_t)regmap[r]; }
 static void rtwn8723be_write_4(struct rtwn8723be_softc *s,
                               unsigned r, uint32_t v)
-{ (void)s; regmap[r] = v; writes++; }
+{ (void)s; regmap[r] = v; log_events[writes] = (struct write_event){ r, 4, v }; writes++; }
 static void rtwn8723be_write_1(struct rtwn8723be_softc *s,
                               unsigned r, uint8_t v)
-{ (void)s; regmap[r] = v; writes++; }
+{ (void)s; regmap[r] = v; log_events[writes] = (struct write_event){ r, 1, v }; writes++; }
 static void rtwn8723be_write_2(struct rtwn8723be_softc *s,
                               unsigned r, uint16_t v)
-{ (void)s; regmap[r] = v; writes++; }
+{ (void)s; regmap[r] = v; log_events[writes] = (struct write_event){ r, 2, v }; writes++; }
 """
 MAIN = r"""
 int main(void)
@@ -76,6 +93,7 @@ int main(void)
     assert(rtwn8723be_netbsd_cam_reset_all(&sc) == ENXIO);
     assert(rtwn8723be_netbsd_set_mac_address(&sc) == ENXIO);
     assert(rtwn8723be_netbsd_init_rx_config(&sc) == ENXIO);
+    assert(rtwn8723be_netbsd_hw_configure(&sc) == ENXIO);
     assert(rtwn8723be_netbsd_set_nav_upper_235(&sc) == ENXIO);
     assert(rtwn8723be_netbsd_release_rx_dma(&sc) == ENXIO);
     assert(rtwn8723be_netbsd_release_pcie_dma(&sc) == ENXIO);
@@ -124,7 +142,28 @@ int main(void)
     assert(rtwn8723be_netbsd_set_retry_limit(&sc) == 0);
     assert(regmap[R23BE_REG_RETRY_LIMIT] == 0x0707);
     assert(writes == n + 2);
-    puts("CALLBACK_TESTS_OK: MAC RCR CAM MACADDR RXCONFIG NAV RXDMA PCIE RETRY");
+    const struct write_event expected[17] = {
+        {0x440, 4, 0x00000fffU}, {0x448, 4, 0xfffff000U},
+        {0x450, 4, 0x003ff000U}, {0x420, 2, 0x1f00U},
+        {0x456, 1, 0x70U}, {0x42a, 2, 0x0707U},
+        {0x430, 4, 0x01000000U}, {0x434, 4, 0x07060504U},
+        {0x438, 4, 0x01000000U}, {0x43c, 4, 0x07060504U},
+        {0x550, 1, 0x1dU}, {0x541, 1, 0xffU},
+        {0x546, 2, 0x0040U}, {0x460, 4, 0x03086666U},
+        {0x4c7, 1, 0x80U}, {0x60c, 1, 0x20U},
+        {0x4ca, 1, 0x1fU}
+    };
+    unsigned before_hw = writes;
+    assert(rtwn8723be_netbsd_hw_configure(&sc) == 0);
+    assert(sc.sc_bcn_ctrl_val == 0x1d);
+    assert(writes == before_hw + 17);
+    for (unsigned i = 0; i < 17; i++) {
+        assert(log_events[before_hw + i].reg == expected[i].reg);
+        assert(log_events[before_hw + i].width == expected[i].width);
+        assert(log_events[before_hw + i].val == expected[i].val);
+    }
+    assert(regmap[R23BE_REG_MAX_AGGR_NUM] == 0x1f);
+    puts("CALLBACK_TESTS_OK: MAC RCR CAM MACADDR RXCONFIG HW17 NAV RXDMA PCIE RETRY");
     return 0;
 }
 """
