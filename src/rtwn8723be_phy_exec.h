@@ -20,7 +20,9 @@ struct rtwn8723be_phy_identity {
     bool pci_interface;
 };
 
-struct rtwn8723be_pg_entry;
+struct rtwn8723be_pg_entry {
+    uint32_t band, path, txnum, reg, mask, value;
+};
 typedef int (*rtwn8723be_phy_write_fn)(void *, uint32_t, uint32_t);
 typedef int (*rtwn8723be_phy_pg_fn)(void *,
     const struct rtwn8723be_pg_entry *);
