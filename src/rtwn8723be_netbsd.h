@@ -80,6 +80,7 @@ struct rtwn8723be_softc {
     struct rtwn8723be_linux_state sc_linux;
 
     uint32_t sc_receive_config;
+    uint32_t sc_mac_rx_conf;
     uint8_t sc_retry_limit;
     uint32_t sc_transmit_config;
     const char *sc_firmware_name;
@@ -160,6 +161,7 @@ int rtwn8723be_netbsd_set_nav_upper_235(void *);
 int rtwn8723be_netbsd_release_rx_dma(void *);
 int rtwn8723be_netbsd_release_pcie_dma(void *);
 int rtwn8723be_netbsd_set_retry_limit(void *);
+int rtwn8723be_netbsd_init_rx_config(void *);
 
 void rtwn8723be_netbsd_irq_set_dispatch(struct rtwn8723be_softc *,
     const struct rtwn8723be_irq_dispatch *, void *);
