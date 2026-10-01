@@ -27,13 +27,13 @@ none
 | COV-RTL-003 | DMA rings/LLT/descriptors allocation | LLT, rtlwifi PCI ring ownership | bus_dma rings preserving Linux descriptor layout/OWN semantics | before release/traffic | free/unmap/sync | IN_PROGRESS | descriptor/ring audit |
 | COV-RTL-004 | Firmware file/header validation | rtl8723befw_36.bin, 0x5300 signature | firmware(9) loading/header validation | before transfer | close/reject invalid image | IN_PROGRESS | signature/size evidence |
 | COV-RTL-005 | Firmware transfer/self-reset/ready | rtl8723_download_fw, rtl8723_write_fw, rtl8723_fw_free_to_go | page upload, self-reset, checksum, MCUFWDL_RDY/WINTINI_RDY | after MAC power, before BB/RF | disable/reset on failure | IN_PROGRESS | source implemented from pinned Linux; isolated -Wall/-Wextra/-Werror syntax/type check passed; NetBSD integration build and hardware-ready evidence pending |
-| COV-RTL-006 | MAC init/table | _rtl8723be_init_mac + phy_mac_config | exact register/state translation | after power, around firmware order per Linux | MAC reset | OPEN | MAC-state audit |
+| COV-RTL-006 | MAC init/table | _rtl8723be_init_mac + phy_mac_config | exact register/state translation; reference RCR postprocess callback wired | after power, around firmware order per Linux | MAC reset | IN_PROGRESS | RCR mask/write isolated C test passed; full MAC/PHY integration pending |
 | COV-RTL-007 | BB/RF configuration | rtl8723be_phy_bb_config/phy_rf_config | BB/RF tables + RF adapter | after firmware/MAC | RF cleanup | OPEN | channel/RF evidence |
-| COV-RTL-008 | HW policy/configuration | _rtl8723be_hw_configure | RRSR/ARFR/retry/TBTT/NAV/aggregation | after BB/RF | restore/reset | OPEN | register-state audit |
+| COV-RTL-008 | HW policy/configuration | _rtl8723be_hw_configure | RRSR/ARFR/retry/TBTT/NAV/aggregation; NAV=235 and retry-limit=7 callbacks wired | after BB/RF and post-init | restore/reset | IN_PROGRESS | both register writes isolated C-tested; full HW policy and integration pending |
 | COV-RTL-009 | Security/CAM/MAC address | CAM reset + HW security + HW_VAR_ETHER_ADDR | net80211 key/CAM adapter | after HW config | CAM clear | OPEN | key/security verification |
 | COV-RTL-010 | ASPM backdoor/BT coexistence | enable_aspm_back_door + bt_hw_init | PCIe/BT coexist adapter | after core HW config | coexist teardown | OPEN | coexist/state audit |
 | COV-RTL-011 | IQK/LC/TX-power tracking/DM | PHY calibration + DM init | exact calibration/DM state | before final DMA release/normal runtime | calibration fallback | OPEN | calibration evidence |
-| COV-RTL-012 | Final RX/PCIe DMA release | REG_RXDMA_CONTROL + REG_PCIE_CTRL_REG+1 | release only after prior init succeeds | strictly after COV-RTL-001..011 as applicable | re-block DMA on failure | OPEN | ordering/readback evidence |
+| COV-RTL-012 | Final RX/PCIe DMA release | REG_RXDMA_CONTROL + REG_PCIE_CTRL_REG+1 | conditional RX-DMA clear followed by PCIe DMA release; callbacks wired | strictly after COV-RTL-001..011 as applicable | re-block DMA on failure | IN_PROGRESS | isolated C callback/order/register tests passed; prerequisites, error unwind and target verification pending |
 | COV-RTL-013 | IRQ masks/handler | HIMR/HIMRE/HSIMR + recognized/enable/disable | PCI interrupt + exact masks | after rings/HW ready | mask/teardown | IN_PROGRESS | interrupt service evidence |
 | COV-RTL-014 | TX/RX datapath descriptors | 40-byte TX + 32-byte RX query/fill | NetBSD mbuf/bus_dma adapter preserving layout/OWN | after DMA+IRQ | reclaim/unmap | OPEN | packet TX/RX evidence |
 | COV-RTL-015 | H2C/C2H firmware protocol | rtl8723be fw.c/mailboxes | firmware command/event adapter | after firmware ready | mailbox reset | OPEN | command/event evidence |
@@ -41,10 +41,10 @@ none
 | COV-RTL-017 | RF power/LPS/IPS/suspend/resume/recovery | Linux PM callbacks + reset paths | NetBSD PM lifecycle + recovery ordering | runtime/final | full reinit/teardown | OPEN | PM/recovery verification |
 
 ## CURRENT_DELTA
-Complete COV-RTL-001 power-sequence semantics, then implement COV-RTL-005 firmware transfer/ready handshake and continue into COV-RTL-003/COV-RTL-012 ordering closure; do not treat firmware load or one working register path as completion of the WLAN port.
+Five reference-derived hardware callbacks are implemented/wired and isolated C-tested: RCR fixup, NAV upper, conditional RX DMA release, PCIe DMA release, and default retry-limit programming. Full initialization still preflights as incomplete: 21 of 53 Linux lifecycle callbacks are absent from rtwn8723be_netbsd_ops. Next implement/verify required PHY MAC/BB/RF tables, net80211 registration, BT preparation/coexistence, calibration/DM, TX/RX datapath, recovery and teardown in reference order. Validate NetBSD integration, full dependency closure and runtime only after required gates; isolated C tests are not hardware verification.
 
 ## NEXT_UNRESOLVED
-All COV-RTL-000 through COV-RTL-017 remain unresolved; COV-RTL-001, COV-RTL-003, COV-RTL-004, COV-RTL-005, and COV-RTL-013 are currently IN_PROGRESS.
+All COV-RTL-000 through COV-RTL-017 remain unresolved; COV-RTL-001, COV-RTL-003, COV-RTL-004, COV-RTL-005, COV-RTL-006, COV-RTL-008, COV-RTL-012, and COV-RTL-013 are currently IN_PROGRESS. The partial callback verification is recorded in tests/test_late_hw_callbacks.py (five functions, strict host C compilation); no row has been prematurely CLOSED.
 
 ## PARENT_STATUS
 IN_PROGRESS
