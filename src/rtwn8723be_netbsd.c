@@ -16,6 +16,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "rtwn8723be_netbsd.h"
 #include "rtwn8723be_fw.h"
 #include "rtwn8723be_pwrseq_plan.h"
+#include "rtwn8723be_mac_table.h"
 
 static int rtwn8723be_netbsd_intr(void *);
 static void rtwn8723be_netbsd_softintr(void *);
@@ -1655,6 +1656,26 @@ rtwn8723be_netbsd_reset_pcie_interface_dma(void *arg, bool mac_power_on)
     return 0;
 }
 
+/*
+ * Linux rtl8723be_phy_mac_config(): program every unconditional entry of
+ * the frozen RTL8723BEMAC_1T_ARRAY in source order, then write 04ca=0b.
+ * RCR postprocessing must follow this callback, never precede the table.
+ */
+int
+rtwn8723be_netbsd_phy_mac_config(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+    size_t i;
+
+    if (!sc->sc_mapped)
+        return ENXIO;
+    for (i = 0; i < RTWN8723BE_MAC_TABLE_COUNT; i++)
+        rtwn8723be_write_1(sc, rtwn8723be_mac_table[i].reg,
+            rtwn8723be_mac_table[i].value);
+    rtwn8723be_write_1(sc, 0x04ca, 0x0b);
+    return 0;
+}
+
 /* Linux rtl8723be_hw_init: update RCR after phy_mac_config(). */
 int
 rtwn8723be_netbsd_rcr_postprocess(void *arg)
@@ -1756,6 +1777,7 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .init_mac = rtwn8723be_netbsd_init_mac,
     .sys_cfg_clear_bit7 = rtwn8723be_netbsd_sys_cfg_clear_bit7,
     .download_firmware = rtwn8723be_netbsd_download_firmware,
+    .phy_mac_config = rtwn8723be_netbsd_phy_mac_config,
     .rcr_postprocess = rtwn8723be_netbsd_rcr_postprocess,
     .set_nav_upper_235 = rtwn8723be_netbsd_set_nav_upper_235,
     .set_retry_limit = rtwn8723be_netbsd_set_retry_limit,
