@@ -1676,6 +1676,39 @@ rtwn8723be_netbsd_phy_mac_config(void *arg)
     return 0;
 }
 
+/*
+ * rtlwifi/cam.c:rtl_cam_reset_all_entry() via
+ * rtl8723be/sw.c .maps[RWCAM] = REG_CAMCMD (0x0670).
+ * Bits 31/30 request a full on-device CAM clear.
+ */
+int
+rtwn8723be_netbsd_cam_reset_all(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+
+    if (!sc->sc_mapped)
+        return ENXIO;
+    rtwn8723be_write_4(sc, R23BE_REG_CAMCMD, (1U << 31) | (1U << 30));
+    return 0;
+}
+
+/*
+ * rtl8723be/hw.c:HW_VAR_ETHER_ADDR writes all ETH_ALEN bytes to
+ * REG_MACID + index in increasing order using the EFUSE-derived address.
+ */
+int
+rtwn8723be_netbsd_set_mac_address(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+    size_t i;
+
+    if (!sc->sc_mapped || !sc->sc_efuse_autoload_ok)
+        return ENXIO;
+    for (i = 0; i < sizeof(sc->sc_macaddr); i++)
+        rtwn8723be_write_1(sc, R23BE_REG_MACID + i, sc->sc_macaddr[i]);
+    return 0;
+}
+
 /* Linux rtl8723be_hw_init: update RCR after phy_mac_config(). */
 int
 rtwn8723be_netbsd_rcr_postprocess(void *arg)
@@ -1779,6 +1812,8 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .download_firmware = rtwn8723be_netbsd_download_firmware,
     .phy_mac_config = rtwn8723be_netbsd_phy_mac_config,
     .rcr_postprocess = rtwn8723be_netbsd_rcr_postprocess,
+    .cam_reset_all = rtwn8723be_netbsd_cam_reset_all,
+    .set_mac_address = rtwn8723be_netbsd_set_mac_address,
     .set_nav_upper_235 = rtwn8723be_netbsd_set_nav_upper_235,
     .set_retry_limit = rtwn8723be_netbsd_set_retry_limit,
     .release_rx_dma = rtwn8723be_netbsd_release_rx_dma,
