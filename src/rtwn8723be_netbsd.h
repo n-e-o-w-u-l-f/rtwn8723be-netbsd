@@ -80,6 +80,7 @@ struct rtwn8723be_softc {
     struct rtwn8723be_linux_state sc_linux;
 
     uint32_t sc_receive_config;
+    uint8_t sc_retry_limit;
     uint32_t sc_transmit_config;
     const char *sc_firmware_name;
 
