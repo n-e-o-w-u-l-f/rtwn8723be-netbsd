@@ -52,6 +52,8 @@ rtwn8723be_netbsd_context_init(struct rtwn8723be_softc *sc,
      * turns this into a NetBSD bus_dma subregion tag.
      */
     sc->sc_dma_32bit = false;
+    /* Linux rtl_pci_init(): retry_short = retry_long = 7. */
+    sc->sc_retry_limit = 7;
 
     sc->sc_irq_mask[0] = R23BE_IMR0_DEFAULT;
     sc->sc_irq_mask[1] = R23BE_IMR1_DEFAULT;
@@ -1708,6 +1710,21 @@ rtwn8723be_netbsd_release_pcie_dma(void *arg)
     return 0;
 }
 
+/* Linux HW_VAR_RETRY_LIMIT: short/long retries share the PCI default. */
+int
+rtwn8723be_netbsd_set_retry_limit(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+    uint16_t value;
+
+    if (!sc->sc_mapped)
+        return ENXIO;
+    value = ((uint16_t)sc->sc_retry_limit << 8) |
+        sc->sc_retry_limit;
+    rtwn8723be_write_2(sc, R23BE_REG_RETRY_LIMIT, value);
+    return 0;
+}
+
 /*
  * Foundation of the full Linux probe/start state machine.  Unspecified
  * callbacks remain NULL until their exact Linux hardware semantics have been
@@ -1741,6 +1758,7 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .download_firmware = rtwn8723be_netbsd_download_firmware,
     .rcr_postprocess = rtwn8723be_netbsd_rcr_postprocess,
     .set_nav_upper_235 = rtwn8723be_netbsd_set_nav_upper_235,
+    .set_retry_limit = rtwn8723be_netbsd_set_retry_limit,
     .release_rx_dma = rtwn8723be_netbsd_release_rx_dma,
     .release_pcie_dma = rtwn8723be_netbsd_release_pcie_dma,
     .enable_aspm = rtwn8723be_netbsd_enable_aspm,
