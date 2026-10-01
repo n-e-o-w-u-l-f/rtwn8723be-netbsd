@@ -15,6 +15,7 @@ NAMES = (
     "rtwn8723be_netbsd_set_nav_upper_235",
     "rtwn8723be_netbsd_release_rx_dma",
     "rtwn8723be_netbsd_release_pcie_dma",
+    "rtwn8723be_netbsd_set_retry_limit",
 )
 
 def extract(name):
@@ -37,8 +38,9 @@ PRELUDE = r"""
 #include <stdio.h>
 #include <assert.h>
 #include <errno.h>
-struct rtwn8723be_softc { int sc_mapped; uint32_t sc_receive_config; };
+struct rtwn8723be_softc { int sc_mapped; uint32_t sc_receive_config; uint8_t sc_retry_limit; };
 #define R23BE_REG_RCR 0x608
+#define R23BE_REG_RETRY_LIMIT 0x42a
 #define R23BE_REG_NAV_UPPER 0x652
 #define R23BE_REG_RXDMA_CONTROL 0x286
 #define R23BE_REG_PCIE_CTRL_REG 0x300
@@ -54,6 +56,9 @@ static void rtwn8723be_write_4(struct rtwn8723be_softc *s,
 static void rtwn8723be_write_1(struct rtwn8723be_softc *s,
                               unsigned r, uint8_t v)
 { (void)s; regmap[r] = v; writes++; }
+static void rtwn8723be_write_2(struct rtwn8723be_softc *s,
+                              unsigned r, uint16_t v)
+{ (void)s; regmap[r] = v; writes++; }
 """
 MAIN = r"""
 int main(void)
@@ -63,6 +68,7 @@ int main(void)
     assert(rtwn8723be_netbsd_set_nav_upper_235(&sc) == ENXIO);
     assert(rtwn8723be_netbsd_release_rx_dma(&sc) == ENXIO);
     assert(rtwn8723be_netbsd_release_pcie_dma(&sc) == ENXIO);
+    assert(rtwn8723be_netbsd_set_retry_limit(&sc) == ENXIO);
     assert(writes == 0);
     sc.sc_mapped = 1;
     regmap[R23BE_REG_RCR] = 0xffffffffU;
@@ -81,7 +87,11 @@ int main(void)
     assert(rtwn8723be_netbsd_release_pcie_dma(&sc) == 0);
     assert(regmap[R23BE_REG_PCIE_CTRL_REG + 1] == 0);
     assert(writes == n + 1);
-    puts("CALLBACK_TESTS_OK: RCR NAV RXDMA PCIE");
+    sc.sc_retry_limit = 7;
+    assert(rtwn8723be_netbsd_set_retry_limit(&sc) == 0);
+    assert(regmap[R23BE_REG_RETRY_LIMIT] == 0x0707);
+    assert(writes == n + 2);
+    puts("CALLBACK_TESTS_OK: RCR NAV RXDMA PCIE RETRY");
     return 0;
 }
 """
