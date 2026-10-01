@@ -146,6 +146,67 @@ rtwn8723be_netbsd_set_bbreg(struct rtwn8723be_softc *sc,
     rtwn8723be_write_4(sc, reg, data);
 }
 
+
+/*
+ * Frozen Linux rtl8723be/phy.c:_rtl8723be_config_bb_reg() writes a full
+ * 32-bit BB register and waits 1 us, except for six table delay tokens.
+ * The generic table interpreter invokes this adapter only for matched
+ * entries and never sends Linux's conditional control words here.
+ */
+int
+rtwn8723be_netbsd_phy_bb_write(void *arg, uint32_t reg, uint32_t value)
+{
+    struct rtwn8723be_softc *sc = arg;
+
+    if (sc == NULL)
+        return EINVAL;
+    if (!sc->sc_mapped)
+        return ENXIO;
+
+    switch (reg) {
+    case 0xfe:
+        delay(50000);
+        return 0;
+    case 0xfd:
+        delay(5000);
+        return 0;
+    case 0xfc:
+        delay(1000);
+        return 0;
+    case 0xfb:
+        delay(50);
+        return 0;
+    case 0xfa:
+        delay(5);
+        return 0;
+    case 0xf9:
+        delay(1);
+        return 0;
+    default:
+        rtwn8723be_netbsd_set_bbreg(sc, reg, 0xffffffffU, value);
+        delay(1);
+        return 0;
+    }
+}
+
+/*
+ * Frozen Linux rtl8723be/phy.c routes AGC entries through
+ * rtl_set_bbreg_with_dwmask(), without the BB table's post-write delay.
+ */
+int
+rtwn8723be_netbsd_phy_agc_write(void *arg, uint32_t reg, uint32_t value)
+{
+    struct rtwn8723be_softc *sc = arg;
+
+    if (sc == NULL)
+        return EINVAL;
+    if (!sc->sc_mapped)
+        return ENXIO;
+
+    rtwn8723be_netbsd_set_bbreg(sc, reg, 0xffffffffU, value);
+    return 0;
+}
+
 int
 rtwn8723be_netbsd_pci_enable(void *arg)
 {
