@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compile/test the four real NetBSD late-hw callbacks with mocked bus-space I/O.
+"""Compile/test reference-derived NetBSD hw callbacks with mocked bus-space I/O.
 
 This proves isolated C syntax and register/ordering behavior. It does not
 claim NetBSD kernel integration or hardware/runtime parity.
@@ -13,6 +13,8 @@ SOURCE = (ROOT / "src/rtwn8723be_netbsd.c").read_text()
 NAMES = (
     "rtwn8723be_netbsd_phy_mac_config",
     "rtwn8723be_netbsd_rcr_postprocess",
+    "rtwn8723be_netbsd_cam_reset_all",
+    "rtwn8723be_netbsd_set_mac_address",
     "rtwn8723be_netbsd_set_nav_upper_235",
     "rtwn8723be_netbsd_release_rx_dma",
     "rtwn8723be_netbsd_release_pcie_dma",
@@ -40,8 +42,10 @@ PRELUDE = r"""
 #include <assert.h>
 #include <errno.h>
 #include "rtwn8723be_mac_table.h"
-struct rtwn8723be_softc { int sc_mapped; uint32_t sc_receive_config; uint8_t sc_retry_limit; };
+struct rtwn8723be_softc { int sc_mapped; int sc_efuse_autoload_ok; uint32_t sc_receive_config; uint8_t sc_retry_limit; uint8_t sc_macaddr[6]; };
 #define R23BE_REG_RCR 0x608
+#define R23BE_REG_CAMCMD 0x670
+#define R23BE_REG_MACID 0x610
 #define R23BE_REG_RETRY_LIMIT 0x42a
 #define R23BE_REG_NAV_UPPER 0x652
 #define R23BE_REG_RXDMA_CONTROL 0x286
@@ -68,6 +72,8 @@ int main(void)
     struct rtwn8723be_softc sc = {0};
     assert(rtwn8723be_netbsd_phy_mac_config(&sc) == ENXIO);
     assert(rtwn8723be_netbsd_rcr_postprocess(&sc) == ENXIO);
+    assert(rtwn8723be_netbsd_cam_reset_all(&sc) == ENXIO);
+    assert(rtwn8723be_netbsd_set_mac_address(&sc) == ENXIO);
     assert(rtwn8723be_netbsd_set_nav_upper_235(&sc) == ENXIO);
     assert(rtwn8723be_netbsd_release_rx_dma(&sc) == ENXIO);
     assert(rtwn8723be_netbsd_release_pcie_dma(&sc) == ENXIO);
@@ -80,6 +86,18 @@ int main(void)
     assert(regmap[0x02f] == 0x30);
     assert(regmap[0x76e] == 0x04);
     assert(regmap[0x04ca] == 0x0b);
+    unsigned after_mac_table = writes;
+    assert(rtwn8723be_netbsd_cam_reset_all(&sc) == 0);
+    assert(regmap[R23BE_REG_CAMCMD] == 0xc0000000U);
+    assert(writes == after_mac_table + 1);
+    assert(rtwn8723be_netbsd_set_mac_address(&sc) == ENXIO);
+    assert(writes == after_mac_table + 1);
+    sc.sc_efuse_autoload_ok = 1;
+    const uint8_t mac[] = { 0x02, 0x18, 0x7a, 0x23, 0xbe, 0x42 };
+    for (unsigned i = 0; i < 6; i++) sc.sc_macaddr[i] = mac[i];
+    assert(rtwn8723be_netbsd_set_mac_address(&sc) == 0);
+    for (unsigned i = 0; i < 6; i++) assert(regmap[R23BE_REG_MACID + i] == mac[i]);
+    assert(writes == after_mac_table + 7);
     regmap[R23BE_REG_RCR] = 0xffffffffU;
     assert(rtwn8723be_netbsd_rcr_postprocess(&sc) == 0);
     assert(sc.sc_receive_config == 0xfffffcffU);
@@ -100,7 +118,7 @@ int main(void)
     assert(rtwn8723be_netbsd_set_retry_limit(&sc) == 0);
     assert(regmap[R23BE_REG_RETRY_LIMIT] == 0x0707);
     assert(writes == n + 2);
-    puts("CALLBACK_TESTS_OK: MAC RCR NAV RXDMA PCIE RETRY");
+    puts("CALLBACK_TESTS_OK: MAC RCR CAM MACADDR NAV RXDMA PCIE RETRY");
     return 0;
 }
 """
