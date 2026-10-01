@@ -29,6 +29,51 @@ TOP_LEVEL_ALWAYS = (
     "Makefile", "Kconfig",
 )
 
+ACTIVE_MAKE_VARS = (
+    (RTL_ROOT / "Makefile", "rtlwifi-objs", RTL_ROOT),
+    (RTL_ROOT / "Makefile", "rtl_pci-objs", RTL_ROOT),
+    (RTL_ROOT / "rtl8723be" / "Makefile", "rtl8723be-objs",
+     RTL_ROOT / "rtl8723be"),
+    (RTL_ROOT / "rtl8723com" / "Makefile", "rtl8723-common-objs",
+     RTL_ROOT / "rtl8723com"),
+    (RTL_ROOT / "btcoexist" / "Makefile", "btcoexist-objs",
+     RTL_ROOT / "btcoexist"),
+)
+
+
+def makefile_object_sources(src_root: Path, rel_makefile: Path,
+                            variable: str, prefix: Path) -> list[str]:
+    text = (src_root / rel_makefile).read_text()
+    logical = []
+    pending = ""
+    for raw in text.splitlines():
+        line = raw.split("#", 1)[0].rstrip()
+        if not line.strip():
+            continue
+        pending += (" " if pending else "") + line.strip()
+        if pending.endswith("\\"):
+            pending = pending[:-1].rstrip()
+            continue
+        logical.append(pending)
+        pending = ""
+
+    sources = []
+    for line in logical:
+        if ":=" in line:
+            name, rhs = line.split(":=", 1)
+        elif "+=" in line:
+            name, rhs = line.split("+=", 1)
+        else:
+            continue
+        if name.strip() != variable:
+            continue
+        for token in rhs.split():
+            if token.endswith(".o"):
+                sources.append(str(prefix / (token[:-2] + ".c")))
+    if not sources:
+        raise RuntimeError(f"no objects found for {variable} in {rel_makefile}")
+    return sources
+
 
 def git_head(tree: Path) -> str | None:
     try:
@@ -98,7 +143,7 @@ def main() -> int:
         copy_file(linux, out, RTL_ROOT / name)
 
     files = []
-    active_c = []
+    materialized_c = []
     for path in sorted(p for p in out.rglob("*") if p.is_file()):
         rel = str(path.relative_to(out))
         files.append({
@@ -107,7 +152,24 @@ def main() -> int:
             "sha256": sha256(path),
         })
         if path.suffix == ".c":
-            active_c.append(rel)
+            materialized_c.append(rel)
+
+    active_c = []
+    for rel_makefile, variable, prefix in ACTIVE_MAKE_VARS:
+        active_c.extend(
+            makefile_object_sources(linux, rel_makefile, variable, prefix)
+        )
+    active_c = sorted(set(active_c))
+
+    missing_active = [
+        rel for rel in active_c
+        if not (out / rel).is_file()
+    ]
+    if missing_active:
+        raise RuntimeError(
+            "active source files missing from materialized tree: " +
+            ", ".join(missing_active)
+        )
 
     manifest = {
         "linux_pin": LINUX_PIN,
@@ -119,6 +181,8 @@ def main() -> int:
         "common_objects": list(COMMON_OBJECTS),
         "active_c_file_count": len(active_c),
         "active_c_files": active_c,
+        "materialized_c_file_count": len(materialized_c),
+        "materialized_c_files": materialized_c,
         "total_file_count": len(files),
         "files": files,
     }
