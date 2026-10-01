@@ -145,6 +145,7 @@
 #define R23BE_REG_FWIMR                0x0130
 #define R23BE_REG_FWISR                0x0134
 #define R23BE_REG_FWHW_TXQ_CTRL        0x0420
+#define R23BE_REG_RETRY_LIMIT          0x042a
 #define R23BE_REG_HWSEQ_CTRL           0x0423
 #define R23BE_REG_TCR                  0x0604
 #define R23BE_REG_RCR                  0x0608
