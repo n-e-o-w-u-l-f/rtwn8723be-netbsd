@@ -146,6 +146,20 @@
 #define R23BE_REG_FWISR                0x0134
 #define R23BE_REG_FWHW_TXQ_CTRL        0x0420
 #define R23BE_REG_RETRY_LIMIT          0x042a
+/* Frozen Linux rtl8723be/reg.h HW configuration register block. */
+#define R23BE_REG_DARFRC               0x0430
+#define R23BE_REG_RARFRC               0x0438
+#define R23BE_REG_RRSR                 0x0440
+#define R23BE_REG_ARFR0                0x0444
+#define R23BE_REG_ARFR1                0x044c
+#define R23BE_REG_AMPDU_MAX_TIME       0x0456
+#define R23BE_REG_FAST_EDCA_CTRL       0x0460
+#define R23BE_REG_HT_SINGLE_AMPDU      0x04c7
+#define R23BE_REG_MAX_AGGR_NUM         0x04ca
+#define R23BE_REG_TBTT_PROHIBIT        0x0540
+#define R23BE_REG_NAV_PROT_LEN         0x0546
+#define R23BE_REG_BCN_CTRL             0x0550
+#define R23BE_REG_RX_PKT_LIMIT         0x060c
 #define R23BE_REG_HWSEQ_CTRL           0x0423
 #define R23BE_REG_TCR                  0x0604
 #define R23BE_REG_RCR                  0x0608
