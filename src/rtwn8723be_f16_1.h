@@ -146,9 +146,28 @@
 #define R23BE_REG_FWISR                0x0134
 #define R23BE_REG_FWHW_TXQ_CTRL        0x0420
 #define R23BE_REG_HWSEQ_CTRL           0x0423
+#define R23BE_REG_RL                   0x042a
 #define R23BE_REG_TCR                  0x0604
 #define R23BE_REG_RCR                  0x0608
+#define R23BE_REG_MACID                0x0610
+#define R23BE_REG_NAV_UPPER            0x0652
+#define R23BE_REG_CAMCMD               0x0670
+#define R23BE_REG_CAMWRITE             0x0674
+#define R23BE_REG_SECCFG               0x0680
 #define R23BE_REG_RXFLTMAP2            0x06a4
+
+#define R23BE_RCR_ACRC32               (1U << 8)
+#define R23BE_RCR_AICV                 (1U << 9)
+#define R23BE_RETRY_LIMIT_LONG_SHIFT   0
+#define R23BE_RETRY_LIMIT_SHORT_SHIFT  8
+#define R23BE_SCR_TXUSEDK              (1U << 0)
+#define R23BE_SCR_RXUSEDK              (1U << 1)
+#define R23BE_SCR_TXENCENABLE          (1U << 2)
+#define R23BE_SCR_RXDECENABLE          (1U << 3)
+#define R23BE_SCR_TXBCUSEDK            (1U << 6)
+#define R23BE_SCR_RXBCUSEDK            (1U << 7)
+#define R23BE_CAM_POLLING              (1U << 31)
+#define R23BE_CAM_CLR                  (1U << 30)
 #define R23BE_REG_MCUTST_1             0x01c0
 #define R23BE_REG_SECONDARY_CCA_CTRL   0x0577
 
@@ -196,7 +215,14 @@
 #define R23BE_REG_BEQ_DESA             0x0330
 #define R23BE_REG_BKQ_DESA             0x0338
 #define R23BE_REG_RX_DESA              0x0340
-#define R23BE_REG_NAV_UPPER            0x0652
+#define R23BE_REG_DBI_WDATA            0x0348
+#define R23BE_REG_DBI_RDATA            0x034c
+#define R23BE_REG_DBI_ADDR             0x0350
+#define R23BE_REG_DBI_FLAG             0x0352
+#define R23BE_REG_MDIO_WDATA           0x0354
+#define R23BE_REG_MDIO_RDATA           0x0356
+#define R23BE_REG_MDIO_CTL             0x0358
+#define R23BE_ASPM_L1_LATENCY          7
 
 /* PCIe DMA control bits used by the Linux init/reset path. */
 #define R23BE_PCIE_CTRL_DMA_HANG_RST   (1U << 0)

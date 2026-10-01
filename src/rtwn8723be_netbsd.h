@@ -106,6 +106,14 @@ struct rtwn8723be_softc {
     uint8_t sc_sw_led1;
     bool sc_core_initialized;
     uint32_t sc_rfoff_reason;
+
+    /* Linux rtlwifi runtime state carried explicitly by the NetBSD port. */
+    uint8_t sc_retry_short;
+    uint8_t sc_retry_long;
+    uint32_t sc_rx_conf;
+    bool sc_hal_started;
+    bool sc_driver_unloading;
+    bool sc_rfchange_inprogress;
 };
 
 void rtwn8723be_netbsd_context_init(struct rtwn8723be_softc *,
@@ -158,6 +166,21 @@ int rtwn8723be_netbsd_establish_irq(void *);
 void rtwn8723be_netbsd_disestablish_irq(struct rtwn8723be_softc *);
 int rtwn8723be_netbsd_enable_interrupt(void *);
 int rtwn8723be_netbsd_disable_interrupt(void *);
+
+int rtwn8723be_netbsd_rcr_postprocess(void *);
+int rtwn8723be_netbsd_cam_reset_all(void *);
+int rtwn8723be_netbsd_enable_hw_security(void *);
+int rtwn8723be_netbsd_set_mac_address(void *);
+int rtwn8723be_netbsd_enable_aspm_backdoor(void *);
+int rtwn8723be_netbsd_set_nav_upper_235(void *);
+int rtwn8723be_netbsd_release_rx_dma(void *);
+int rtwn8723be_netbsd_release_pcie_dma(void *);
+int rtwn8723be_netbsd_set_retry_limit(void *);
+int rtwn8723be_netbsd_init_rx_config(void *);
+int rtwn8723be_netbsd_mark_hal_start(void *);
+int rtwn8723be_netbsd_mark_hal_stop(void *);
+int rtwn8723be_netbsd_wait_rf_change_idle(void *);
+int rtwn8723be_netbsd_hw_disable(void *);
 
 extern const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops;
 

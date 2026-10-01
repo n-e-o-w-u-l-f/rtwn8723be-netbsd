@@ -498,6 +498,12 @@ rtwn8723be_netbsd_init_sw_vars(void *arg)
     sc->sc_up_first_time = true;
     sc->sc_led_opendrain = true;
     sc->sc_rfoff_reason = 0; /* RF_CHANGE_BY_INIT */
+    sc->sc_retry_short = 7;
+    sc->sc_retry_long = 7;
+    sc->sc_rx_conf = sc->sc_receive_config;
+    sc->sc_hal_started = false;
+    sc->sc_driver_unloading = false;
+    sc->sc_rfchange_inprogress = false;
 
     return 0;
 }
@@ -1684,8 +1690,22 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .init_mac = rtwn8723be_netbsd_init_mac,
     .sys_cfg_clear_bit7 = rtwn8723be_netbsd_sys_cfg_clear_bit7,
     .download_firmware = rtwn8723be_netbsd_download_firmware,
+    .rcr_postprocess = rtwn8723be_netbsd_rcr_postprocess,
+    .cam_reset_all = rtwn8723be_netbsd_cam_reset_all,
+    .enable_hw_security = rtwn8723be_netbsd_enable_hw_security,
+    .set_mac_address = rtwn8723be_netbsd_set_mac_address,
+    .enable_aspm_backdoor = rtwn8723be_netbsd_enable_aspm_backdoor,
     .enable_aspm = rtwn8723be_netbsd_enable_aspm,
+    .set_nav_upper_235 = rtwn8723be_netbsd_set_nav_upper_235,
+    .release_rx_dma = rtwn8723be_netbsd_release_rx_dma,
+    .release_pcie_dma = rtwn8723be_netbsd_release_pcie_dma,
+    .set_retry_limit = rtwn8723be_netbsd_set_retry_limit,
     .establish_irq = rtwn8723be_netbsd_establish_irq,
     .enable_interrupt = rtwn8723be_netbsd_enable_interrupt,
     .disable_interrupt = rtwn8723be_netbsd_disable_interrupt,
+    .init_rx_config = rtwn8723be_netbsd_init_rx_config,
+    .mark_hal_start = rtwn8723be_netbsd_mark_hal_start,
+    .mark_hal_stop = rtwn8723be_netbsd_mark_hal_stop,
+    .wait_rf_change_idle = rtwn8723be_netbsd_wait_rf_change_idle,
+    .hw_disable = rtwn8723be_netbsd_hw_disable,
 };
