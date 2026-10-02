@@ -11,6 +11,8 @@ struct rtwn8723be_bb_sequence_ops {
     int (*select_antenna)(void *);
     rtwn8723be_phy_write_fn write_bb;
     int (*init_txpower)(void *);
+    /* Linux clears rtlphy->pwrgroup_cnt before each autoload-valid PG run. */
+    int (*reset_pwrgroup)(void *);
     rtwn8723be_phy_pg_fn store_pg;
     int (*convert_txpower)(void *);
     rtwn8723be_phy_write_fn write_agc;
@@ -20,7 +22,7 @@ struct rtwn8723be_bb_sequence_ops {
 /*
  * Frozen Linux rtl8723be/phy.c:
  * _rtl8723be_phy_bb8723b_config_parafile() selects the antenna, applies BB,
- * initializes TX power, conditionally applies PG, converts TX power, applies
+ * initializes TX power, conditionally resets the group count and applies PG, converts TX power, applies
  * AGC, and captures CCK-high-power.  The enclosing phy_bb_config() handles
  * preceding SYS_FUNC_EN/RF_CTRL setup and subsequent crystal-cap programming.
  * Those hardware phases and the PG numerical conversion are NOT implemented
