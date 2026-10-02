@@ -22,7 +22,8 @@ rtwn8723be_phy_bb_sequence(void *ctx,
         ops->write_agc == NULL || ops->read_cck_high_power == NULL)
         return EINVAL;
     /* Missing required PG implementation must fail BEFORE changing MMIO. */
-    if (efuse_autoload_ok && ops->store_pg == NULL)
+    if (efuse_autoload_ok &&
+        (ops->reset_pwrgroup == NULL || ops->store_pg == NULL))
         return ENOSYS;
 
     error = ops->select_antenna(ctx);
@@ -34,8 +35,13 @@ rtwn8723be_phy_bb_sequence(void *ctx,
     error = ops->init_txpower(ctx);
     if (error != 0)
         return error;
-    if (efuse_autoload_ok)
+    if (efuse_autoload_ok) {
+        /* Linux resets pwrgroup_cnt immediately before importing PG. */
+        error = ops->reset_pwrgroup(ctx);
+        if (error != 0)
+            return error;
         pg_error = rtwn8723be_phy_run_pg(ctx, ops->store_pg);
+    }
     /* Linux converts the power tables before examining the PG result. */
     error = ops->convert_txpower(ctx);
     if (pg_error != 0)
