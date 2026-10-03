@@ -17,6 +17,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "rtwn8723be_fw.h"
 #include "rtwn8723be_pwrseq_plan.h"
 #include "rtwn8723be_mac_table.h"
+#include "rtwn8723be_package.h"
 
 static int rtwn8723be_netbsd_intr(void *);
 static void rtwn8723be_netbsd_softintr(void *);
@@ -394,7 +395,11 @@ rtwn8723be_netbsd_efuse_read_1(struct rtwn8723be_softc *sc,
     uint32_t value32;
     unsigned int retry;
 
-    if (addr >= R23BE_EFUSE_REAL_CONTENT_LEN || data == NULL)
+    /* 0x1fb is a separate physical package byte outside the 256-byte
+     * normal EFUSE content; do not broaden the shadow parser's range.
+     */
+    if ((addr >= R23BE_EFUSE_REAL_CONTENT_LEN &&
+        addr != RTWN8723BE_PACKAGE_EFUSE_ADDRESS) || data == NULL)
         return EINVAL;
 
     rtwn8723be_write_1(sc, R23BE_REG_EFUSE_CTRL + 1,
@@ -420,6 +425,27 @@ rtwn8723be_netbsd_efuse_read_1(struct rtwn8723be_softc *sc,
     value32 = rtwn8723be_read_4(sc, R23BE_REG_EFUSE_CTRL);
     *data = (uint8_t)(value32 & 0xff);
     return 0;
+}
+
+static int
+rtwn8723be_netbsd_package_power(void *arg, bool on)
+{
+    struct rtwn8723be_softc *sc = arg;
+
+    if (!sc->sc_mapped)
+        return ENXIO;
+    rtwn8723be_netbsd_efuse_power(sc, on);
+    return 0;
+}
+
+static int
+rtwn8723be_netbsd_package_read_byte(void *arg, uint16_t addr, uint8_t *value)
+{
+    struct rtwn8723be_softc *sc = arg;
+
+    if (!sc->sc_mapped)
+        return ENXIO;
+    return rtwn8723be_netbsd_efuse_read_1(sc, addr, value);
 }
 
 static int
@@ -540,6 +566,16 @@ rtwn8723be_netbsd_read_eeprom_info(void *arg)
     sc->sc_single_ant_path = (bt & 0x40) != 0 ?
         RTWN8723BE_ANT_AUX : RTWN8723BE_ANT_MAIN;
     sc->sc_bt_ant_valid = true;
+
+    /* Linux reads the package from raw physical EFUSE 0x1fb, not the
+     * decoded shadow map. Do not publish a partial identity on failure.
+     */
+    sc->sc_package_valid = false;
+    error = rtwn8723be_package_read(sc, rtwn8723be_netbsd_package_power,
+        rtwn8723be_netbsd_package_read_byte, &sc->sc_package_type);
+    if (error != 0)
+        return error;
+    sc->sc_package_valid = true;
 
     /* _rtl8723be_hal_customized_behavior() always enables open-drain LED. */
     sc->sc_led_opendrain = true;
