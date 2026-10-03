@@ -42,4 +42,30 @@ struct rtwn8723be_c2h_event {
 int rtwn8723be_c2h_decode(const uint8_t *, size_t,
     struct rtwn8723be_c2h_event *);
 
+
+/*
+ * Synchronous host-side C2H consumers. The callbacks receive borrowed
+ * DMA-backed payload pointers; they MUST copy data if deferring work.
+ * Event-specific callbacks are mandatory to process their respective
+ * events. Do not acknowledge a TX report or BT event without a consumer.
+ * The caller serializes against stop/detach and firmware state reset.
+ */
+struct rtwn8723be_c2h_handlers {
+    void *arg;
+    int (*tx_report)(void *, const struct rtwn8723be_c2h_event *);
+    int (*ra_report)(void *, const struct rtwn8723be_c2h_event *);
+    int (*bt_info)(void *, const struct rtwn8723be_c2h_event *);
+    int (*bt_mp)(void *, const struct rtwn8723be_c2h_event *);
+};
+
+/*
+ * Validate and route a raw C2H event from the already DMA-synchronized RX
+ * buffer; return ENOSYS for a required but absent event handler, EMSGSIZE
+ * for malformed v1 TX reports. Opaque v2 events remain EOPNOTSUPP.
+ * Debug, loopback, TXBF and unknown events match pinned Linux's no-op
+ * logging behavior without fabricated hardware state changes.
+ */
+int rtwn8723be_c2h_route(const uint8_t *, size_t,
+    const struct rtwn8723be_c2h_handlers *);
+
 #endif
