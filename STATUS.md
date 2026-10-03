@@ -1,5 +1,6 @@
 # RTWN8723BE NetBSD project status
 
+> **Historical bring-up record (2026-09-14), not the current source/port status.** The active full Linux-to-NetBSD port is tracked in [docs/FULL_SCOPE_CONTRACT.md](docs/FULL_SCOPE_CONTRACT.md); its 2026-10-03 source graph has 22 opt-in C files. The 2026-10-03 RX DMA source hardening is documented in [docs/RX_DMA_BOUNDS_20261003.md](docs/RX_DMA_BOUNDS_20261003.md). These are partial source changes, not a native NetBSD build or working WLAN proof. The F6 entry below is the last WLAN-specific hardware-access kernel proven in this historical phase; F77 is a separately recorded overall recovery baseline, not evidence of RTL8723BE functionality. Current HP boot identity is unverified.\n\n
 **Project version:** 0.1.0  
 **Status date:** 2026-09-14  
 **Current stage:** F8.3 source-only dry-run  
