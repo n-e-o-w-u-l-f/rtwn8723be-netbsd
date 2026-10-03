@@ -93,6 +93,8 @@ struct rtwn8723be_softc {
     uint16_t sc_eeprom_svid;
     uint16_t sc_eeprom_smid;
     uint8_t sc_macaddr[6];
+    uint8_t sc_package_type;
+    bool sc_package_valid;
     bool sc_efuse_autoload_ok;
     bool sc_boot_from_efuse;
     bool sc_btcoexist;
