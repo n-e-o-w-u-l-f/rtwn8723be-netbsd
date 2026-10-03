@@ -56,6 +56,16 @@ struct rtwn8723be_softc {
     bool sc_dmat_owned;
     bool sc_dma_32bit;
 
+    /*
+     * Native attach snapshots the pre-probe PCI configuration before any
+     * enable/D0/ASPM mutation. Failed probe restores exactly these values.
+     */
+    pcireg_t sc_pci_command_initial;
+    uint8_t sc_pci_clockreg_initial;
+    uint8_t sc_pci_pmreg_initial;
+    pcireg_t sc_pci_powerstate_initial;
+    bool sc_initial_pci_saved;
+
     int sc_pcie_cap_off;
     uint32_t sc_pcie_lcsr_initial;
     bool sc_pcie_cap_valid;
