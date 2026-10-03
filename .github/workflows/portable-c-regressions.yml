@@ -6,18 +6,24 @@ on:
       - 'src/rtwn8723be_linux_state.*'
       - 'src/rtwn8723be_rx_decode.*'
       - 'src/rtwn8723be_tx_desc.*'
+      - 'src/rtwn8723be_netbsd.c'
+      - 'src/rtwn8723be_f16_1.h'
       - 'tests/test_linux_lifecycle_stop.py'
       - 'tests/test_rx_decode.py'
       - 'tests/test_tx_desc.py'
+      - 'tests/test_efuse_shadow_bounds.py'
       - '.github/workflows/portable-c-regressions.yml'
   pull_request:
     paths:
       - 'src/rtwn8723be_linux_state.*'
       - 'src/rtwn8723be_rx_decode.*'
       - 'src/rtwn8723be_tx_desc.*'
+      - 'src/rtwn8723be_netbsd.c'
+      - 'src/rtwn8723be_f16_1.h'
       - 'tests/test_linux_lifecycle_stop.py'
       - 'tests/test_rx_decode.py'
       - 'tests/test_tx_desc.py'
+      - 'tests/test_efuse_shadow_bounds.py'
       - '.github/workflows/portable-c-regressions.yml'
   workflow_dispatch:
 
@@ -40,3 +46,5 @@ jobs:
         run: python3 tests/test_rx_decode.py
       - name: TX descriptor encoder
         run: python3 tests/test_tx_desc.py
+      - name: EFUSE shadow section bounds (strict C11 / UBSan)
+        run: python3 tests/test_efuse_shadow_bounds.py
