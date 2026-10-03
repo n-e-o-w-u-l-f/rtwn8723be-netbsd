@@ -124,17 +124,28 @@ int
 rtwn8723be_tx_encode_command(uint16_t packet_len, uint32_t buffer_dma,
     uint32_t next_desc_dma, uint8_t *out, size_t outlen)
 {
-    struct rtwn8723be_tx_params p;
+    uint32_t d[16] = { 0 };
+    unsigned int i;
 
-    memset(&p, 0, sizeof(p));
-    p.packet_len = packet_len;
-    p.buffer_len = packet_len;
-    p.buffer_dma = buffer_dma;
-    p.next_desc_dma = next_desc_dma;
-    p.first_segment = true;
-    p.last_segment = true;
-    p.fw_queue = RTWN8723BE_TX_FW_BEACON;
-    p.use_driver_rate = true;
-    p.hw_rate = 0; /* DESC92C_RATE1M */
-    return rtwn8723be_tx_encode(&p, out, outlen);
+    if (out == NULL || outlen < RTWN8723BE_TX_RING_STRIDE ||
+        packet_len == 0 || packet_len > 9100U ||
+        buffer_dma == 0 || next_desc_dma == 0 ||
+        (next_desc_dma & (RTWN8723BE_TX_RING_STRIDE - 1U)) != 0)
+        return EINVAL;
+
+    /* Pinned rtl8723be_tx_fill_cmddesc(): NO data/RTS fallback fields. */
+    d[0] = (uint32_t)packet_len |
+        ((uint32_t)RTWN8723BE_TX_HEADER_LEN << 16) |
+        (1U << 26) | (1U << 27);
+    d[1] = (uint32_t)RTWN8723BE_TX_FW_BEACON << 8;
+    d[3] = 1U << 8; /* explicitly 1 Mbps, USE_RATE */
+    d[7] = packet_len;
+    d[10] = buffer_dma;
+    d[12] = next_desc_dma;
+
+    /* Source sets OWN before returning; NetBSD sets it only AFTER sync. */
+    memset(out, 0, RTWN8723BE_TX_RING_STRIDE);
+    for (i = 0; i < 16; i++)
+        r23be_put32(out + i * sizeof(uint32_t), d[i]);
+    return 0;
 }
