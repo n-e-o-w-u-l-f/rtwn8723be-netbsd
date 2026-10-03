@@ -44,6 +44,8 @@ prefix = r"""
 #include <stdio.h>
 #define RTWN8723BE_RX_BUFFER_SIZE 9100U
 #define RTWN8723BE_DMA_MAXADDR UINT32_MAX
+/* Host model of NetBSD bus_addr_t; native ABI is not tested here. */
+typedef uint64_t bus_addr_t;
 struct segment { uint64_t ds_addr; size_t ds_len; };
 struct dma_map { unsigned dm_nsegs; size_t dm_mapsize;
                  struct segment dm_segs[1]; };
