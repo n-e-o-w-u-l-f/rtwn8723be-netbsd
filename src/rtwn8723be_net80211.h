@@ -46,10 +46,11 @@ int rtwn8723be_net80211_input(struct rtwn8723be_net80211 *,
     const uint8_t *, size_t, int rssi_dbm);
 
 /*
- * RX-ring callback: accepts only measured (not fabricated) RSSI from
- * PHY metadata and routes a copied frame into the NetBSD 802.11 stack.
- * Missing PHY measurements need an independently verified cached-link
- * signal fallback before the full runtime path can be considered closed.
+ * RX-ring callback: routes a copied frame into the NetBSD 802.11 stack.
+ * Measured RSSI comes from RTL8723BE PHY metadata; for frames without
+ * valid PHY metadata, pass the pinned NetBSD if_rtwn.c fallback RSSI
+ * value zero, without marking it as a measured 0 dBm signal.
+ * Full network/runtime acceptance remains subject to native testing.
  */
 int rtwn8723be_net80211_rx_frame(void *, const uint8_t *, size_t,
     const struct rtwn8723be_rx_packet *);
