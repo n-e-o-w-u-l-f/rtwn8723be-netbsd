@@ -31,6 +31,9 @@ struct rtwn8723be_rx_packet {
     bool software_decryption;
     uint8_t rate;
     uint8_t mac_id;
+    /* Filled by native PHY decoding after the descriptor is validated. */
+    bool rssi_valid;
+    int rssi_dbm;
     uint8_t c2h_id;
     uint8_t c2h_seq;
     size_t c2h_payload_offset;
