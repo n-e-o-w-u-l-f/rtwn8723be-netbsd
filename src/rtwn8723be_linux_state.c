@@ -269,8 +269,16 @@ rtwn8723be_linux_adapter_start(void *ctx,
     R23BE_CALL(R23BE_STAGE_RETRY_LIMIT, ops->set_retry_limit, ctx);
     R23BE_CALL(R23BE_STAGE_IRQ_ENABLE, ops->enable_interrupt, ctx);
     R23BE_CALL(R23BE_STAGE_RX_CONFIG, ops->init_rx_config, ctx);
-    R23BE_CALL(R23BE_STAGE_RUNNING, ops->mark_hal_start, ctx);
 
+    /*
+     * Linux rtl_hal.state is START only after mark_hal_start succeeds.
+     * Keep stage at RX_CONFIG while it runs: setting RUNNING first made a
+     * failing callback look like a completed start and blocked recovery.
+     */
+    error = ops->mark_hal_start(ctx);
+    if (error != 0)
+        goto fail;
+    state->stage = R23BE_STAGE_RUNNING;
     state->started = true;
     return 0;
 
