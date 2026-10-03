@@ -104,6 +104,13 @@ rtwn8723be_linux_probe(void *ctx, struct rtwn8723be_linux_state *state,
 
     if (state == NULL || ops == NULL)
         return EINVAL;
+    /*
+     * A failed prior probe retains its stage until the owning NetBSD
+     * attach path has explicitly unwound resources back to IDLE.
+     * Re-probe must never discard a partially allocated resource graph.
+     */
+    if (state->stage != R23BE_STAGE_IDLE || state->started)
+        return EBUSY;
 
     error = rtwn8723be_probe_ops_ready(ops);
     if (error != 0)
