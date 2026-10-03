@@ -76,6 +76,14 @@ rtwn8723be_n80211_ifstop(struct rtwn8723be_net80211 *n)
     /* Stop further net80211 dequeue BEFORE stopping hardware/interrupts. */
     ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
     ifp->if_timer = 0;
+    /* Detach may stop an interface that was registered but never started. */
+    if (!n->sc->sc_linux.started &&
+        (n->sc->sc_linux.stage == R23BE_STAGE_PROBED ||
+         n->sc->sc_linux.stage == R23BE_STAGE_STOPPED))
+        return 0;
+    if (!n->sc->sc_linux.started ||
+        n->sc->sc_linux.stage != R23BE_STAGE_RUNNING)
+        return EBUSY; /* An interrupted stop needs explicit recovery. */
     if (n->methods.hw_stop == NULL)
         return ENOSYS;
     return n->methods.hw_stop(n->sc);
