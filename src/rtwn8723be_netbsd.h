@@ -120,6 +120,7 @@ struct rtwn8723be_softc {
     uint8_t sc_sw_led0;
     uint8_t sc_sw_led1;
     bool sc_core_initialized;
+    bool sc_hal_started; /* pinned Linux rtl_hal.state START/STOP */
     uint32_t sc_rfoff_reason;
 };
 
@@ -178,6 +179,8 @@ int rtwn8723be_netbsd_release_pcie_dma(void *);
 int rtwn8723be_netbsd_set_retry_limit(void *);
 int rtwn8723be_netbsd_init_rx_config(void *);
 int rtwn8723be_netbsd_hw_configure(void *);
+int rtwn8723be_netbsd_mark_hal_start(void *);
+int rtwn8723be_netbsd_mark_hal_stop(void *);
 
 void rtwn8723be_netbsd_irq_set_dispatch(struct rtwn8723be_softc *,
     const struct rtwn8723be_irq_dispatch *, void *);
