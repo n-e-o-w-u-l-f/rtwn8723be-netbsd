@@ -51,8 +51,8 @@ int main(void)
 
     memset(d, 0xa5, sizeof(d));
     assert(rtwn8723be_tx_encode(&p, d, sizeof(d)) == 0);
-    assert(dw(0) == (100U | (40U << 16) | (1U << 26) |
-        (1U << 27)));
+    assert(dw(0) == (100U | (40U << 16) | (1U << 25) |
+        (1U << 26) | (1U << 27)));
     assert(dw(1) == (7U | (5U << 8) | (3U << 16) |
         (3U << 22)));
     assert(dw(2) == ((1U << 12) | (1U << 13) | (5U << 20)));
