@@ -16,6 +16,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <sys/bus.h>
 
 #include "rtwn8723be_rx_native.h"
+#include "rtwn8723be_rx_phy.h"
 
 int
 rtwn8723be_rx_native_drain(struct rtwn8723be_softc *sc,
@@ -81,11 +82,21 @@ rtwn8723be_rx_native_drain(struct rtwn8723be_softc *sc,
                 (const uint8_t *)desc, sizeof(*desc), data,
                 RTWN8723BE_RX_BUFFER_SIZE, &pkt);
             if (error == 0 && !pkt.crc_error && !pkt.icv_error) {
-                if (pkt.kind == RTWN8723BE_RX_C2H)
+                if (pkt.kind == RTWN8723BE_RX_FRAME) {
+                    int phy_error;
+                    phy_error = rtwn8723be_rx_phy_rssi(
+                        (const uint8_t *)desc, sizeof(*desc), data,
+                        RTWN8723BE_RX_BUFFER_SIZE, &pkt.rssi_dbm);
+                    if (phy_error == 0)
+                        pkt.rssi_valid = true;
+                    else if (phy_error != ENODATA)
+                        error = phy_error;
+                }
+                if (error == 0 && pkt.kind == RTWN8723BE_RX_C2H)
                     error = dispatch->c2h(dispatch->arg,
                         data + pkt.packet_offset,
                         pkt.packet_length, &pkt);
-                else
+                else if (error == 0)
                     error = dispatch->frame(dispatch->arg,
                         data + pkt.packet_offset,
                         pkt.packet_length, &pkt);
