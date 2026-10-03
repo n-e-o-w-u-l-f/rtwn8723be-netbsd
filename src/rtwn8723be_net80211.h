@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "rtwn8723be_netbsd.h"
+#include "rtwn8723be_rx_decode.h"
 
 /*
  * NetBSD 11 ifnet/net80211 glue, independent of native PCI attach.
@@ -43,5 +44,14 @@ int rtwn8723be_net80211_unregister(struct rtwn8723be_net80211 *);
  */
 int rtwn8723be_net80211_input(struct rtwn8723be_net80211 *,
     const uint8_t *, size_t, int rssi_dbm);
+
+/*
+ * RX-ring callback: accepts only measured (not fabricated) RSSI from
+ * PHY metadata and routes a copied frame into the NetBSD 802.11 stack.
+ * Missing PHY measurements need an independently verified cached-link
+ * signal fallback before the full runtime path can be considered closed.
+ */
+int rtwn8723be_net80211_rx_frame(void *, const uint8_t *, size_t,
+    const struct rtwn8723be_rx_packet *);
 
 #endif
