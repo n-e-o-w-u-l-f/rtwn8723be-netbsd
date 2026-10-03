@@ -1,0 +1,19 @@
+# RTL8723BE I/O continuation checkpoint — 2026-10-03
+
+STATUS: IN_PROGRESS / SOURCE-CHANGED / NO NATIVE NETBSD BUILD / NO HP HARDWARE VALIDATION.
+Authority: pinned Linux `fd179f8a05be3ccae366b9b96e176b51fbe54aab`, pinned NetBSD `03d918f6d0e81fa05b8f1160eca0628ad39988a6`; actual owning repository main read back after edits.
+
+## Verified code delta
+
+- `f495e12`: `src/rtwn8723be_net80211.c` no longer discards valid CRC/ICV-checked frames solely for absent PHY measurements. Pinned NetBSD `sys/dev/pci/if_rtwn.c:rtwn_rx_frame` initializes `int8_t rssi=0` and updates only when PHY is present; new callback uses the same framework fallback **without claiming 0 dBm was measured**. Explicit `packet->rssi_valid` is retained in the RX metadata. Updated the relevant header contract in `2550b0c` and `9d2b7ef`.
+- `1b3fcc2`: committed `tests/test_net80211_rx_no_phy.py` extracts the actual production callback and compiles/executes bounded measured, missing-PHY and invalid-frame cases with C11/UBSan when a host test environment is available. A manually reproduced, source-equivalent isolated C11/UBSan test returned `RTL_NET80211_RX_FALLBACK_ISOLATED_C11_OK`; the committed Python test **has not itself been executed**.
+- `22e11df`: `src/rtwn8723be_tx_native.c` now returns `EOPNOTSUPP` for command-frame descriptor submissions and unreclaimed beacon-queue submissions. Pinned Linux `rtlwifi/pci.c:_rtl_pci_interrupt` only services `TXCMD_QUEUE` completion on RTL8192SE, not RTL8723BE; the current NetBSD IRQ bridge has no beacon completion reclamation. Previously permitted submissions could retain mapped mbufs indefinitely. Ordinary BE/BK/VI/VO/MGNT/HIGH queues remain selectable; full RTL8723BE mailbox-H2C and beacon lifetime are **still OPEN**. An independently assembled, source-equivalent strict C11/UBSan queue test returned `RTL_TX_QUEUE_LIFETIME_ISOLATED_C11_OK`. Committed `tests/test_tx_queue_lifetime.py` extracts the real queue-selection function from production source; that exact published test has not been executed.
+- A tentative bitfield audit was corrected **before mutation**: the frozen Linux `struct tx_desc_8723be` bitfield layout differs from the active `set_tx_desc_*` helper field positions. The Linux functions actually used in `rtl8723be_tx_fill_desc` are the correct authority. The existing portable encoder's originally questioned DW4/DW5 rate/RTS, DW8 HWSEQ and DW9 sequence positions agree with the pinned helpers. Do not “repair” these positions based on the inactive struct declaration.
+
+## Unchanged blockers and safety
+
+- `rtwn8723be_native.c` still preflights `ENOSYS` for absent probe callbacks. Previous external safety denial of PCI power-state/W1C rollback correction and H2C production transport remains unresolved; do not retry via an equivalent route. RF/PHY exact identity, complete H2C/C2H, TX/status/wake, full net80211 and BT/power/runtime integration remain OPEN. NetBSD 19-file partial manifest is **not proof of successful native compilation or link**.
+- i915 main `b8101ecc54bf8f8970f44937bdcfaf40ecc26a52` was read this step, but **no i915 production code changed**. Its 323-active-translation-unit/DRM/TTM integration, Cherryview KMS panel image and HP hardware acceptance remain OPEN.
+- Legion online; HP's direct agent offline at latest permitted device inventory. F77, i915 six-edit overlay and installed boot files untouched. Canonical ~473-kB LAST update path remains previously externally denied; this project-local checkpoint records the verifiable delta without claiming LAST synchronization.
+
+NEXT: isolate and close the device-specific H2C/firmware transport through genuinely authorized permissions, implement actual completion handling for beacon (and any required command descriptor), finish rfkill/net80211 callbacks and end-to-end PHY/RF/BT/PM lifetime; independently advance i915 GT/display and DRM dependency closure, then authorized native NetBSD builds and recovery-safe HP tests.
