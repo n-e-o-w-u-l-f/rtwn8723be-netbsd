@@ -17,6 +17,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 
 #include "rtwn8723be_rx_native.h"
 #include "rtwn8723be_rx_phy.h"
+#include "rtwn8723be_c2h.h"
 
 int
 rtwn8723be_rx_native_drain(struct rtwn8723be_softc *sc,
@@ -92,10 +93,18 @@ rtwn8723be_rx_native_drain(struct rtwn8723be_softc *sc,
                     else if (phy_error != ENODATA)
                         error = phy_error;
                 }
-                if (error == 0 && pkt.kind == RTWN8723BE_RX_C2H)
-                    error = dispatch->c2h(dispatch->arg,
+                if (error == 0 && pkt.kind == RTWN8723BE_RX_C2H) {
+                    struct rtwn8723be_c2h_event event;
+
+                    /* Reject malformed v1 firmware events before callback. */
+                    error = rtwn8723be_c2h_decode(
                         data + pkt.packet_offset,
-                        pkt.packet_length, &pkt);
+                        pkt.packet_length, &event);
+                    if (error == 0)
+                        error = dispatch->c2h(dispatch->arg,
+                            data + pkt.packet_offset,
+                            pkt.packet_length, &pkt);
+                }
                 else if (error == 0)
                     error = dispatch->frame(dispatch->arg,
                         data + pkt.packet_offset,
