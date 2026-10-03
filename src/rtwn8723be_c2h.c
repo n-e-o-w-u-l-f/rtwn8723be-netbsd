@@ -65,3 +65,46 @@ rtwn8723be_c2h_decode(const uint8_t *data, size_t length,
     }
     return 0;
 }
+
+int
+rtwn8723be_c2h_route(const uint8_t *data, size_t length,
+    const struct rtwn8723be_c2h_handlers *handlers)
+{
+    struct rtwn8723be_c2h_event event;
+    int error;
+
+    if (handlers == NULL)
+        return EINVAL;
+    error = rtwn8723be_c2h_decode(data, length, &event);
+    if (error != 0)
+        return error;
+
+    /* Firmware event handlers execute before the RX slot is re-armed. */
+    switch (event.id) {
+    case R23BE_C2H_TX_REPORT:
+        if (handlers->tx_report == NULL)
+            return ENOSYS;
+        return handlers->tx_report(handlers->arg, &event);
+    case R23BE_C2H_RA_REPORT:
+        if (handlers->ra_report == NULL)
+            return ENOSYS;
+        return handlers->ra_report(handlers->arg, &event);
+    case R23BE_C2H_BT_INFO:
+        if (handlers->bt_info == NULL)
+            return ENOSYS;
+        return handlers->bt_info(handlers->arg, &event);
+    case R23BE_C2H_BT_MP:
+        if (handlers->bt_mp == NULL)
+            return ENOSYS;
+        return handlers->bt_mp(handlers->arg, &event);
+    case R23BE_C2H_EXT_V2:
+        /* Unknown v2 layout is not safely interpretable as a v1 event. */
+        return EOPNOTSUPP;
+    default:
+        /*
+         * Pinned rtl_c2h_content_parsing() has no action for other IDs
+         * (it logs and ignores debug/TXBF/unrecognized notifications).
+         */
+        return 0;
+    }
+}
