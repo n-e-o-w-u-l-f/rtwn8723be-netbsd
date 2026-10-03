@@ -21,6 +21,7 @@ for required in (
     "slot->map->dm_mapsize < RTWN8723BE_RX_BUFFER_SIZE",
     "slot->map->dm_segs[0].ds_len <",
     "slot->map->dm_segs[0].ds_addr >",
+    "(RTWN8723BE_RX_BUFFER_SIZE - 1U)",
 ):
     if required not in guard:
         raise AssertionError("missing RX DMA bound: " + required)
@@ -79,7 +80,13 @@ int main(void)
     map.dm_segs[0].ds_addr = (uint64_t)UINT32_MAX + 1U;
     assert(valid(&slot) == EIO); /* device cannot address buffer */
     map.dm_segs[0].ds_addr = UINT32_MAX;
-    assert(valid(&slot) == 0); /* exact minimum valid buffer */
+    assert(valid(&slot) == EIO); /* start fits, end crosses boundary */
+    map.dm_segs[0].ds_addr = UINT32_MAX -
+        (RTWN8723BE_RX_BUFFER_SIZE - 1U);
+    assert(valid(&slot) == 0); /* exact highest legal 32-bit span */
+    map.dm_segs[0].ds_addr++;
+    assert(valid(&slot) == EIO); /* one byte beyond legal span */
+    map.dm_segs[0].ds_addr--;
     map.dm_mapsize++;
     map.dm_segs[0].ds_len++;
     assert(valid(&slot) == 0); /* larger map/segment still valid */
