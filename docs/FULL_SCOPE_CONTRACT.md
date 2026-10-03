@@ -48,3 +48,7 @@ All COV-RTL-000 through COV-RTL-017 remain unresolved; COV-RTL-001, COV-RTL-003,
 
 ## PARENT_STATUS
 IN_PROGRESS
+
+## 2026-10-03 COV-RTL-000/007 physical package identity gate
+
+Read-only frozen-Linux `rtl8723be/hw.c` audit verified that package type is selected by a separately powered **raw physical** `efuse_one_byte_read(hw, 0x1FB, &value)`, with failed-read value 0 and low-three-bit package selectors 4/5/6/7. A logical decoded `sc_efuse_map[0x1fb]` lookup is NOT an equivalent adapter. Linux's `RT_CID_DEFAULT` + `EEPROM_CID_DEFAULT` HP OEM route requires parsed **EEPROM DID=0x8176, SVID=0x103C, SMID=0x1629**, not simply the HP laptop name or the recorded target PCI subsystem `103c:81c1`. See `docs/PHY_RF_REFERENCE_AND_DEPENDENCIES.md`, published as commit b6eae4e190b7cfd81e376b907051e9ea57385bed. **COV-RTL-000 and COV-RTL-007 remain OPEN/IN_PROGRESS respectively**: the native softc has no completed physical-package read or full validated PHY identity; do not wire Radio-A conditional execution or the HP-only RF register 0x52 special write before source-driven identity and powered RF mutex/MMIO prerequisites. This checkpoint changes the dependency specification only, not production source, native object, kernel, HP hardware or previously tool-denied edits.
