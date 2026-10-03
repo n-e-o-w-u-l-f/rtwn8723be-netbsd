@@ -316,10 +316,15 @@ rtwn8723be_net80211_rx_frame(void *arg, const uint8_t *frame,
         packet->packet_length != length ||
         packet->crc_error || packet->icv_error)
         return EINVAL;
-    if (!packet->rssi_valid)
-        return ENODATA;
-
-    /* net80211_input() copies the DMA-borrowed frame before returning. */
+    /*
+     * Pinned NetBSD if_rtwn.c:rtwn_rx_frame() initializes rssi to zero,
+     * then replaces it only when valid PHY status is present. Match that
+     * existing NetBSD no-PHY fallback so management/control/data frames
+     * are not discarded merely because hardware omitted PHYST.
+     *
+     * Zero here is the framework fallback, NOT a measured 0 dBm signal.
+     * The measured/unmeasured distinction remains in packet->rssi_valid.
+     */
     return rtwn8723be_net80211_input(n, frame, length,
-        packet->rssi_dbm);
+        packet->rssi_valid ? packet->rssi_dbm : 0);
 }
