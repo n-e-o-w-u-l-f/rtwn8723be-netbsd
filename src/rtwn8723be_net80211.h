@@ -19,7 +19,7 @@
  */
 struct rtwn8723be_net80211_methods {
     int (*hw_start)(struct rtwn8723be_softc *);
-    void (*hw_stop)(struct rtwn8723be_softc *);
+    int (*hw_stop)(struct rtwn8723be_softc *);
     void (*tx_start)(struct rtwn8723be_softc *, struct ifnet *);
 };
 
