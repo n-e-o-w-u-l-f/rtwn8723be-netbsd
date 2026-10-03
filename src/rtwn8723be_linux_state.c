@@ -61,6 +61,20 @@ rtwn8723be_hw_ops_ready(const struct rtwn8723be_linux_ops *ops)
 }
 
 static int
+rtwn8723be_stop_ops_ready(const struct rtwn8723be_linux_ops *ops)
+{
+    /* No STOPPING transition until every required teardown step exists. */
+    if (ops->bt_halt_deinit == NULL ||
+        ops->mark_hal_stop == NULL ||
+        ops->disable_interrupt == NULL ||
+        ops->wait_rf_change_idle == NULL ||
+        ops->hw_disable == NULL ||
+        ops->enable_aspm == NULL)
+        return ENOSYS;
+    return 0;
+}
+
+static int
 rtwn8723be_start_ops_ready(const struct rtwn8723be_linux_ops *ops)
 {
     if (ops->reset_trx_ring == NULL ||
@@ -235,6 +249,11 @@ rtwn8723be_linux_adapter_start(void *ctx,
 
     if (state == NULL || ops == NULL)
         return EINVAL;
+    if (state->started || state->stage == R23BE_STAGE_RUNNING)
+        return EALREADY;
+    if (state->stage != R23BE_STAGE_PROBED &&
+        state->stage != R23BE_STAGE_STOPPED)
+        return EAGAIN;
 
     error = rtwn8723be_start_ops_ready(ops);
     if (error != 0)
@@ -268,6 +287,11 @@ rtwn8723be_linux_adapter_stop(void *ctx,
 
     if (state == NULL || ops == NULL)
         return EINVAL;
+    if (!state->started || state->stage != R23BE_STAGE_RUNNING)
+        return EAGAIN;
+    error = rtwn8723be_stop_ops_ready(ops);
+    if (error != 0)
+        return error;
 
     state->stage = R23BE_STAGE_STOPPING;
 
