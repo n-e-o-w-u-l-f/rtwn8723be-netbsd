@@ -1,0 +1,42 @@
+name: RTL8723BE portable C regressions
+
+on:
+  push:
+    paths:
+      - 'src/rtwn8723be_linux_state.*'
+      - 'src/rtwn8723be_rx_decode.*'
+      - 'src/rtwn8723be_tx_desc.*'
+      - 'tests/test_linux_lifecycle_stop.py'
+      - 'tests/test_rx_decode.py'
+      - 'tests/test_tx_desc.py'
+      - '.github/workflows/portable-c-regressions.yml'
+  pull_request:
+    paths:
+      - 'src/rtwn8723be_linux_state.*'
+      - 'src/rtwn8723be_rx_decode.*'
+      - 'src/rtwn8723be_tx_desc.*'
+      - 'tests/test_linux_lifecycle_stop.py'
+      - 'tests/test_rx_decode.py'
+      - 'tests/test_tx_desc.py'
+      - '.github/workflows/portable-c-regressions.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  portable-c11:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Available compiler and Python
+        run: |
+          cc --version | head -n 1
+          python3 --version
+      - name: Linux-order lifecycle preflight and failure states
+        run: python3 tests/test_linux_lifecycle_stop.py
+      - name: RX/C2H descriptor decoder
+        run: python3 tests/test_rx_decode.py
+      - name: TX descriptor encoder
+        run: python3 tests/test_tx_desc.py
