@@ -180,7 +180,23 @@ int main(void)
     assert(rtwn8723be_linux_adapter_stop(&c, &s, &ops) == 0);
     assert(s.stage == R23BE_STAGE_STOPPED && !s.started);
 
-    puts("RTL_LIFECYCLE_STOP_START_C11_OK");
+    /* Re-probe is forbidden until every prior resource has been unwound. */
+    c.calls = 0;
+    s = running();
+    ops = stop_ops();
+    assert(rtwn8723be_linux_probe(&c, &s, &ops) == EBUSY);
+    assert(s.stage == R23BE_STAGE_RUNNING && s.started && c.calls == 0);
+
+    s.stage = R23BE_STAGE_BAR_MAP;
+    s.started = false;
+    assert(rtwn8723be_linux_probe(&c, &s, &ops) == EBUSY);
+    assert(s.stage == R23BE_STAGE_BAR_MAP && c.calls == 0);
+
+    s.stage = R23BE_STAGE_IDLE;
+    assert(rtwn8723be_linux_probe(&c, &s, &ops) == ENOSYS);
+    assert(s.stage == R23BE_STAGE_IDLE && c.calls == 0);
+
+    puts("RTL_LIFECYCLE_PROBE_START_STOP_C11_OK");
     return 0;
 }
 """
