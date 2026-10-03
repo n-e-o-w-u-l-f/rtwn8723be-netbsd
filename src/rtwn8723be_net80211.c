@@ -11,7 +11,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <sys/errno.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
-#include <sys/ipl.h>
+#include <sys/intr.h>
 
 #include <net/if.h>
 #include <net/if_ether.h>
@@ -211,6 +211,13 @@ rtwn8723be_net80211_register(struct rtwn8723be_net80211 *n,
     IEEE80211_ADDR_COPY(ic->ic_myaddr, sc->sc_macaddr);
     ieee80211_ifattach(ic);
     ifp->if_percpuq = if_percpuq_create(ifp);
+    if (ifp->if_percpuq == NULL) {
+        ieee80211_ifdetach(ic);
+        if_detach(ifp);
+        n->sc = NULL;
+        memset(&n->methods, 0, sizeof(n->methods));
+        return ENOMEM;
+    }
     if_register(ifp);
     ieee80211_media_init(ic, rtwn8723be_n80211_media_change,
         ieee80211_media_status);
