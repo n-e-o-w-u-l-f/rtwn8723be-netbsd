@@ -45,6 +45,8 @@ rtwn8723be_rx_binding_init(struct rtwn8723be_rx_binding *binding,
 {
     if (binding == NULL || net == NULL || firmware == NULL)
         return EINVAL;
+    if (binding->net != NULL || binding->dispatch.arg != NULL)
+        return EBUSY; /* Caller must not rebind an active IRQ context. */
     if (!net->registered || net->sc == NULL)
         return ENXIO;
 
