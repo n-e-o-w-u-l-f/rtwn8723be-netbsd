@@ -1931,6 +1931,37 @@ rtwn8723be_netbsd_hw_configure(void *arg)
 }
 
 /*
+ * Pinned Linux wifi.h:set_hal_start()/set_hal_stop() are pure HAL-state
+ * transitions. The ordering and hardware prerequisites belong to the
+ * existing Linux-stage controller, not to a second side-effectful init.
+ */
+int
+rtwn8723be_netbsd_mark_hal_start(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+
+    if (sc == NULL || !sc->sc_linux.fw_ready ||
+        sc->sc_linux.stage != R23BE_STAGE_RUNNING ||
+        !sc->sc_core_initialized || !sc->sc_rings_allocated ||
+        !sc->sc_irq_enabled || !sc->sc_irq_dispatch_ready)
+        return EAGAIN;
+    sc->sc_hal_started = true;
+    return 0;
+}
+
+int
+rtwn8723be_netbsd_mark_hal_stop(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+
+    if (sc == NULL)
+        return EINVAL;
+    /* Linux rtl_pci_stop clears HAL state before masking IRQ. */
+    sc->sc_hal_started = false;
+    return 0;
+}
+
+/*
  * Foundation of the full Linux probe/start state machine.  Unspecified
  * callbacks remain NULL until their exact Linux hardware semantics have been
  * ported; rtwn8723be_linux_state.c will reject such an incomplete transition
@@ -1974,5 +2005,7 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .establish_irq = rtwn8723be_netbsd_establish_irq,
     .enable_interrupt = rtwn8723be_netbsd_enable_interrupt,
     .init_rx_config = rtwn8723be_netbsd_init_rx_config,
+    .mark_hal_start = rtwn8723be_netbsd_mark_hal_start,
+    .mark_hal_stop = rtwn8723be_netbsd_mark_hal_stop,
     .disable_interrupt = rtwn8723be_netbsd_disable_interrupt,
 };
