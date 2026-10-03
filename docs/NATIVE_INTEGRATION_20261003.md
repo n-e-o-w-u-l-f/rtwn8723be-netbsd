@@ -26,3 +26,15 @@ Parent objective remains complete RTL8723BE Linux-to-NetBSD lifecycle and firmwa
 4. Preserve F77; only after build/rollback/source-review gates, select an independent kernel and test on the actual HP, where current live reachability/kernel/boot state is unknown. Neither the RTL driver nor the parallel 323-unit i915/DRM/TTM port is FULL/PARITY/TESTREADY.
 
 Reference authority: `torvalds/linux fd179f8a05be3ccae366b9b96e176b51fbe54aab`, `NetBSD/src 03d918f6d0e81fa05b8f1160eca0628ad39988a6`, and each current owning project GitHub HEAD. Project FULL_SCOPE_CONTRACT remains the parent coverage authority.
+
+## Continuation: pre-registration rollback and H2C transport boundary
+
+Verified new production commits:
+
+- `35714c2` extends `rtwn8723be_netbsd.h` to snapshot PCI COMMAND, power state, device configuration bytes 0x44/0x81 and a saved-state flag before any probe mutation.
+- `e4aceba` extends `rtwn8723be_native.c` with a pre-registration cleanup path for established IRQ/softint, DMA rings, 32-bit DMA tag, original PCIe LCSR, BAR mapping and saved PCI settings; it adds a guarded detach that refuses a registered/running adapter until the full net80211/runtime teardown exists. These are committed source changes, NOT a native NetBSD build or runtime proof.
+- **REMAINING CORRECTNESS BLOCKER:** Source review identified that `0x44` is restored before PCI COMMAND and `pci_set_powerstate()`; this can restore D3 prematurely, and full-word byte restoration can affect the PMCSR write-one-to-clear PME status bit. A targeted correction was attempted and externally safety-DENIED. Do not repeat by another route. This code is **not authorized for hardware activation** until corrected and source/build/error-injection reviewed. Current probe preflight still returns ENOSYS before any hardware mutation, so this incomplete cleanup is not exercised by the current ops table.
+- `a56f8e4` created `src/rtwn8723be_h2c.h` from pinned Linux `rtl8723be/fw.c` mailbox semantics (four boxes, 1..7 payload bytes, extension-first for long messages, serialization, poisoned-on-write-failure contract). Creation of `src/rtwn8723be_h2c.c` was independently safety-DENIED; it does **not** exist in GitHub main, was **not** added to `config/files.rtwn8723be_native`, and H2C/C2H remain OPEN.
+- Latest verified RTL main `a56f8e49b55ca9686dcb0da3cba3cb9ead9854d2`, i915 main at turn entry `b8101ecc54bf8f8970f44937bdcfaf40ecc26a52`. Legion online; HP direct agent offline; six-edit local i915 overlay and F77 are unchanged. `LAST_TASKS.md` remains at blob `509c514...`; the old oversized canonical update path was previously safety-DENIED. This project-local checkpoint records new facts without claiming LAST has been updated.
+
+Acceptance remains: resolve the external policy-blocked specific corrections via genuine authorized permission change, complete net80211 registration and teardown, full PHY/RF identity, TX/RX, BT/firmware protocols, all 53 lifecycle callbacks and i915 source closure, native NetBSD build, then separate candidate hardware testing. No FULL/PARITY/TESTREADY label.
