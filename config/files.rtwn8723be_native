@@ -1,0 +1,27 @@
+# $NetBSD$
+#
+# EXPERIMENTAL SOURCE INTEGRATION; NOT a production/full-parity kernel target.
+# Append these entries to the target tree's sys/dev/pci/files.pci in an
+# isolated candidate workspace, place the listed sources at sys/dev/pci/,
+# and select rtwn8723be_native* in an explicit candidate kernel config.
+# The original F8 diagnostic attachment is deliberately not selected here.
+#
+# NetBSD/src baseline: 03d918f6d0e81fa05b8f1160eca0628ad39988a6.
+# Includes only independently present core and portable modules. The staged
+# TX-power PG module is compiler-blocked by a missing <stddef.h>; do NOT
+# silently omit it from the full-port coverage requirement.
+#
+device  rtwn8723be_native: ifnet, arp, wlan, firmload
+attach  rtwn8723be_native at pci
+file    dev/pci/rtwn8723be_native.c        rtwn8723be_native
+file    dev/pci/rtwn8723be_netbsd.c        rtwn8723be_native
+file    dev/pci/rtwn8723be_f16_1_dma.c     rtwn8723be_native
+file    dev/pci/rtwn8723be_fw.c            rtwn8723be_native
+file    dev/pci/rtwn8723be_linux_state.c   rtwn8723be_native
+file    dev/pci/rtwn8723be_package.c       rtwn8723be_native
+file    dev/pci/rtwn8723be_pwrseq.c        rtwn8723be_native
+file    dev/pci/rtwn8723be_phy_bb_sequence.c rtwn8723be_native
+file    dev/pci/rtwn8723be_phy_exec.c      rtwn8723be_native
+file    dev/pci/rtwn8723be_rf_serial.c     rtwn8723be_native
+file    dev/pci/rtwn8723be_rf_path.c       rtwn8723be_native
+file    dev/pci/rtwn8723be_oem.c           rtwn8723be_native
