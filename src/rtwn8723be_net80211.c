@@ -25,7 +25,7 @@ static int rtwn8723be_n80211_ifinit(struct ifnet *);
 static int rtwn8723be_n80211_ioctl(struct ifnet *, u_long, void *);
 static int rtwn8723be_n80211_media_change(struct ifnet *);
 static void rtwn8723be_n80211_ifstart(struct ifnet *);
-static void rtwn8723be_n80211_ifstop(struct rtwn8723be_net80211 *);
+static int rtwn8723be_n80211_ifstop(struct rtwn8723be_net80211 *);
 
 static int
 rtwn8723be_n80211_ifinit(struct ifnet *ifp)
@@ -57,27 +57,28 @@ rtwn8723be_n80211_ifinit(struct ifnet *ifp)
         return error;
     if (!sc->sc_linux.started || !sc->sc_linux.fw_ready ||
         sc->sc_linux.stage != R23BE_STAGE_RUNNING) {
-        n->methods.hw_stop(sc);
-        return EIO;
+        int stop_error = n->methods.hw_stop(sc);
+        return stop_error != 0 ? stop_error : EIO;
     }
     ifp->if_flags |= IFF_RUNNING;
     ifp->if_flags &= ~IFF_OACTIVE;
     return 0;
 }
 
-static void
+static int
 rtwn8723be_n80211_ifstop(struct rtwn8723be_net80211 *n)
 {
     struct ifnet *ifp;
 
     if (n == NULL || !n->registered)
-        return;
+        return ENXIO;
     ifp = &n->sc->sc_ec.ec_if;
     /* Stop further net80211 dequeue BEFORE stopping hardware/interrupts. */
     ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
     ifp->if_timer = 0;
-    if (n->methods.hw_stop != NULL)
-        n->methods.hw_stop(n->sc);
+    if (n->methods.hw_stop == NULL)
+        return ENOSYS;
+    return n->methods.hw_stop(n->sc);
 }
 
 static void
@@ -115,7 +116,7 @@ rtwn8723be_n80211_ioctl(struct ifnet *ifp, u_long cmd, void *data)
                 ifp->if_flags &= ~IFF_UP;
         } else if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) ==
             IFF_RUNNING) {
-            rtwn8723be_n80211_ifstop(n);
+            error = rtwn8723be_n80211_ifstop(n);
         }
         break;
     case SIOCADDMULTI:
@@ -133,8 +134,9 @@ rtwn8723be_n80211_ioctl(struct ifnet *ifp, u_long cmd, void *data)
         error = 0;
         if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) ==
             (IFF_UP | IFF_RUNNING)) {
-            rtwn8723be_n80211_ifstop(n);
-            error = rtwn8723be_n80211_ifinit(ifp);
+            error = rtwn8723be_n80211_ifstop(n);
+            if (error == 0)
+                error = rtwn8723be_n80211_ifinit(ifp);
         }
     }
     splx(s);
@@ -152,7 +154,9 @@ rtwn8723be_n80211_media_change(struct ifnet *ifp)
         return error;
     if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) ==
         (IFF_UP | IFF_RUNNING)) {
-        rtwn8723be_n80211_ifstop(n);
+        error = rtwn8723be_n80211_ifstop(n);
+        if (error != 0)
+            return error;
         return rtwn8723be_n80211_ifinit(ifp);
     }
     return 0;
@@ -238,7 +242,10 @@ rtwn8723be_net80211_unregister(struct rtwn8723be_net80211 *n)
         return;
     s = splnet();
     ifp = &n->sc->sc_ec.ec_if;
-    rtwn8723be_n80211_ifstop(n);
+    if (rtwn8723be_n80211_ifstop(n) != 0) {
+        splx(s);
+        return; /* Retain registered resources on failed hardware stop. */
+    }
     ieee80211_ifdetach(&n->sc->sc_ic);
     if_detach(ifp);
     n->registered = false;
