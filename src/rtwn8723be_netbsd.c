@@ -521,6 +521,9 @@ rtwn8723be_netbsd_read_eeprom_info(void *arg)
     uint8_t cr9346, bt;
     int error;
 
+    /* Never retain an earlier package identity across failed re-probes. */
+    sc->sc_package_valid = false;
+    sc->sc_package_type = RTWN8723BE_PACKAGE_DEFAULT;
     if (!sc->sc_mapped)
         return ENXIO;
 
@@ -570,7 +573,6 @@ rtwn8723be_netbsd_read_eeprom_info(void *arg)
     /* Linux reads the package from raw physical EFUSE 0x1fb, not the
      * decoded shadow map. Do not publish a partial identity on failure.
      */
-    sc->sc_package_valid = false;
     error = rtwn8723be_package_read(sc, rtwn8723be_netbsd_package_power,
         rtwn8723be_netbsd_package_read_byte, &sc->sc_package_type);
     if (error != 0)
