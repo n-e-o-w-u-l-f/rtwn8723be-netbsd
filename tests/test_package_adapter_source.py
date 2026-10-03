@@ -52,7 +52,11 @@ def main() -> None:
         "if (error != 0)",
         "sc->sc_package_valid = true;",
     )
-    positions = [eeprom.index(term) for term in checks]
+    positions = [eeprom.index(term) for term in checks[:-3]]
+    package_call = eeprom.index(checks[-3])
+    package_error = eeprom.index(checks[-2], package_call)
+    published = eeprom.index(checks[-1], package_error)
+    positions.extend((package_call, package_error, published))
     assert positions == sorted(positions), "physical EFUSE identity order"
     assert "uint8_t sc_package_type;" in HDR
     assert "bool sc_package_valid;" in HDR
