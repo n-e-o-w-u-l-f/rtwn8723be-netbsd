@@ -485,8 +485,15 @@ rtwn8723be_netbsd_efuse_shadow_read(struct rtwn8723be_softc *sc)
             wren = header & 0x0f;
         }
 
-        if (offset >= R23BE_EFUSE_MAX_SECTION)
-            continue;
+        /* Invalid physical section: continuing at the payload would
+         * misinterpret its bytes as subsequent EFUSE headers.  The frozen
+         * Linux parser skips this case; reject it instead of publishing an
+         * untrustworthy device identity.  The out path powers EFUSE off.
+         */
+        if (offset >= R23BE_EFUSE_MAX_SECTION) {
+            error = EINVAL;
+            goto out;
+        }
 
         for (word = 0; word < R23BE_EFUSE_MAX_WORD_UNIT; word++) {
             size_t mapoff = (size_t)offset * 8 + word * 2;
