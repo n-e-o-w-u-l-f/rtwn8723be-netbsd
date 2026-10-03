@@ -40,7 +40,9 @@ rtwn8723be_n80211_ifinit(struct ifnet *ifp)
     if (n->methods.hw_start == NULL || n->methods.hw_stop == NULL ||
         n->methods.tx_start == NULL)
         return ENOSYS;
-    if (sc->sc_linux.stage != R23BE_STAGE_PROBED ||
+    /* NetBSD ifconfig down/up must permit a clean restarted adapter. */
+    if ((sc->sc_linux.stage != R23BE_STAGE_PROBED &&
+        sc->sc_linux.stage != R23BE_STAGE_STOPPED) ||
         !sc->sc_irq_dispatch_ready || sc->sc_ih == NULL ||
         !sc->sc_rings_allocated || !sc->sc_mapped)
         return EAGAIN;
