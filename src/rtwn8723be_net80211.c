@@ -240,19 +240,24 @@ rtwn8723be_net80211_register(struct rtwn8723be_net80211 *n,
     return 0;
 }
 
-void
+int
 rtwn8723be_net80211_unregister(struct rtwn8723be_net80211 *n)
 {
     struct ifnet *ifp;
-    int s;
+    int s, error;
 
-    if (n == NULL || !n->registered || n->sc == NULL)
-        return;
+    if (n == NULL)
+        return EINVAL;
+    if (!n->registered)
+        return 0;
+    if (n->sc == NULL)
+        return EIO;
     s = splnet();
     ifp = &n->sc->sc_ec.ec_if;
-    if (rtwn8723be_n80211_ifstop(n) != 0) {
+    error = rtwn8723be_n80211_ifstop(n);
+    if (error != 0) {
         splx(s);
-        return; /* Retain registered resources on failed hardware stop. */
+        return error; /* Retain registered resources on failed hardware stop. */
     }
     ieee80211_ifdetach(&n->sc->sc_ic);
     if_detach(ifp);
@@ -260,6 +265,7 @@ rtwn8723be_net80211_unregister(struct rtwn8723be_net80211 *n)
     n->sc = NULL;
     memset(&n->methods, 0, sizeof(n->methods));
     splx(s);
+    return 0;
 }
 
 int
