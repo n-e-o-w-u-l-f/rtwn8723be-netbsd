@@ -32,7 +32,8 @@ struct rtwn8723be_net80211 {
 int rtwn8723be_net80211_register(struct rtwn8723be_net80211 *,
     struct rtwn8723be_softc *,
     const struct rtwn8723be_net80211_methods *);
-void rtwn8723be_net80211_unregister(struct rtwn8723be_net80211 *);
+/* Return hardware-stop failure: caller must retain softc/PCI resources. */
+int rtwn8723be_net80211_unregister(struct rtwn8723be_net80211 *);
 
 /*
  * Copy a borrowed, already DMA-synchronized and CRC/ICV-validated frame
