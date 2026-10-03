@@ -28,4 +28,5 @@ file    dev/pci/rtwn8723be_rx_decode.c     rtwn8723be_native
 file    dev/pci/rtwn8723be_rx_native.c     rtwn8723be_native
 file    dev/pci/rtwn8723be_tx_desc.c       rtwn8723be_native
 file    dev/pci/rtwn8723be_tx_native.c     rtwn8723be_native
+file    dev/pci/rtwn8723be_datapath.c       rtwn8723be_native
 file    dev/pci/rtwn8723be_oem.c           rtwn8723be_native
