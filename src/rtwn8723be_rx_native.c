@@ -45,6 +45,8 @@ rtwn8723be_rx_native_drain(struct rtwn8723be_softc *sc,
         if (ring->count == 0 || ring->count > RTWN8723BE_RX_RING_COUNT ||
             descs == NULL || ring->slot == NULL ||
             ring->desc_dma.map == NULL ||
+            ring->desc_dma.size < (bus_size_t)ring->count *
+                sizeof(*descs) ||
             ring->consumer >= ring->count)
             return EIO;
 
@@ -72,6 +74,9 @@ rtwn8723be_rx_native_drain(struct rtwn8723be_softc *sc,
             if (slot->map == NULL || slot->map->dm_nsegs != 1 ||
                 slot->m == NULL ||
                 slot->m->m_len < RTWN8723BE_RX_BUFFER_SIZE ||
+                slot->map->dm_mapsize < RTWN8723BE_RX_BUFFER_SIZE ||
+                slot->map->dm_segs[0].ds_len <
+                    RTWN8723BE_RX_BUFFER_SIZE ||
                 slot->map->dm_segs[0].ds_addr >
                     RTWN8723BE_DMA_MAXADDR)
                 return EIO; /* Do not rearm a corrupt DMA slot. */
