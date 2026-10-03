@@ -75,11 +75,16 @@ void
 rtwn8723be_f16_1_dma_mem_free(bus_dma_tag_t dmat,
     struct rtwn8723be_dma_mem *dma)
 {
-    if (dma->map != NULL && dma->kva != NULL) {
-        bus_dmamap_sync(dmat, dma->map, 0, dma->size,
-            BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
-        if (dma->map->dm_nsegs != 0)
-            bus_dmamap_unload(dmat, dma->map);
+    /*
+     * bus_dmamem_map() may have succeeded while bus_dmamap_load() failed.
+     * NetBSD marks an unloaded map with dm_mapsize == 0; never synchronize
+     * such a map.  Independently release the KVA and allocated segments.
+     */
+    if (dma->map != NULL && dma->map->dm_mapsize != 0) {
+        if (dma->kva != NULL)
+            bus_dmamap_sync(dmat, dma->map, 0, dma->map->dm_mapsize,
+                BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+        bus_dmamap_unload(dmat, dma->map);
     }
 
     if (dma->kva != NULL) {
