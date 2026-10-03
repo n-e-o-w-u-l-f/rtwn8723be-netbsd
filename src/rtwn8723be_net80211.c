@@ -304,3 +304,22 @@ rtwn8723be_net80211_input(struct rtwn8723be_net80211 *n,
     splx(s);
     return 0;
 }
+
+int
+rtwn8723be_net80211_rx_frame(void *arg, const uint8_t *frame,
+    size_t length, const struct rtwn8723be_rx_packet *packet)
+{
+    struct rtwn8723be_net80211 *n = arg;
+
+    if (n == NULL || packet == NULL || frame == NULL ||
+        packet->kind != RTWN8723BE_RX_FRAME ||
+        packet->packet_length != length ||
+        packet->crc_error || packet->icv_error)
+        return EINVAL;
+    if (!packet->rssi_valid)
+        return ENODATA;
+
+    /* net80211_input() copies the DMA-borrowed frame before returning. */
+    return rtwn8723be_net80211_input(n, frame, length,
+        packet->rssi_dbm);
+}
