@@ -8,10 +8,14 @@ on:
       - 'src/rtwn8723be_tx_desc.*'
       - 'src/rtwn8723be_netbsd.c'
       - 'src/rtwn8723be_f16_1.h'
+      - 'src/rtwn8723be_f16_1_dma.c'
+      - 'src/rtwn8723be_rx_native.c'
       - 'tests/test_linux_lifecycle_stop.py'
       - 'tests/test_rx_decode.py'
       - 'tests/test_tx_desc.py'
       - 'tests/test_efuse_shadow_bounds.py'
+      - 'tests/test_dma_mem_unwind.py'
+      - 'tests/test_rx_dma_bounds.py'
       - '.github/workflows/portable-c-regressions.yml'
   pull_request:
     paths:
@@ -20,10 +24,14 @@ on:
       - 'src/rtwn8723be_tx_desc.*'
       - 'src/rtwn8723be_netbsd.c'
       - 'src/rtwn8723be_f16_1.h'
+      - 'src/rtwn8723be_f16_1_dma.c'
+      - 'src/rtwn8723be_rx_native.c'
       - 'tests/test_linux_lifecycle_stop.py'
       - 'tests/test_rx_decode.py'
       - 'tests/test_tx_desc.py'
       - 'tests/test_efuse_shadow_bounds.py'
+      - 'tests/test_dma_mem_unwind.py'
+      - 'tests/test_rx_dma_bounds.py'
       - '.github/workflows/portable-c-regressions.yml'
   workflow_dispatch:
 
@@ -48,3 +56,7 @@ jobs:
         run: python3 tests/test_tx_desc.py
       - name: EFUSE shadow section bounds (strict C11 / UBSan)
         run: python3 tests/test_efuse_shadow_bounds.py
+      - name: Descriptor DMA allocation unwind (strict C11 / UBSan)
+        run: python3 tests/test_dma_mem_unwind.py
+      - name: RX DMA descriptor and buffer bounds (strict C11 / UBSan)
+        run: python3 tests/test_rx_dma_bounds.py
