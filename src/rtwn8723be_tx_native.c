@@ -23,10 +23,15 @@ _Static_assert(sizeof(struct rtwn8723be_tx_desc) ==
 static int
 r23be_tx_queue_check(unsigned int qid, unsigned int fwq, bool command)
 {
+    /*
+     * Pinned Linux rtlwifi/pci.c only services TXCMD_QUEUE completion for
+     * RTL8192SE, not RTL8723BE. Without a device-specific completion path
+     * a command mbuf would remain permanently owned by this TX ring.
+     * RTL8723BE H2C uses separate firmware mailboxes; keep this descriptor
+     * path closed until a proven RTL8723BE command-frame lifetime exists.
+     */
     if (command)
-        return (qid == RTWN8723BE_TXCMD_QUEUE ||
-            qid == RTWN8723BE_BEACON_QUEUE) &&
-            fwq == RTWN8723BE_TX_FW_BEACON ? 0 : EINVAL;
+        return EOPNOTSUPP;
 
     switch (qid) {
     case RTWN8723BE_BK_QUEUE:
@@ -38,7 +43,8 @@ r23be_tx_queue_check(unsigned int qid, unsigned int fwq, bool command)
     case RTWN8723BE_VO_QUEUE:
         return fwq == RTWN8723BE_TX_FW_VO ? 0 : EINVAL;
     case RTWN8723BE_BEACON_QUEUE:
-        return fwq == RTWN8723BE_TX_FW_BEACON ? 0 : EINVAL;
+        /* The current IRQ bridge does not reclaim the beacon ring yet. */
+        return EOPNOTSUPP;
     case RTWN8723BE_MGNT_QUEUE:
         return fwq == RTWN8723BE_TX_FW_MGNT ? 0 : EINVAL;
     case RTWN8723BE_HIGH_QUEUE:
