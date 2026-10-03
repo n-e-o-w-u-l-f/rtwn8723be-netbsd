@@ -13,6 +13,37 @@ HARNESS = r"""
 #include <string.h>
 #include "rtwn8723be_c2h.h"
 
+static int seen[4];
+static int on_tx(void *arg, const struct rtwn8723be_c2h_event *ev)
+{
+    (void)arg;
+    assert(ev->tx_report_valid && ev->tx_report_sequence == 0x52);
+    assert(ev->tx_report_status == 0xc0 && ev->tx_report_retry == 0x3f);
+    seen[0]++;
+    return 0;
+}
+static int on_ra(void *arg, const struct rtwn8723be_c2h_event *ev)
+{
+    (void)arg;
+    assert(ev->id == R23BE_C2H_RA_REPORT);
+    seen[1]++;
+    return 0;
+}
+static int on_bt_info(void *arg, const struct rtwn8723be_c2h_event *ev)
+{
+    (void)arg;
+    assert(ev->id == R23BE_C2H_BT_INFO && ev->payload_length == 2);
+    seen[2]++;
+    return 0;
+}
+static int on_bt_mp(void *arg, const struct rtwn8723be_c2h_event *ev)
+{
+    (void)arg;
+    assert(ev->fast && ev->id == R23BE_C2H_BT_MP);
+    seen[3]++;
+    return 0;
+}
+
 int main(void)
 {
     struct rtwn8723be_c2h_event ev;
@@ -49,7 +80,39 @@ int main(void)
     assert(ev.payload == NULL && !ev.recognized);
     assert(rtwn8723be_c2h_decode(NULL, sizeof(report), &ev) == EINVAL);
     assert(rtwn8723be_c2h_decode(report, sizeof(report), NULL) == EINVAL);
-    puts("RTL_C2H_V1_C11_UBSAN_OK");
+    struct rtwn8723be_c2h_handlers handlers = {0};
+    handlers.tx_report = on_tx;
+    handlers.ra_report = on_ra;
+    handlers.bt_info = on_bt_info;
+    handlers.bt_mp = on_bt_mp;
+    assert(rtwn8723be_c2h_route(report, sizeof(report), &handlers) == 0);
+    assert(rtwn8723be_c2h_route(ra, sizeof(ra), &handlers) == 0);
+    assert(rtwn8723be_c2h_route(bt_info, sizeof(bt_info), &handlers) == 0);
+    assert(rtwn8723be_c2h_route(bt_mp, sizeof(bt_mp), &handlers) == 0);
+    assert(seen[0] == 1 && seen[1] == 1 &&
+           seen[2] == 1 && seen[3] == 1);
+
+    handlers.tx_report = NULL;
+    assert(rtwn8723be_c2h_route(report, sizeof(report), &handlers)
+           == ENOSYS);
+    handlers.ra_report = NULL;
+    assert(rtwn8723be_c2h_route(ra, sizeof(ra), &handlers)
+           == ENOSYS);
+    handlers.bt_info = NULL;
+    assert(rtwn8723be_c2h_route(bt_info, sizeof(bt_info), &handlers)
+           == ENOSYS);
+    handlers.bt_mp = NULL;
+    assert(rtwn8723be_c2h_route(bt_mp, sizeof(bt_mp), &handlers)
+           == ENOSYS);
+    assert(rtwn8723be_c2h_route(ext_v2, sizeof(ext_v2), &handlers)
+           == EOPNOTSUPP);
+    assert(rtwn8723be_c2h_route(unknown, sizeof(unknown), &handlers)
+           == 0);
+    assert(rtwn8723be_c2h_route(report, 2, &handlers) == EMSGSIZE);
+    assert(rtwn8723be_c2h_route(report, sizeof(report), NULL) == EINVAL);
+    assert(seen[0] == 1 && seen[1] == 1 &&
+           seen[2] == 1 && seen[3] == 1);
+    puts("RTL_C2H_DECODE_ROUTE_C11_UBSAN_OK");
     return 0;
 }
 """
