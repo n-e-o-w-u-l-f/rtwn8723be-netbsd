@@ -75,7 +75,8 @@ rtwn8723be_tx_native_enqueue(struct rtwn8723be_softc *sc,
         return EFBIG; /* DMA ring was allocated for one segment. */
     if (m->m_pkthdr.len <= 0 ||
         m->m_pkthdr.len > RTWN8723BE_RX_BUFFER_SIZE ||
-        input->buffer_len != m->m_pkthdr.len)
+        input->buffer_len != m->m_pkthdr.len ||
+        (command && input->packet_len != input->buffer_len))
         return EINVAL;
 
     ring = &sc->sc_tx_ring[qid];
@@ -112,6 +113,10 @@ rtwn8723be_tx_native_enqueue(struct rtwn8723be_softc *sc,
         slot->map->dm_segs[0].ds_addr > RTWN8723BE_DMA_MAXADDR) {
         bus_dmamap_unload(sc->sc_dmat, slot->map);
         return EFBIG;
+    }
+    if (slot->map->dm_mapsize != (bus_size_t)input->buffer_len) {
+        bus_dmamap_unload(sc->sc_dmat, slot->map);
+        return EIO;
     }
 
     next = ring->desc_dma.paddr +
