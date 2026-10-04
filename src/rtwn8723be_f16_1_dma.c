@@ -27,29 +27,42 @@ int
 rtwn8723be_f16_1_dma_mem_alloc(bus_dma_tag_t dmat,
     struct rtwn8723be_dma_mem *dma, bus_size_t size, bus_size_t alignment)
 {
+    bus_dmamap_t map;
+    bus_dma_segment_t seg;
+    void *kva;
+    int nsegs;
     int error;
 
     memset(dma, 0, sizeof(*dma));
     dma->size = size;
 
+    /*
+     * bus_dma output arguments are not valid on failure.  Publish each
+     * resource into dma only after its acquisition has succeeded, so the
+     * common unwind never destroys an undefined map or unmaps stale KVA.
+     */
     error = bus_dmamap_create(dmat, size, 1, size, 0,
-        BUS_DMA_WAITOK | BUS_DMA_ALLOCNOW, &dma->map);
+        BUS_DMA_WAITOK | BUS_DMA_ALLOCNOW, &map);
     if (error != 0)
         goto fail;
+    dma->map = map;
 
-    error = bus_dmamem_alloc(dmat, size, alignment, 0, &dma->seg, 1,
-        &dma->nsegs, BUS_DMA_WAITOK);
+    error = bus_dmamem_alloc(dmat, size, alignment, 0, &seg, 1,
+        &nsegs, BUS_DMA_WAITOK);
     if (error != 0)
         goto fail;
+    dma->seg = seg;
+    dma->nsegs = nsegs;
     if (dma->nsegs != 1) {
         error = EFBIG;
         goto fail;
     }
 
-    error = bus_dmamem_map(dmat, &dma->seg, dma->nsegs, size, &dma->kva,
+    error = bus_dmamem_map(dmat, &dma->seg, dma->nsegs, size, &kva,
         BUS_DMA_WAITOK);
     if (error != 0)
         goto fail;
+    dma->kva = kva;
 
     error = bus_dmamap_load(dmat, dma->map, dma->kva, size, NULL,
         BUS_DMA_WAITOK);
