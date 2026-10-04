@@ -1,0 +1,31 @@
+# Native NetBSD amd64 build integration checkpoint — 2026-10-04
+
+**STATE:** RTL NATIVE SOURCE STAGED / CROSS-TOOLCHAIN BUILD IN_PROGRESS / NATIVE KERNEL OBJECT AND LINK NOT YET VERIFIED / F77 UNCHANGED. This scoped project handoff is subordinate to the canonical Agent-Governance/LAST_TASKS.md; previously denied LAST edits were **not** retried and the central LAST remains OUT_OF_SYNC.
+
+## Frozen identities and target
+
+- Linux RTL hardware reference: `torvalds/linux@fd179f8a05be3ccae366b9b96e176b51fbe54aab`.
+- NetBSD source: `NetBSD/src@03d918f6d0e81fa05b8f1160eca0628ad39988a6`.
+- Current RTL project snapshot for this candidate: `n-e-o-w-u-l-f/rtwn8723be-netbsd@8187925a6044d1007cbf16a96d1148245e081562`. This includes the earlier guarded native RF bridge, the standalone tested RF callback, and the corrected copied-output contamination in `src/rtwn8723be_pwrseq_data.h`.
+- Target: NetBSD 11 amd64, HP TPN-W121, Realtek PCI 10ec:b723, HP subsystem 103c:81c1. **NOT** a production/boot-eligible kernel.
+
+## Actual full source recovery, not a sparse-shell substitution
+
+1. Original clean `/opt/ChatGPT/hp-driver-port/netbsd` remains a sparse/promisor checkout on the exact frozen pin. The separate dirty six-edit i915 `/opt/ChatGPT/hp-driver-port/port-netbsd` overlay remains unchanged.
+2. A previously created *independent* no-checkout Git worktree `netbsd-build-20261004` could recover just 1,060 of 191,063 files via promisor-on-demand Git; its bounded `git restore` timed out and exited **143**. It remains independent failure evidence, not a build-ready tree. The per-blob restoration was not repeated.
+3. Downloaded the single exact-commit official GitHub source archive `https://codeload.github.com/NetBSD/src/tar.gz/03d918f6d0e81fa05b8f1160eca0628ad39988a6`. Tarball: approximately 650 MB, SHA256 `3645aca2c1ac9716558075b7747a98583a8e87435f00ff30c786b4b438dbe15b`; fully extracted at `/opt/ChatGPT/hp-driver-port/netbsd-src-03d918f6-full`, ~3.4 GB / **191,063 files**. Status `netbsd-src-03d918f6-full.status` = `STATE=VERIFIED, PHASE=PINNED_FULL_SOURCE_READY`.
+4. Verified five exact file-content Git blob identities against the frozen Git checkout: `build.sh=b371f44a9d75392cc7986f2c001d978ceec53883`; `tools/Makefile=9a8523a1ca9c6f0ec6c8ddbc26b686063e224f2d`; `sys/dev/pci/if_rtwn.c=52245bc53d21976d09ec0535048870811ad00d6a`; `sys/external/bsd/drm2/dist/drm/i915/i915_drv.c=bf64ff40059fc38188f6f3d7b55bef9793abeb57`; `sys/net/if.c=95d07ee5bb45c454fc16f293933ae61ac31917b9`. The archive is a **full source snapshot without Git metadata**: do not claim git-apply tests requiring a repository have run on it.
+5. Downloaded an independent exact-commit RTL archive `/opt/ChatGPT/hp-driver-port/rtl8723be-8187925a6044d1007cbf16a96d1148245e081562`, SHA256 `9620de93b6cfc8f31400644684b9b4f84ba51f6a8d4cbe0830eff480448d7047`, status `RTL_PINNED_SOURCE_READY`. The original older Git worktree was NOT synchronized.
+
+## Native WIP candidate actually staged
+
+- Created an independent full-source copy `/opt/ChatGPT/hp-driver-port/netbsd-rtl-wip-03d918f6-8187925` (~3.4 GB), status `STATE=VERIFIED PHASE=RTL_NATIVE_SOURCE_AND_CONFIG_STAGED`.
+- Copied exactly **23 C translation units** listed in project `config/files.rtwn8723be_native` and **27 RTL header files** into *the candidate only*, `sys/dev/pci/`. `cmp` against the exact pinned RTL package confirmed **0/50 mismatches**. A quoted-include scan of all 50 copied source/header files found **0 missing quoted project headers**.
+- Appended the exact opt-in manifest (one `device rtwn8723be_native` stanza and 23 `file` directives) to *candidate* `sys/dev/pci/files.pci`; added `sys/arch/amd64/conf/RTWN8723BE_WIP` including the pinned GENERIC config and the experimental `rtwn8723be_native* at pci? dev ? function ?` attachment. No original GENERIC, F77, HP boot, frozen NetBSD checkout, six-edit i915 overlay or published RTL production file was modified by staging.
+- The one additional existing `src/rtwn8723be_txpwr_pg.c` is intentionally **not** part of the 23-file manifest: its previously denied `<stddef.h>` fix remains externally blocked. Missing BB/PG/XTAL, verified PHY identity/RF path, IRQ-H2C/net80211, teardown and DMA ownership remain OPEN. The native adapter's Linux lifecycle preflight currently rejects incomplete callbacks with ENOSYS. Stage is a compile target, not a usable WLAN interface.
+
+## Verified execution and remaining acceptance
+
+- Started genuine NetBSD build tools on Legion from complete pinned sources with `./build.sh -U -m amd64 -j 12 -O /opt/ChatGPT/hp-driver-port/netbsd-obj-03d918f6 -T /opt/ChatGPT/hp-driver-port/netbsd-tools-03d918f6 tools`, host shell process **PID 2523553**. Real `nbmake-amd64`, `nbawk`, `nbgzip`, `nbgrep` and other host tools exist; when last checked ~six minutes into the run, the build was compiling GCC 12.5.0 cross-toolchain components with up to 12 busy compiler workers and no confirmed fatal error. **`nbconfig` and `amd64--netbsd-gcc` were not yet present and tool build had not completed**.
+- Durable build status: `/opt/ChatGPT/hp-driver-port/netbsd-tools-03d918f6.status`; detailed build log: `/opt/ChatGPT/hp-driver-port/netbsd-tools-03d918f6.log`. Actual tool invocation is bounded by a host-side 5,400-second timeout. A previous `IN_PROGRESS` record is not proof of present-tense execution; check the current status, PID and log before further work. Do not start a duplicate toolchain build or overwrite the outputs while active.
+- **NEXT:** check tools build's verified exit and real `nbconfig`/compiler files; if FAILED, diagnose specific compiler or host prerequisite from the saved log and repair only the evidenced, authorized issue. Once ready, run `./build.sh -U -m amd64 -j 12 -O <separate-RTL-obj> -T <same-NetBSD-tools> kernel=RTWN8723BE_WIP` *from the isolated WIP candidate*, capture actual configuration, first native compiler errors, object/link status and artifact identity. Fix independent permitted NetBSD API/build/adapter discrepancies and regression-test source changes; never reroute previously externally denied RX/PG/XTAL/i915-sync mutations. Only after dependency/lifecycle/full-scope closure may HP runtime even be considered. Preserve F77 and six-edit i915 overlay.
