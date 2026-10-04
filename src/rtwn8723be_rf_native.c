@@ -103,7 +103,7 @@ static const struct rtwn8723be_rf_serial_io rtwn8723be_rf_native_io = {
 static int
 rtwn8723be_rf_native_radio_a(void *arg, unsigned int path)
 {
-    const struct rtwn8723be_rf_serial_ctx *ctx = arg;
+    struct rtwn8723be_rf_serial_ctx *ctx = arg;
     struct rtwn8723be_softc *sc;
 
     if (ctx == NULL || ctx->dev == NULL ||
