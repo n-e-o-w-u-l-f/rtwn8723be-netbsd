@@ -135,5 +135,3 @@ static const struct rtwn8723be_pwr_step rtwn8723be_trans_end[] = {
 #define RTWN8723BE_TRANS_END_COUNT (sizeof(rtwn8723be_trans_end) / sizeof(rtwn8723be_trans_end[0]))
 
 #endif
-
-[executed on device: spinnennet (8aaefc0d-1a15-4f5f-95fc-82be4360c477)]
