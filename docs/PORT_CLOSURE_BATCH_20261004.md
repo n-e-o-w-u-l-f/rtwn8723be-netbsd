@@ -133,3 +133,67 @@ ersetzt keine der obigen Laufzeit-/Hardware-Prüfungen.
   vervollständigen, die bekannte BB-Testinkonsistenz direkt beheben,
   den gesamten Prüfstand erneut ausführen und erst dann den neuen
   nativen Kernel-Kandidaten bauen. F77 und i915 unverändert.
+
+## 2026-10-04 12:04 CEST: native H2C integration and 25-unit build checkpoint
+
+**VERIFIED BUILD-ONLY; not runtime-, HP-, or full-driver-ready.** The H2C
+binding batch `4cc6c3902b3e449ad2c95dbc83906082e3ac4fa5` adds the
+native `bus_space`/adaptive-mutex adapter, lifecycle-owned init/reset/fini,
+firmware-ready publication after the real download handshake, two extra
+opt-in kernel units, updated source/closure inventories, tests and CI wiring.
+The kernel remains fail-closed while other mandatory lifecycle callbacks
+are missing; this is not proof of physical firmware/H2C traffic.
+
+On Legion, strict C11/UBSan `test_h2c_mailbox.py` and
+`test_h2c_native_binding.py`, plus `test_kernel_source_integrity.py`
+(now 25 units and 53 reachable project files) and
+`test_linux_lifecycle_stop.py`, each exited **0**. With frozen
+`NetBSD/src@03d918f6d0e81fa05b8f1160eca0628ad39988a6`, the
+separate candidate `netbsd-rtl-h2c-4cc6c39` built and linked on
+2026-10-04 at 12:01:39 CEST using the verified NetBSD amd64 toolchain.
+Its 25 RTL objects include `rtwn8723be_h2c.o` (14,160 bytes) and
+`rtwn8723be_h2c_native.o` (109,296 bytes). The link map references
+both and `x86_64--netbsd-nm` confirms linked definitions of
+`rtwn8723be_h2c_send`, `rtwn8723be_h2c_native_send`,
+`rtwn8723be_h2c_native_init` and `rtwn8723be_h2c_native_fw_ready`.
+The uninstalled/unbooted kernel is
+`/opt/ChatGPT/hp-driver-port/netbsd-obj-rtl-h2c-4cc6c39/sys/arch/amd64/compile/RTWN8723BE_STAGE/netbsd`,
+**29,652,288 bytes**, SHA256
+`aee0343ade19f6af5da8493c903459c24b13429b1761ccd2eea060eaba69fdf1`,
+different from the earlier e557 kernel
+`f4f21f27b0a4359e9a12ac4adae1ad0631ca7499a739b0f20a590341124dd0fb`.
+Own status was read back at 12:04:03 CEST:
+`STATE=VERIFIED; PHASE=NATIVE_H2C_25_UNIT_KERNEL_LINKED_NOT_TESTREADY`.
+
+**Verifier recovery:** the initial postbuild script incorrectly expected
+the H2C object name literally inside the generated Makefile and reported
+`H2C_BUILD_MANIFEST_MISSING` *after a successful native build*.
+A separate actual source/Makefile, link-map and `nm` check proved
+correct inclusion; the verifier was corrected and its status revalidated
+without rebuilding or replacing either kernel. Do not repeat the
+Makefile-object-name check.
+
+**CI evidence:** GitHub Actions run `37193587946` reported failure with
+**zero job steps**. Its job-log endpoint gave HTTP 404 `BlobNotFound`
+(RequestId `895df45d-501e-0056-1fe6-535ffb000000`,
+2026-10-04T09:58:51Z). Hosted C tests are therefore **not confirmed
+executed**. This is an infrastructure/log failure, not an observed
+biological safety classification. No new explicit external safety
+denial was observed in this H2C workflow; ChatGPT app UI alerts are not
+visible to the agent.
+
+**Concurrent source update:** later GitHub commit
+`30e8abce33fcf0940c4fdd4181a17b1d1cff6858` fixes the
+`mark_hal_start` check to accept the actual `RX_CONFIG` lifecycle
+phase and adds a strict C11/UBSan regression. The verified kernel above
+is pinned to `4cc6c39` and **does not contain this later fix**; a
+separate source-identical native build and tests are still required.
+
+**Outstanding:** 53 lifecycle callbacks declared, 40 bound and **13
+missing**; TX-power PG absent from the native manifest, complete
+hardware cut/board/PA/LNA/RF identity, BB/PG/XTAL, calibration,
+net80211, C2H/H2C end-to-end consumers, RX/TX/IRQ ownership and full
+stop/recovery/detach remain OPEN. Previously externally safety-denied
+TX/RX/PG operations were not rerouted. The frozen NetBSD reference,
+F77 recovery, HP boot, and separate six-edit i915 overlay remain
+unchanged. Neither driver is `FULL`/`PARITY`/`TESTREADY`.
