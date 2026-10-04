@@ -21,6 +21,7 @@ on:
       - 'src/rtwn8723be_f16_1_dma.c'
       - 'src/rtwn8723be_rx_native.c'
       - 'tests/test_linux_lifecycle_stop.py'
+      - 'tests/test_mark_hal_start_stage.py'
       - 'tests/test_rx_decode.py'
       - 'tests/test_tx_desc.py'
       - 'tests/test_efuse_shadow_bounds.py'
@@ -51,6 +52,7 @@ on:
       - 'src/rtwn8723be_f16_1_dma.c'
       - 'src/rtwn8723be_rx_native.c'
       - 'tests/test_linux_lifecycle_stop.py'
+      - 'tests/test_mark_hal_start_stage.py'
       - 'tests/test_rx_decode.py'
       - 'tests/test_tx_desc.py'
       - 'tests/test_efuse_shadow_bounds.py'
@@ -78,6 +80,8 @@ jobs:
           python3 --version
       - name: Linux-order lifecycle preflight and failure states
         run: python3 tests/test_linux_lifecycle_stop.py
+      - name: HAL-start phase contract (strict C11 / UBSan)
+        run: python3 tests/test_mark_hal_start_stage.py
       - name: RX/C2H descriptor decoder
         run: python3 tests/test_rx_decode.py
       - name: TX descriptor encoder
