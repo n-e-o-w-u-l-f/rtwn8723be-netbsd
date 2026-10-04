@@ -3,9 +3,7 @@
  * rtl8723be/phy.c:_rtl8723be_phy_bb8723b_config_parafile().
  */
 #include <sys/types.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <errno.h>
+#include "rtwn8723be_os_compat.h"
 #include "rtwn8723be_phy_bb_sequence.h"
 
 int

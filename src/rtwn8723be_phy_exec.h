@@ -6,8 +6,7 @@
 #define _RTWN8723BE_PHY_EXEC_H_
 
 #include <sys/types.h>
-#include <stdbool.h>
-#include <stdint.h>
+#include "rtwn8723be_os_compat.h"
 
 /* Inputs to rtl8723be/phy.c:_rtl8723be_check_positive(). */
 struct rtwn8723be_phy_identity {

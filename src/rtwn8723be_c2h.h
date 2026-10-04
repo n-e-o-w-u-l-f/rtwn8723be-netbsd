@@ -2,9 +2,7 @@
 #ifndef _RTWN8723BE_C2H_H_
 #define _RTWN8723BE_C2H_H_
 
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
+#include "rtwn8723be_os_compat.h"
 
 /* Frozen Linux rtlwifi/wifi.h: enum rtl_c2h_evt_v1 and C2H_DATA_OFFSET. */
 enum rtwn8723be_c2h_kind {

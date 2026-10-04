@@ -7,10 +7,7 @@
  * All paths restore saved RFENV even when table/setup reports a failure.
  */
 #include <sys/types.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <errno.h>
+#include "rtwn8723be_os_compat.h"
 #include "rtwn8723be_rf_path.h"
 
 #define RFPGA0_XAB_RFINTERFACESW 0x870U

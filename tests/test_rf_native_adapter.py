@@ -237,7 +237,8 @@ int main(void)
 with tempfile.TemporaryDirectory(prefix="rtl-rf-native-") as tmp:
     target = Path(tmp)
     for header in ("rtwn8723be_rf_native.h", "rtwn8723be_rf_serial.h",
-                   "rtwn8723be_rf_path.h", "rtwn8723be_phy_exec.h"):
+                   "rtwn8723be_rf_path.h", "rtwn8723be_phy_exec.h",
+                   "rtwn8723be_os_compat.h"):
         shutil.copyfile(SRC / header, target / header)
     (target / "sys").mkdir()
     (target / "sys/systm.h").write_text("void delay(unsigned int);\n")

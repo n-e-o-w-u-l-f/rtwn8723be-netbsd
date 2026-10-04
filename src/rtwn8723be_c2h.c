@@ -4,8 +4,7 @@
  * rtlwifi/wifi.h:GET_C2H_CMD_ID/SEQ/DATA_PTR and TX_REPORT_V1 fields,
  * rtlwifi/base.c:rtl_c2h_content_parsing/rtl_c2h_fast_cmd.
  */
-#include <errno.h>
-#include <string.h>
+#include "rtwn8723be_os_compat.h"
 #include "rtwn8723be_c2h.h"
 
 #define R23BE_C2H_ENVELOPE_SIZE 2U

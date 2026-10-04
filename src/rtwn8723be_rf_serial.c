@@ -6,10 +6,7 @@
  * the caller holds the RF lock and manages MMIO/power/recovery lifetime.
  */
 #include <sys/types.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <errno.h>
+#include "rtwn8723be_os_compat.h"
 #include "rtwn8723be_rf_serial.h"
 
 #define RF_A_HSSI2 0x824U

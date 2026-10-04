@@ -3,8 +3,7 @@
 #define _RTWN8723BE_NET80211_H_
 
 #include <sys/types.h>
-#include <stdbool.h>
-#include <stdint.h>
+#include "rtwn8723be_os_compat.h"
 #include "rtwn8723be_netbsd.h"
 #include "rtwn8723be_rx_decode.h"
 

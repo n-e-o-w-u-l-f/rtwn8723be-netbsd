@@ -10,6 +10,12 @@
 
 #include <net/if.h>
 #include <net/if_ether.h>
+#include <net/if_media.h>
+
+/* Match pinned if_rtwn.c: NetBSD net80211 currently has no HT ABI. */
+#ifndef IEEE80211_NO_HT
+#define IEEE80211_NO_HT
+#endif
 #include <net80211/ieee80211_var.h>
 
 #include "rtwn8723be_f16_1.h"
@@ -159,6 +165,7 @@ int rtwn8723be_netbsd_init_io(void *);
 int rtwn8723be_netbsd_read_eeprom_info(void *);
 int rtwn8723be_netbsd_init_sw_vars(void *);
 int rtwn8723be_netbsd_init_leds(void *);
+int rtwn8723be_netbsd_init_core(void *);
 int rtwn8723be_netbsd_init_pci_rings(void *);
 int rtwn8723be_netbsd_reset_trx_ring(void *);
 void rtwn8723be_netbsd_free_pci_rings(struct rtwn8723be_softc *);

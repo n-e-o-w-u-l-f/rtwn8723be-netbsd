@@ -8,8 +8,7 @@
 #ifndef _RTWN8723BE_RF_SERIAL_H_
 #define _RTWN8723BE_RF_SERIAL_H_
 #include <sys/types.h>
-#include <stdint.h>
-#include <stdbool.h>
+#include "rtwn8723be_os_compat.h"
 
 #define RTWN8723BE_RF_PATH_A 0U
 #define RTWN8723BE_RF_PATH_B 1U

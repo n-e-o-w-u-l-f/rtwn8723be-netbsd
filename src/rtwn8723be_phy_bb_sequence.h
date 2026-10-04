@@ -4,7 +4,7 @@
  */
 #ifndef _RTWN8723BE_PHY_BB_SEQUENCE_H_
 #define _RTWN8723BE_PHY_BB_SEQUENCE_H_
-#include <stdbool.h>
+#include "rtwn8723be_os_compat.h"
 #include "rtwn8723be_phy_exec.h"
 
 struct rtwn8723be_bb_sequence_ops {

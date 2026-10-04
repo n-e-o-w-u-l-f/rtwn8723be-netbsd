@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#include <stddef.h>
+#include "rtwn8723be_os_compat.h"
 #include "rtwn8723be_oem.h"
 
 bool

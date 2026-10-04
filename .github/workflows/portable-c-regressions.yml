@@ -8,7 +8,9 @@ on:
       - 'src/rtwn8723be_tx_desc.*'
       - 'src/rtwn8723be_netbsd.c'
       - 'src/rtwn8723be_f16_1.h'
+      - 'src/rtwn8723be_pwrseq_data.h'
       - 'src/rtwn8723be_netbsd.h'
+      - 'src/rtwn8723be_os_compat.h'
       - 'src/rtwn8723be_rf_native.c'
       - 'src/rtwn8723be_rf_native.h'
       - 'config/files.rtwn8723be_native'
@@ -20,6 +22,7 @@ on:
       - 'tests/test_efuse_shadow_bounds.py'
       - 'tests/test_dma_mem_unwind.py'
       - 'tests/test_rf_native_adapter.py'
+      - 'tests/test_kernel_source_integrity.py'
       - 'tests/test_rx_dma_bounds.py'
       - '.github/workflows/portable-c-regressions.yml'
   pull_request:
@@ -29,7 +32,9 @@ on:
       - 'src/rtwn8723be_tx_desc.*'
       - 'src/rtwn8723be_netbsd.c'
       - 'src/rtwn8723be_f16_1.h'
+      - 'src/rtwn8723be_pwrseq_data.h'
       - 'src/rtwn8723be_netbsd.h'
+      - 'src/rtwn8723be_os_compat.h'
       - 'src/rtwn8723be_rf_native.c'
       - 'src/rtwn8723be_rf_native.h'
       - 'config/files.rtwn8723be_native'
@@ -41,6 +46,7 @@ on:
       - 'tests/test_efuse_shadow_bounds.py'
       - 'tests/test_dma_mem_unwind.py'
       - 'tests/test_rf_native_adapter.py'
+      - 'tests/test_kernel_source_integrity.py'
       - 'tests/test_rx_dma_bounds.py'
       - '.github/workflows/portable-c-regressions.yml'
   workflow_dispatch:
@@ -66,6 +72,8 @@ jobs:
         run: python3 tests/test_tx_desc.py
       - name: EFUSE shadow section bounds (strict C11 / UBSan)
         run: python3 tests/test_efuse_shadow_bounds.py
+      - name: Native source/header and tool-output integrity
+        run: python3 tests/test_kernel_source_integrity.py
       - name: Native RF bus_space init adapter (strict C11 / UBSan)
         run: python3 tests/test_rf_native_adapter.py
       - name: Descriptor DMA allocation unwind (strict C11 / UBSan)
