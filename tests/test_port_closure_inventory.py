@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+"""Inventory Linux lifecycle callback closure; never interpret a link as runtime proof."""
+import argparse
+import pathlib
+import re
+import sys
+
+EXPECTED_MISSING = {
+    "probe": ("register_ieee80211", "init_rfkill"),
+    "start": ("bt_prepare", "phy_bb_config", "rf_channel_state_init",
+              "enable_hw_security", "enable_aspm_backdoor", "bt_hw_init",
+              "rf_calibration", "dm_init"),
+    "stop": ("bt_halt_deinit", "wait_rf_change_idle", "hw_disable"),
+}
+
+def check(root, require_closure=False):
+    src = root / "src"
+    header = (src / "rtwn8723be_linux_state.h").read_text()
+    body = (src / "rtwn8723be_netbsd.c").read_text()
+    manifest = (root / "config/files.rtwn8723be_native").read_text()
+    struct = re.search(r"struct rtwn8723be_linux_ops\s*\{(.*?)\n\};", header, re.S)
+    initializer = re.search(
+        r"const struct rtwn8723be_linux_ops\s+rtwn8723be_netbsd_ops\s*=\s*\{(.*?)\n\};",
+        body, re.S)
+    if struct is None or initializer is None:
+        raise ValueError("Linux ops declaration or native callback initializer missing")
+    names = re.findall(r"\bint\s*\(\*(\w+)\)\s*\(", struct.group(1))
+    bound = re.findall(r"\.([a-z_]\w*)\s*=\s*(rtwn8723be_\w+)",
+                       initializer.group(1))
+    if len(names) != len(set(names)) or len(bound) != len(set(k for k, _ in bound)):
+        raise ValueError("duplicate callback declaration/binding")
+    if set(k for k, _ in bound) - set(names):
+        raise ValueError("unknown callback binding")
+    missing = [n for n in names if n not in dict(bound)]
+    expected = {n for phase in EXPECTED_MISSING.values() for n in phase}
+    native_units = re.findall(r"^file\s+dev/pci/(rtwn8723be_\w+\.c)\s+rtwn8723be_native",
+                              manifest, re.M)
+    pg_in_build = "rtwn8723be_txpwr_pg.c" in native_units
+    if len(names) != 53 or len(native_units) != 23:
+        raise ValueError("source or native build manifest changed; re-inventory required")
+    if set(missing) != expected:
+        raise ValueError("callback inventory changed: now missing " + repr(missing))
+    if len(bound) != 40:
+        raise ValueError("bound callback count changed; re-inventory required")
+    print(f"DECLARED={len(names)} BOUND={len(bound)} MISSING={len(missing)}")
+    for phase, items in EXPECTED_MISSING.items():
+        print(phase.upper() + "=" + ",".join(items))
+    print("NATIVE_C_OBJECTS=" + str(len(native_units)))
+    print("TX_POWER_PG_IN_NATIVE_BUILD=" + str(pg_in_build).lower())
+    # This gate is deliberately stricter than a successful kernel link.
+    complete = not missing and pg_in_build
+    print("CALLBACK_AND_PG_CLOSURE=" + ("CLOSED" if complete else "OPEN"))
+    if require_closure and not complete:
+        return 1
+    return 0
+
+if __name__ == "__main__":
+    p = argparse.ArgumentParser()
+    p.add_argument("--root", type=pathlib.Path,
+                   default=pathlib.Path(__file__).resolve().parent.parent)
+    p.add_argument("--require-closure", action="store_true")
+    args = p.parse_args()
+    try:
+        sys.exit(check(args.root, args.require_closure))
+    except (OSError, ValueError) as exc:
+        print("PORT_CLOSURE_INVENTORY_FAILED: " + str(exc), file=sys.stderr)
+        sys.exit(2)
