@@ -1957,7 +1957,7 @@ rtwn8723be_netbsd_mark_hal_start(void *arg)
     struct rtwn8723be_softc *sc = arg;
 
     if (sc == NULL || !sc->sc_linux.fw_ready ||
-        sc->sc_linux.stage != R23BE_STAGE_RUNNING ||
+        sc->sc_linux.stage != R23BE_STAGE_RX_CONFIG ||
         !sc->sc_core_initialized || !sc->sc_rings_allocated ||
         !sc->sc_irq_enabled || !sc->sc_irq_dispatch_ready)
         return EAGAIN;
