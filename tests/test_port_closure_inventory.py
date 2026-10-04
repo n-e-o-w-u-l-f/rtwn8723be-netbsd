@@ -36,7 +36,7 @@ def check(root, require_closure=False):
     native_units = re.findall(r"^file\s+dev/pci/(rtwn8723be_\w+\.c)\s+rtwn8723be_native",
                               manifest, re.M)
     pg_in_build = "rtwn8723be_txpwr_pg.c" in native_units
-    if len(names) != 53 or len(native_units) != 23:
+    if len(names) != 53 or len(native_units) != 25:
         raise ValueError("source or native build manifest changed; re-inventory required")
     if set(missing) != expected:
         raise ValueError("callback inventory changed: now missing " + repr(missing))

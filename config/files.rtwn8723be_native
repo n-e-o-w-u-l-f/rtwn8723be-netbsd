@@ -17,6 +17,8 @@ file    dev/pci/rtwn8723be_native.c        rtwn8723be_native
 file    dev/pci/rtwn8723be_netbsd.c        rtwn8723be_native
 file    dev/pci/rtwn8723be_f16_1_dma.c     rtwn8723be_native
 file    dev/pci/rtwn8723be_fw.c            rtwn8723be_native
+file    dev/pci/rtwn8723be_h2c.c           rtwn8723be_native
+file    dev/pci/rtwn8723be_h2c_native.c    rtwn8723be_native
 file    dev/pci/rtwn8723be_linux_state.c   rtwn8723be_native
 file    dev/pci/rtwn8723be_package.c       rtwn8723be_native
 file    dev/pci/rtwn8723be_pwrseq.c        rtwn8723be_native

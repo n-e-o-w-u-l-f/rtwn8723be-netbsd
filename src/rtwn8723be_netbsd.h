@@ -21,6 +21,7 @@
 #include "rtwn8723be_f16_1.h"
 #include "rtwn8723be_linux_state.h"
 #include "rtwn8723be_phy_exec.h"
+#include "rtwn8723be_h2c_native.h"
 
 #define RTWN8723BE_PCI_BAR_MMIO        0x18
 #define RTWN8723BE_DMA_MAXADDR         0xffffffffULL
@@ -95,6 +96,7 @@ struct rtwn8723be_softc {
     void *sc_irq_arg;
 
     struct rtwn8723be_linux_state sc_linux;
+    struct rtwn8723be_h2c_native sc_h2c;
 
     uint32_t sc_receive_config;
     uint32_t sc_mac_rx_conf;

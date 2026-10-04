@@ -82,6 +82,9 @@ rtwn8723be_native_probe_cleanup(struct rtwn8723be_softc *sc)
         sc->sc_soft_ih != NULL || sc->sc_pihp != NULL)
         rtwn8723be_netbsd_disestablish_irq(sc);
 
+    /* No mailbox users remain once IRQ and the owner are quiesced. */
+    rtwn8723be_h2c_native_fini(sc);
+
     /* Ring maps own buffers; they must die BEFORE the 32-bit DMA tag. */
     if (sc->sc_rings_allocated)
         rtwn8723be_netbsd_free_pci_rings(sc);

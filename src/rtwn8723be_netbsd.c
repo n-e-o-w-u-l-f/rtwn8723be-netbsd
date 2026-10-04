@@ -19,6 +19,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "rtwn8723be_mac_table.h"
 #include "rtwn8723be_package.h"
 #include "rtwn8723be_rf_native.h"
+#include "rtwn8723be_h2c_native.h"
 
 static int rtwn8723be_netbsd_intr(void *);
 static void rtwn8723be_netbsd_softintr(void *);
@@ -609,7 +610,7 @@ rtwn8723be_netbsd_init_sw_vars(void *arg)
     sc->sc_led_opendrain = true;
     sc->sc_rfoff_reason = 0; /* RF_CHANGE_BY_INIT */
 
-    return 0;
+    return rtwn8723be_h2c_native_init(sc);
 }
 
 int
@@ -1513,6 +1514,8 @@ rtwn8723be_netbsd_poweroff_adapter(void *arg)
 
     if (!sc->sc_mapped)
         return ENXIO;
+    /* Stop publication immediately, even if the LPS power flow fails. */
+    rtwn8723be_h2c_native_reset(sc);
     sc->sc_linux.mac_func_enable = false;
 
     /*
@@ -1591,6 +1594,7 @@ rtwn8723be_netbsd_download_firmware(void *arg)
 
     if (!sc->sc_mapped)
         return ENXIO;
+    rtwn8723be_h2c_native_reset(sc);
 
     error = firmware_open(RTWN8723BE_FIRMWARE_DRIVER,
         RTWN8723BE_FIRMWARE_FILE, &fwh);
@@ -1638,8 +1642,12 @@ rtwn8723be_netbsd_download_firmware(void *arg)
      */
     error = rtwn8723be_fw_download(sc->sc_st, sc->sc_sh,
         payload, payload_len);
+    if (error == 0)
+        error = rtwn8723be_h2c_native_fw_ready(sc);
 
 out:
+    if (error != 0)
+        rtwn8723be_h2c_native_reset(sc);
     if (payload != NULL)
         kmem_free(payload, payload_len);
     if (fwh != NULL)

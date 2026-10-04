@@ -13,6 +13,10 @@ on:
       - 'src/rtwn8723be_os_compat.h'
       - 'src/rtwn8723be_rf_native.c'
       - 'src/rtwn8723be_rf_native.h'
+      - 'src/rtwn8723be_h2c.c'
+      - 'src/rtwn8723be_h2c.h'
+      - 'src/rtwn8723be_h2c_native.c'
+      - 'src/rtwn8723be_h2c_native.h'
       - 'config/files.rtwn8723be_native'
       - 'src/rtwn8723be_f16_1_dma.c'
       - 'src/rtwn8723be_rx_native.c'
@@ -22,6 +26,8 @@ on:
       - 'tests/test_efuse_shadow_bounds.py'
       - 'tests/test_dma_mem_unwind.py'
       - 'tests/test_rf_native_adapter.py'
+      - 'tests/test_h2c_mailbox.py'
+      - 'tests/test_h2c_native_binding.py'
       - 'tests/test_kernel_source_integrity.py'
       - 'tests/test_rx_dma_bounds.py'
       - '.github/workflows/portable-c-regressions.yml'
@@ -37,6 +43,10 @@ on:
       - 'src/rtwn8723be_os_compat.h'
       - 'src/rtwn8723be_rf_native.c'
       - 'src/rtwn8723be_rf_native.h'
+      - 'src/rtwn8723be_h2c.c'
+      - 'src/rtwn8723be_h2c.h'
+      - 'src/rtwn8723be_h2c_native.c'
+      - 'src/rtwn8723be_h2c_native.h'
       - 'config/files.rtwn8723be_native'
       - 'src/rtwn8723be_f16_1_dma.c'
       - 'src/rtwn8723be_rx_native.c'
@@ -46,6 +56,8 @@ on:
       - 'tests/test_efuse_shadow_bounds.py'
       - 'tests/test_dma_mem_unwind.py'
       - 'tests/test_rf_native_adapter.py'
+      - 'tests/test_h2c_mailbox.py'
+      - 'tests/test_h2c_native_binding.py'
       - 'tests/test_kernel_source_integrity.py'
       - 'tests/test_rx_dma_bounds.py'
       - '.github/workflows/portable-c-regressions.yml'
@@ -76,6 +88,10 @@ jobs:
         run: python3 tests/test_kernel_source_integrity.py
       - name: Native RF bus_space init adapter (strict C11 / UBSan)
         run: python3 tests/test_rf_native_adapter.py
+      - name: H2C PCIe mailbox ordering and failures (strict C11 / UBSan)
+        run: python3 tests/test_h2c_mailbox.py
+      - name: Native H2C NetBSD adapter (strict C11 / UBSan)
+        run: python3 tests/test_h2c_native_binding.py
       - name: Descriptor DMA allocation unwind (strict C11 / UBSan)
         run: python3 tests/test_dma_mem_unwind.py
       - name: RX DMA descriptor and buffer bounds (strict C11 / UBSan)
