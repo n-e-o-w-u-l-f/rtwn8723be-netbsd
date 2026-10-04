@@ -18,6 +18,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "rtwn8723be_pwrseq_plan.h"
 #include "rtwn8723be_mac_table.h"
 #include "rtwn8723be_package.h"
+#include "rtwn8723be_rf_native.h"
 
 static int rtwn8723be_netbsd_intr(void *);
 static void rtwn8723be_netbsd_softintr(void *);
@@ -2001,6 +2002,7 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .download_firmware = rtwn8723be_netbsd_download_firmware,
     .phy_mac_config = rtwn8723be_netbsd_phy_mac_config,
     .rcr_postprocess = rtwn8723be_netbsd_rcr_postprocess,
+    .phy_rf_config = rtwn8723be_netbsd_phy_rf_config,
     .hw_configure = rtwn8723be_netbsd_hw_configure,
     .cam_reset_all = rtwn8723be_netbsd_cam_reset_all,
     .set_mac_address = rtwn8723be_netbsd_set_mac_address,
