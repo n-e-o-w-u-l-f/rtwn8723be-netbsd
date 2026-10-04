@@ -118,8 +118,10 @@ struct rtwn8723be_softc {
     /* Invalid until the hardware/EFUSE cut, board and RF paths are proved. */
     struct rtwn8723be_phy_identity sc_phy_identity;
     uint8_t sc_rf_path_count;
+    uint8_t sc_xtal_cap;
     bool sc_phy_identity_valid;
     bool sc_rf_path_count_valid;
+    bool sc_xtal_valid;
     bool sc_efuse_autoload_ok;
     bool sc_boot_from_efuse;
     bool sc_btcoexist;
