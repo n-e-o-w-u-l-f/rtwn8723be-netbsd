@@ -14,6 +14,7 @@
 
 #include "rtwn8723be_f16_1.h"
 #include "rtwn8723be_linux_state.h"
+#include "rtwn8723be_phy_exec.h"
 
 #define RTWN8723BE_PCI_BAR_MMIO        0x18
 #define RTWN8723BE_DMA_MAXADDR         0xffffffffULL
@@ -105,6 +106,12 @@ struct rtwn8723be_softc {
     uint8_t sc_macaddr[6];
     uint8_t sc_package_type;
     bool sc_package_valid;
+
+    /* Invalid until the hardware/EFUSE cut, board and RF paths are proved. */
+    struct rtwn8723be_phy_identity sc_phy_identity;
+    uint8_t sc_rf_path_count;
+    bool sc_phy_identity_valid;
+    bool sc_rf_path_count_valid;
     bool sc_efuse_autoload_ok;
     bool sc_boot_from_efuse;
     bool sc_btcoexist;
