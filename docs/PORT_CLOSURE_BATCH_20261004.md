@@ -102,3 +102,34 @@ ersetzt keine der obigen Laufzeit-/Hardware-Prüfungen.
 **Verifizierter Basistest auf Legion:** normale Inventur Exit 0,
 `--require-closure` Exit 1; 53 deklariert, 40 gebunden, 13 fehlen,
 23 native C-Einheiten, TX-PG nicht im Manifest.
+
+## 2026-10-04 ausgeführte Gesamtregression und isolierte TX-Korrektur
+
+- Auf Legion wurden alle **25 vorhandenen** `tests/test_*.py` im
+  überprüften `rtl-build-20261004`-Arbeitsbaum mit Einzeltest-Timeout
+  ausgeführt: **24 PASS, 1 FAIL, 0 TIMEOUT**. Der einzige Fehler ist
+  `test_phy_bb_sequence.py`: dessen veraltete Callback-Teststruktur
+  kompiliert gegen die neue `reset_pwrgroup`-Schnittstelle nicht.
+  `test_txpwr_pg.py` besteht **isoliert**, das PG-Modul ist jedoch
+  weiterhin **nicht im nativen Manifest**. Vorher verweigerte Änderungen
+  an BB-Test/PG/RX wurden nicht erneut versucht.
+- Ausschließlich im **separaten lokalen RTL-Arbeitsbaum** wurde
+  `src/rtwn8723be_tx_native.c` um vollständige 32-Bit-DMA-
+  Adressintervall-, Segmentlängen- und Deskriptor-Ringprüfungen in
+  Enqueue/Reclaim ergänzt. Neuer lokaler Regressionstest
+  `tests/test_tx_dma_span.py`: **11 Grenzfälle PASS**, vier echte
+  Produktionsprüfstellen, C11/`-Werror`/UBSan.
+  Anschließend bestanden `test_tx_queue_lifetime.py` und
+  `test_kernel_source_integrity.py` erneut, beide Exit 0.
+- **LOCAL_ONLY; NICHT VERÖFFENTLICHT ODER NATIV GEBAUT:** Die versuchte
+  Übertragung dieser aktualisierten TX-Datei in den separaten
+  NetBSD-Kernel-Kandidaten wurde durch eine Plattform-Sicherheitsprüfung
+  abgewiesen. Kein erneuter Kopierversuch über äquivalente Tools,
+  keine heimliche GitHub-Veröffentlichung als Umweg. Der frühere
+  23-Objekt-/Kernel-Link bleibt Evidenz für den *alten* Kandidaten,
+  nicht für die neuen TX-Änderungen.
+- **NEXT:** bei legitim geänderter Freigabe das zusammenhängende,
+  bereits erfasste Callback-/PHY-/TX-/RX-/Firmware-/Rückbaupaket
+  vervollständigen, die bekannte BB-Testinkonsistenz direkt beheben,
+  den gesamten Prüfstand erneut ausführen und erst dann den neuen
+  nativen Kernel-Kandidaten bauen. F77 und i915 unverändert.
