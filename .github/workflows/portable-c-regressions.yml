@@ -13,6 +13,8 @@ on:
       - 'src/rtwn8723be_os_compat.h'
       - 'src/rtwn8723be_rf_native.c'
       - 'src/rtwn8723be_rf_native.h'
+      - 'src/rtwn8723be_rf_channel_state.c'
+      - 'src/rtwn8723be_rf_channel_state.h'
       - 'src/rtwn8723be_h2c.c'
       - 'src/rtwn8723be_h2c.h'
       - 'src/rtwn8723be_h2c_native.c'
@@ -28,6 +30,7 @@ on:
       - 'tests/test_efuse_shadow_bounds.py'
       - 'tests/test_dma_mem_unwind.py'
       - 'tests/test_rf_native_adapter.py'
+      - 'tests/test_rf_channel_state.py'
       - 'tests/test_h2c_mailbox.py'
       - 'tests/test_h2c_native_binding.py'
       - 'tests/test_kernel_source_integrity.py'
@@ -45,6 +48,8 @@ on:
       - 'src/rtwn8723be_os_compat.h'
       - 'src/rtwn8723be_rf_native.c'
       - 'src/rtwn8723be_rf_native.h'
+      - 'src/rtwn8723be_rf_channel_state.c'
+      - 'src/rtwn8723be_rf_channel_state.h'
       - 'src/rtwn8723be_h2c.c'
       - 'src/rtwn8723be_h2c.h'
       - 'src/rtwn8723be_h2c_native.c'
@@ -60,6 +65,7 @@ on:
       - 'tests/test_efuse_shadow_bounds.py'
       - 'tests/test_dma_mem_unwind.py'
       - 'tests/test_rf_native_adapter.py'
+      - 'tests/test_rf_channel_state.py'
       - 'tests/test_h2c_mailbox.py'
       - 'tests/test_h2c_native_binding.py'
       - 'tests/test_kernel_source_integrity.py'
@@ -96,6 +102,8 @@ jobs:
         run: python3 tests/test_kernel_source_integrity.py
       - name: Native RF bus_space init adapter (strict C11 / UBSan)
         run: python3 tests/test_rf_native_adapter.py
+      - name: RF channel state Linux-order and failure atomicity (strict C11 / UBSan)
+        run: python3 tests/test_rf_channel_state.py
       - name: H2C PCIe mailbox ordering and failures (strict C11 / UBSan)
         run: python3 tests/test_h2c_mailbox.py
       - name: Native H2C NetBSD adapter (strict C11 / UBSan)
