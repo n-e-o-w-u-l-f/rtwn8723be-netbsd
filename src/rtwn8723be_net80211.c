@@ -194,6 +194,7 @@ rtwn8723be_net80211_register(struct rtwn8723be_net80211 *n,
         sc->sc_macaddr[4] == 0 && sc->sc_macaddr[5] == 0))
         return EINVAL;
 
+    sc->sc_security_policy_valid = false;
     n->sc = sc;
     n->methods = *methods;
     ic = &sc->sc_ic;
@@ -235,6 +236,14 @@ rtwn8723be_net80211_register(struct rtwn8723be_net80211 *n,
     if_register(ifp);
     ieee80211_media_init(ic, rtwn8723be_n80211_media_change,
         ieee80211_media_status);
+    /* The current net80211 adapter uses the framework's software key methods.
+     * Hardware CAM set/delete and cipher ownership remain a separate full-port
+     * requirement. A future hardware-key adapter must explicitly select policy.
+     */
+    sc->sc_sw_crypto = true;
+    sc->sc_use_sw_sec = true;
+    sc->sc_use_defaultkey = false;
+    sc->sc_security_policy_valid = true;
     n->registered = true;
     ieee80211_announce(ic);
     return 0;
@@ -259,6 +268,9 @@ rtwn8723be_net80211_unregister(struct rtwn8723be_net80211 *n)
         splx(s);
         return error; /* Retain registered resources on failed hardware stop. */
     }
+    n->sc->sc_security_policy_valid = false;
+    n->sc->sc_security_configured = false;
+    n->sc->sc_hw_security_enabled = false;
     ieee80211_ifdetach(&n->sc->sc_ic);
     if_detach(ifp);
     n->registered = false;

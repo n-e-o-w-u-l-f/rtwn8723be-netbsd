@@ -14,6 +14,8 @@ device  rtwn8723be_native: ifnet, arp, wlan, firmload
 attach  rtwn8723be_native at pci
 file    dev/pci/rtwn8723be_native.c        rtwn8723be_native
 file    dev/pci/rtwn8723be_netbsd.c        rtwn8723be_native
+file    dev/pci/rtwn8723be_aspm_native.c   rtwn8723be_native
+file    dev/pci/rtwn8723be_security_native.c rtwn8723be_native
 file    dev/pci/rtwn8723be_f16_1_dma.c     rtwn8723be_native
 file    dev/pci/rtwn8723be_fw.c            rtwn8723be_native
 file    dev/pci/rtwn8723be_h2c.c           rtwn8723be_native

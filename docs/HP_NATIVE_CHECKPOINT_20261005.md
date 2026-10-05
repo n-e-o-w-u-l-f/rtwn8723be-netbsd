@@ -1,5 +1,43 @@
 # HP native RTL8723BE checkpoint, 2026-10-05
 
+STATE: IN_PROGRESS. Full COV-RTL-000..017 acceptance is OPEN.
+Build and installation host: HP only.
+
+## Current production callback work
+
+Native DBI/MDIO and ASPM programming now preserve the pinned Linux widths,
+alignment, lanes, ePHY sequence and DBI read/modify/write values. Polling is
+bounded to 20 retries at 10us; a timeout returns ETIMEDOUT without publishing
+success, modifying read outputs or continuing later transactions. ASPM valid
+state is published only after the complete guarded initialization sequence.
+
+Native security configuration now writes the Linux CR+1/SECCFG sequence with
+the explicit OS cipher policy. The current net80211 framework uses software
+keys; only successful registration publishes that policy. Its explicit
+software-crypto branch performs the Linux no-register-operation path.
+Hardware CAM/cipher/key lifetime and hardware offload remain full-port work.
+
+Both callbacks are wired into the real native operations. All 34 RTL
+regression scripts passed on HP, and all 30 manifest C units compile as
+NetBSD kernel objects with real kernel headers and -Werror.
+See [native objects](evidence/HP_NATIVE_RTL_ASPM_SECURITY_20261005.json)
+and [regressions](evidence/HP_REGRESSIONS_ASPM_SECURITY_20261005.json).
+
+Callback presence is DECLARED=53, BOUND=44, MISSING=9; --require-closure
+still fails as required. Missing: register_ieee80211, init_rfkill, bt_prepare,
+bt_hw_init, rf_calibration, dm_init, bt_halt_deinit, wait_rf_change_idle,
+hw_disable. Presence alone does not prove Net80211/datapath/channel/keys,
+RF locking, coexistence, calibration, PM or error/recovery closure.
+
+No kernel link, installation, reboot or physical WLAN association/traffic
+acceptance occurred. HP still runs F77, i915 is disabled, and all three
+recovery hashes were rechecked unchanged. This remains ongoing full-port
+implementation; no partial candidate is declared installable.
+
+## Earlier checkpoint
+
+### HP native RTL8723BE checkpoint, 2026-10-05
+
 STATE: IN_PROGRESS. Build and installation host: HP only.
 
 Two Linux-derived initialization callbacks are now wired: `phy_bb_config`

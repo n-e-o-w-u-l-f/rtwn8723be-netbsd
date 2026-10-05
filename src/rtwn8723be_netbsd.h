@@ -129,6 +129,13 @@ struct rtwn8723be_softc {
     uint8_t sc_pwrgroup_cnt;
     bool sc_cck_high_power;
     bool sc_bb_valid;
+    bool sc_aspm_backdoor_valid;
+    bool sc_security_policy_valid;
+    bool sc_security_configured;
+    bool sc_hw_security_enabled;
+    bool sc_sw_crypto;
+    bool sc_use_sw_sec;
+    bool sc_use_defaultkey;
     bool sc_efuse_autoload_ok;
     bool sc_boot_from_efuse;
     bool sc_btcoexist;

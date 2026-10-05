@@ -14,6 +14,8 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <dev/firmload.h>
 
 #include "rtwn8723be_netbsd.h"
+#include "rtwn8723be_aspm_native.h"
+#include "rtwn8723be_security_native.h"
 #include "rtwn8723be_bb_native.h"
 #include "rtwn8723be_fw.h"
 #include "rtwn8723be_pwrseq_plan.h"
@@ -2049,12 +2051,14 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .rf_channel_state_init = rtwn8723be_netbsd_rf_channel_state_init,
     .hw_configure = rtwn8723be_netbsd_hw_configure,
     .cam_reset_all = rtwn8723be_netbsd_cam_reset_all,
+    .enable_hw_security = rtwn8723be_netbsd_enable_hw_security,
     .set_mac_address = rtwn8723be_netbsd_set_mac_address,
     .set_nav_upper_235 = rtwn8723be_netbsd_set_nav_upper_235,
     .set_retry_limit = rtwn8723be_netbsd_set_retry_limit,
     .release_rx_dma = rtwn8723be_netbsd_release_rx_dma,
     .release_pcie_dma = rtwn8723be_netbsd_release_pcie_dma,
     .enable_aspm = rtwn8723be_netbsd_enable_aspm,
+    .enable_aspm_backdoor = rtwn8723be_netbsd_enable_aspm_backdoor,
     .establish_irq = rtwn8723be_netbsd_establish_irq,
     .enable_interrupt = rtwn8723be_netbsd_enable_interrupt,
     .init_rx_config = rtwn8723be_netbsd_init_rx_config,
