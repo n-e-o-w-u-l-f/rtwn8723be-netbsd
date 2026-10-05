@@ -20,7 +20,9 @@ native = set(re.findall(
     r"^file\s+dev/pci/(rtwn8723be\w+\.c)\s+rtwn8723be_native\s*$",
     manifest, re.M,
 ))
-assert len(native) == 25
+assert len(native) == 28
+assert {"rtwn8723be_bb_native.c", "rtwn8723be_txpwr_pg.c",
+        "rtwn8723be_rf_channel_state.c"} <= native
 all_source = list(SRC.glob("*.c")) + list(SRC.glob("*.h"))
 for path in all_source:
     assert not BAD.search(path.read_text()), "tool transcript: " + str(path)

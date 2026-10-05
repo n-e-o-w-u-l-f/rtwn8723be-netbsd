@@ -23,6 +23,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "rtwn8723be_rf_native.h"
 #include "rtwn8723be_rf_serial.h"
 #include "rtwn8723be_rf_path.h"
+#include "rtwn8723be_rf_channel_state.h"
 #include "rtwn8723be_phy_exec.h"
 
 /* RF_B_PI_RB is the highest BB register used by the frozen RF protocol. */
@@ -34,6 +35,7 @@ rtwn8723be_rf_native_ready(void *arg)
     const struct rtwn8723be_softc *sc = arg;
 
     return sc != NULL && sc->sc_mapped && sc->sc_core_initialized &&
+        sc->sc_bb_valid &&
         sc->sc_linux.fw_ready && sc->sc_efuse_autoload_ok &&
         sc->sc_bt_ant_valid && sc->sc_package_valid &&
         sc->sc_phy_identity_valid && sc->sc_rf_path_count_valid &&
@@ -42,7 +44,8 @@ rtwn8723be_rf_native_ready(void *arg)
         sc->sc_mapsize >= RTWN8723BE_RF_LAST_BB_REG +
             sizeof(uint32_t) &&
         sc->sc_linux.being_init_adapter &&
-        sc->sc_linux.stage == R23BE_STAGE_PHY_RF &&
+        (sc->sc_linux.stage == R23BE_STAGE_PHY_RF ||
+         sc->sc_linux.stage == R23BE_STAGE_RF_CHANNEL_STATE) &&
         !sc->sc_linux.started && !sc->sc_irq_enabled;
 }
 
@@ -134,7 +137,8 @@ rtwn8723be_netbsd_phy_rf_config(void *arg)
     if (sc->sc_rf_path_count != 1 &&
         sc->sc_rf_path_count != 2)
         return EINVAL;
-    if (!rtwn8723be_rf_native_ready(sc))
+    if (sc->sc_linux.stage != R23BE_STAGE_PHY_RF ||
+        !rtwn8723be_rf_native_ready(sc))
         return ENXIO;
 
     ctx.io = &rtwn8723be_rf_native_io;
@@ -147,4 +151,33 @@ rtwn8723be_netbsd_phy_rf_config(void *arg)
         error = rtwn8723be_rf_path_configure(&ctx,
             RTWN8723BE_RF_PATH_B, NULL, NULL);
     return error;
+}
+
+int
+rtwn8723be_netbsd_rf_channel_state_init(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+    struct rtwn8723be_rf_serial_ctx ctx;
+    uint32_t values[2];
+    int error;
+
+    if (sc == NULL)
+        return EINVAL;
+    sc->sc_rf_chnlval_valid = false;
+    if (sc->sc_linux.stage != R23BE_STAGE_RF_CHANNEL_STATE ||
+        !rtwn8723be_rf_native_ready(sc))
+        return ENXIO;
+    if (sc->sc_rf_path_count != 1 && sc->sc_rf_path_count != 2)
+        return EINVAL;
+
+    /* Linux reads both paths, including on the one-transmitter board. */
+    ctx.io = &rtwn8723be_rf_native_io;
+    ctx.dev = sc;
+    error = rtwn8723be_rf_channel_state_read(&ctx, values);
+    if (error != 0)
+        return error;
+    sc->sc_rf_chnlval[0] = values[0];
+    sc->sc_rf_chnlval[1] = values[1];
+    sc->sc_rf_chnlval_valid = true;
+    return 0;
 }

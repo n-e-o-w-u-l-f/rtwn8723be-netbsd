@@ -14,6 +14,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <dev/firmload.h>
 
 #include "rtwn8723be_netbsd.h"
+#include "rtwn8723be_bb_native.h"
 #include "rtwn8723be_fw.h"
 #include "rtwn8723be_pwrseq_plan.h"
 #include "rtwn8723be_mac_table.h"
@@ -538,6 +539,8 @@ rtwn8723be_netbsd_read_eeprom_info(void *arg)
     sc->sc_package_type = RTWN8723BE_PACKAGE_DEFAULT;
     sc->sc_phy_identity_valid = false;
     sc->sc_rf_path_count_valid = false;
+    sc->sc_rf_chnlval_valid = false;
+    sc->sc_bb_valid = false;
     sc->sc_xtal_valid = false;
     sc->sc_bt_ant_valid = false;
     sc->sc_rf_path_count = 0;
@@ -2041,7 +2044,9 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .download_firmware = rtwn8723be_netbsd_download_firmware,
     .phy_mac_config = rtwn8723be_netbsd_phy_mac_config,
     .rcr_postprocess = rtwn8723be_netbsd_rcr_postprocess,
+    .phy_bb_config = rtwn8723be_netbsd_phy_bb_config,
     .phy_rf_config = rtwn8723be_netbsd_phy_rf_config,
+    .rf_channel_state_init = rtwn8723be_netbsd_rf_channel_state_init,
     .hw_configure = rtwn8723be_netbsd_hw_configure,
     .cam_reset_all = rtwn8723be_netbsd_cam_reset_all,
     .set_mac_address = rtwn8723be_netbsd_set_mac_address,

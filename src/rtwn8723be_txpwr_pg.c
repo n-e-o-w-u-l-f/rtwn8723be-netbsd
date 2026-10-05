@@ -7,9 +7,7 @@
  * differences are preserved. Linux converts RF path A only, although it
  * extracts base values for both RF paths A and B. No MMIO occurs here.
  */
-#include <sys/types.h>
-#include <stdint.h>
-#include <errno.h>
+#include "rtwn8723be_os_compat.h"
 #include "rtwn8723be_txpwr_pg.h"
 
 void

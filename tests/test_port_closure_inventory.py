@@ -7,7 +7,7 @@ import sys
 
 EXPECTED_MISSING = {
     "probe": ("register_ieee80211", "init_rfkill"),
-    "start": ("bt_prepare", "phy_bb_config", "rf_channel_state_init",
+    "start": ("bt_prepare",
               "enable_hw_security", "enable_aspm_backdoor", "bt_hw_init",
               "rf_calibration", "dm_init"),
     "stop": ("bt_halt_deinit", "wait_rf_change_idle", "hw_disable"),
@@ -36,11 +36,11 @@ def check(root, require_closure=False):
     native_units = re.findall(r"^file\s+dev/pci/(rtwn8723be_\w+\.c)\s+rtwn8723be_native",
                               manifest, re.M)
     pg_in_build = "rtwn8723be_txpwr_pg.c" in native_units
-    if len(names) != 53 or len(native_units) != 25:
+    if len(names) != 53 or len(native_units) != 28:
         raise ValueError("source or native build manifest changed; re-inventory required")
     if set(missing) != expected:
         raise ValueError("callback inventory changed: now missing " + repr(missing))
-    if len(bound) != 40:
+    if len(bound) != 42:
         raise ValueError("bound callback count changed; re-inventory required")
     print(f"DECLARED={len(names)} BOUND={len(bound)} MISSING={len(missing)}")
     for phase, items in EXPECTED_MISSING.items():

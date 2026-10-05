@@ -21,6 +21,7 @@
 #include "rtwn8723be_f16_1.h"
 #include "rtwn8723be_linux_state.h"
 #include "rtwn8723be_phy_exec.h"
+#include "rtwn8723be_txpwr_pg.h"
 #include "rtwn8723be_h2c_native.h"
 
 #define RTWN8723BE_PCI_BAR_MMIO        0x18
@@ -122,6 +123,12 @@ struct rtwn8723be_softc {
     bool sc_phy_identity_valid;
     bool sc_rf_path_count_valid;
     bool sc_xtal_valid;
+    uint32_t sc_rf_chnlval[2];
+    bool sc_rf_chnlval_valid;
+    struct rtwn8723be_txpwr_pg_state sc_txpwr_pg;
+    uint8_t sc_pwrgroup_cnt;
+    bool sc_cck_high_power;
+    bool sc_bb_valid;
     bool sc_efuse_autoload_ok;
     bool sc_boot_from_efuse;
     bool sc_btcoexist;

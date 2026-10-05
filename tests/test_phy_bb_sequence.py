@@ -32,6 +32,7 @@ static int bb(void *p, uint32_t a, uint32_t b)
 static int pg(void *p, const struct rtwn8723be_pg_entry *entry)
 { (void)entry; return mark(p, 'P'); }
 static int init(void *p) { return mark(p, 'I'); }
+static int reset_pg(void *p) { return mark(p, 'R'); }
 static int convert(void *p) { return mark(p, 'C'); }
 static int agc(void *p, uint32_t a, uint32_t b)
 { (void)a; (void)b; return mark(p, 'G'); }
@@ -51,29 +52,38 @@ int main(void)
     struct trace t = {0};
     bool high = false;
     const struct rtwn8723be_bb_sequence_ops ops = {
-        ant, bb, init, pg, convert, agc, cck
+        .select_antenna = ant, .write_bb = bb, .init_txpower = init,
+        .reset_pwrgroup = reset_pg, .store_pg = pg,
+        .convert_txpower = convert, .write_agc = agc,
+        .read_cck_high_power = cck
     };
     struct rtwn8723be_bb_sequence_ops missing = ops;
     const char *failure;
 
     assert(rtwn8723be_phy_bb_sequence(&t, &ops, true, &high) == 0);
-    assert(strcmp(t.seen, "ABIPCGH") == 0 && high);
+    assert(strcmp(t.seen, "ABIRPCGH") == 0 && high);
     memset(&t, 0, sizeof(t));
     high = false;
     assert(rtwn8723be_phy_bb_sequence(&t, &ops, false, &high) == 0);
     assert(strcmp(t.seen, "ABICGH") == 0 && high);
 
-    for (failure = "ABIPCGH"; *failure != 0; failure++) {
+    for (failure = "ABIRPCGH"; *failure != 0; failure++) {
         memset(&t, 0, sizeof(t));
         t.fail = *failure;
         high = false;
         assert(rtwn8723be_phy_bb_sequence(&t, &ops, true, &high) == EIO);
         assert(!high);
         if (*failure == 'P')
-            assert(strcmp(t.seen, "ABIPC") == 0);
+            assert(strcmp(t.seen, "ABIRPC") == 0);
     }
     memset(&t, 0, sizeof(t));
     missing.store_pg = NULL;
+    assert(rtwn8723be_phy_bb_sequence(&t, &missing, true, &high) ==
+        ENOSYS && t.n == 0);
+    assert(rtwn8723be_phy_bb_sequence(&t, &missing, false, &high) == 0);
+    memset(&t, 0, sizeof(t));
+    missing = ops;
+    missing.reset_pwrgroup = NULL;
     assert(rtwn8723be_phy_bb_sequence(&t, &missing, true, &high) ==
         ENOSYS && t.n == 0);
     assert(rtwn8723be_phy_bb_sequence(&t, &missing, false, &high) == 0);
@@ -99,6 +109,7 @@ def main():
         markers = ("_rtl8723be_phy_config_bb_with_headerfile(hw,",
                    "_rtl8723be_phy_init_tx_power_by_rate(hw);",
                    "if (!rtlefuse->autoload_failflag) {",
+                   "rtlphy->pwrgroup_cnt = 0;",
                    "_rtl8723be_phy_config_bb_with_pgheaderfile(hw,",
                    "phy_txpower_by_rate_config(hw);",
                    "BASEBAND_CONFIG_AGC_TAB);",

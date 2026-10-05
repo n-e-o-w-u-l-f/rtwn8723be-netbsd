@@ -5,9 +5,7 @@
  */
 #ifndef _RTWN8723BE_TXPWR_PG_H_
 #define _RTWN8723BE_TXPWR_PG_H_
-#include <sys/types.h>
-#include <stdint.h>
-#include <stdbool.h>
+#include "rtwn8723be_os_compat.h"
 #include "rtwn8723be_phy_exec.h"
 
 #define RTWN8723BE_PG_BANDS 2U

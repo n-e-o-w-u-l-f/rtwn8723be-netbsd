@@ -3,11 +3,13 @@
 No NetBSD kernel object, bus_space mapping or hardware-ready claim.
 """
 from pathlib import Path
+import os
 import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-LINUX = Path("/opt/ChatGPT/hp-driver-port/linux/drivers/net/wireless/realtek/rtlwifi")
+LINUX = (Path(os.environ.get("RTWN8723BE_LINUX_TREE",
+                         "/opt/ChatGPT/hp-driver-port/linux")) / "drivers/net/wireless/realtek/rtlwifi")
 P = r"""
 #include <assert.h>
 #include <errno.h>

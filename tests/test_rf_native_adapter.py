@@ -5,6 +5,7 @@ Runs the production adapter C code, not a reimplementation. The portable
 RF-serial/RFENV/table engines have separate tests. HOST ONLY, not NetBSD ABI.
 """
 from pathlib import Path
+import platform
 import shutil
 import subprocess
 import tempfile
@@ -41,12 +42,16 @@ FAKE_NETBSD = r"""
 #include <stdint.h>
 #include "rtwn8723be_phy_exec.h"
 #define R23BE_STAGE_PHY_RF 42U
+#define R23BE_STAGE_RF_CHANNEL_STATE 43U
 struct rtwn8723be_softc {
     bool sc_mapped, sc_core_initialized, sc_efuse_autoload_ok;
     bool sc_bt_ant_valid, sc_package_valid, sc_phy_identity_valid;
     bool sc_rf_path_count_valid, sc_irq_enabled;
+    bool sc_bb_valid;
     size_t sc_mapsize;
     uint8_t sc_package_type, sc_rf_path_count;
+    uint32_t sc_rf_chnlval[2];
+    bool sc_rf_chnlval_valid;
     struct rtwn8723be_phy_identity sc_phy_identity;
     struct {
         bool fw_ready, being_init_adapter, started;
@@ -69,10 +74,29 @@ HARNESS = r"""
 #include "rtwn8723be_rf_serial.h"
 #include "rtwn8723be_rf_path.h"
 #include "rtwn8723be_phy_exec.h"
+/* Declared here so the pre-port test fails at link time, not parsing. */
+int rtwn8723be_netbsd_rf_channel_state_init(void *);
 
 static uint32_t regs[0x900U/4U];
 static unsigned int reads, writes, delays, path_a, path_b, radio_a, b_oe;
 static bool invalid_reg, invalid_output, fail_radio;
+static unsigned int channel_reads;
+static int fail_channel_path = -1;
+
+int rtwn8723be_rf_serial_read(const struct rtwn8723be_rf_serial_ctx *ctx,
+    unsigned int path, uint32_t reg, uint32_t *value)
+{
+    uint32_t ignored;
+    assert(ctx != NULL && ctx->io->ready(ctx->dev));
+    assert(path <= 1U && reg == 0x18U && value != NULL);
+    assert(path == channel_reads);
+    channel_reads++;
+    assert(ctx->io->read_bb(ctx->dev, 0x8a0U, &ignored) == 0);
+    if ((int)path == fail_channel_path)
+        return EIO;
+    *value = path == 0U ? 0x12345U : 0x6789aU;
+    return 0;
+}
 
 uint32_t
 rtwn8723be_read_4(struct rtwn8723be_softc *sc, size_t reg)
@@ -151,12 +175,15 @@ clear_observations(void)
     memset(regs, 0, sizeof(regs));
     reads = writes = delays = path_a = path_b = radio_a = b_oe = 0;
     invalid_reg = invalid_output = fail_radio = false;
+    channel_reads = 0;
+    fail_channel_path = -1;
 }
 static void
 make_valid(struct rtwn8723be_softc *sc)
 {
     memset(sc, 0, sizeof(*sc));
     sc->sc_mapped = sc->sc_core_initialized = true;
+    sc->sc_bb_valid = true;
     sc->sc_efuse_autoload_ok = sc->sc_bt_ant_valid = true;
     sc->sc_package_valid = sc->sc_phy_identity_valid = true;
     sc->sc_rf_path_count_valid = sc->sc_linux.fw_ready = true;
@@ -181,6 +208,9 @@ int main(void)
     sc.sc_phy_identity_valid = false;
     MUST_BE_BLOCKED(ENXIO);
     sc.sc_phy_identity_valid = true;
+    sc.sc_bb_valid = false;
+    MUST_BE_BLOCKED(ENXIO);
+    sc.sc_bb_valid = true;
     sc.sc_rf_path_count_valid = false;
     MUST_BE_BLOCKED(ENXIO);
     sc.sc_rf_path_count_valid = true;
@@ -230,6 +260,34 @@ int main(void)
     assert(rtwn8723be_netbsd_phy_rf_config(&sc) == 0);
     assert(path_a == 1 && path_b == 1 && radio_a == 1 && b_oe == 1);
     assert(reads == 2 && writes == 3 && delays == 2);
+
+    clear_observations();
+    assert(rtwn8723be_netbsd_rf_channel_state_init(NULL) == EINVAL);
+    make_valid(&sc);
+    sc.sc_rf_chnlval_valid = true;
+    assert(rtwn8723be_netbsd_rf_channel_state_init(&sc) == ENXIO);
+    assert(!sc.sc_rf_chnlval_valid && channel_reads == 0);
+    sc.sc_linux.stage = R23BE_STAGE_RF_CHANNEL_STATE;
+    MUST_BE_BLOCKED(ENXIO); /* RF table writes cannot run in snapshot phase. */
+    sc.sc_rf_chnlval[0] = 0xaaaU;
+    sc.sc_rf_chnlval[1] = 0xbbbU;
+    for (int path = 0; path <= 1; ++path) {
+        clear_observations();
+        fail_channel_path = path;
+        sc.sc_rf_chnlval_valid = true;
+        assert(rtwn8723be_netbsd_rf_channel_state_init(&sc) == EIO);
+        assert(!sc.sc_rf_chnlval_valid && channel_reads == (unsigned int)path + 1U);
+        assert(sc.sc_rf_chnlval[0] == 0xaaaU && sc.sc_rf_chnlval[1] == 0xbbbU);
+    }
+    clear_observations();
+    assert(rtwn8723be_netbsd_rf_channel_state_init(&sc) == 0);
+    assert(channel_reads == 2 && sc.sc_rf_chnlval_valid);
+    assert(sc.sc_rf_chnlval[0] == ((0x12345U & 0xfff03ffU) | 0xc00U));
+    assert(sc.sc_rf_chnlval[1] == 0x6789aU);
+    clear_observations();
+    sc.sc_irq_enabled = true;
+    assert(rtwn8723be_netbsd_rf_channel_state_init(&sc) == ENXIO);
+    assert(!sc.sc_rf_chnlval_valid && channel_reads == 0);
     puts("RTL_RF_NATIVE_C11_UBSAN_OK: guard, MMIO, A/B, ordering, errors");
     return 0;
 }
@@ -238,11 +296,15 @@ with tempfile.TemporaryDirectory(prefix="rtl-rf-native-") as tmp:
     target = Path(tmp)
     for header in ("rtwn8723be_rf_native.h", "rtwn8723be_rf_serial.h",
                    "rtwn8723be_rf_path.h", "rtwn8723be_phy_exec.h",
+                   "rtwn8723be_rf_channel_state.h",
                    "rtwn8723be_os_compat.h"):
         shutil.copyfile(SRC / header, target / header)
     (target / "sys").mkdir()
     (target / "sys/systm.h").write_text("void delay(unsigned int);\n")
-    (target / "sys/errno.h").write_text("#include <errno.h>\n")
+    # NetBSD errno.h includes sys/errno.h; shadowing it would recurse and
+    # hide every errno constant. Linux needs the compatibility stub.
+    if platform.system() != "NetBSD":
+        (target / "sys/errno.h").write_text("#include <errno.h>\n")
     (target / "rtwn8723be_netbsd.h").write_text(FAKE_NETBSD)
     (target / "native.c").write_text("#define __KERNEL_RCSID(a,b) _Static_assert(1, \"kernel rcsid\")\n" + native)
     (target / "harness.c").write_text(HARNESS)
@@ -251,5 +313,6 @@ with tempfile.TemporaryDirectory(prefix="rtl-rf-native-") as tmp:
                     "-pedantic", "-fsanitize=undefined",
                     "-fno-sanitize-recover=all", "-I", str(target),
                     str(target / "native.c"), str(target / "harness.c"),
+                    str(SRC / "rtwn8723be_rf_channel_state.c"),
                     "-o", str(exe)], check=True)
     subprocess.run([str(exe)], check=True)

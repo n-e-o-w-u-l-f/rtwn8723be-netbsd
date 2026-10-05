@@ -3,11 +3,13 @@
 Host mocks only; the native NetBSD RF mutex, MMIO and hardware remain untested.
 """
 from pathlib import Path
+import os
 import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-LINUX_RF = (Path("/opt/ChatGPT/hp-driver-port/linux") /
+LINUX_RF = (Path(os.environ.get("RTWN8723BE_LINUX_TREE",
+                         "/opt/ChatGPT/hp-driver-port/linux")) /
             "drivers/net/wireless/realtek/rtlwifi/rtl8723be/rf.c")
 P = r"""
 #include <assert.h>

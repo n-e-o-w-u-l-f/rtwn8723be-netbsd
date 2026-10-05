@@ -5,11 +5,13 @@ Uses the real source-pinned six-entry PG table and actual table iterator.
 No hardware/MMIO/NetBSD-kernel/runtime claim is made by this host test.
 """
 from pathlib import Path
+import os
 import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-LINUX = (Path("/opt/ChatGPT/hp-driver-port/linux") /
+LINUX = (Path(os.environ.get("RTWN8723BE_LINUX_TREE",
+                         "/opt/ChatGPT/hp-driver-port/linux")) /
          "drivers/net/wireless/realtek/rtlwifi/rtl8723be/phy.c")
 
 PROGRAM = r"""

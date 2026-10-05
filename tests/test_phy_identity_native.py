@@ -43,6 +43,7 @@ struct rtwn8723be_phy_identity {
 struct rtwn8723be_softc {
     bool sc_mapped, sc_package_valid, sc_phy_identity_valid;
     bool sc_rf_path_count_valid, sc_xtal_valid;
+    bool sc_rf_chnlval_valid, sc_bb_valid;
     bool sc_bt_ant_valid, sc_boot_from_efuse, sc_efuse_autoload_ok;
     bool sc_btcoexist, sc_led_opendrain;
     uint8_t sc_package_type, sc_rf_path_count, sc_xtal_cap;
@@ -101,6 +102,7 @@ static int rtwn8723be_package_read(void *ctx, power_fn p,
 static struct rtwn8723be_softc seed(void) {
     struct rtwn8723be_softc sc = {0};
     sc.sc_mapped = true;
+    sc.sc_rf_chnlval_valid = sc.sc_bb_valid = true;
     sc.cr9346 = 0x20;
     sc.syscfg1 = 0x06;
     sc.syscfg = 0xa000;
@@ -117,6 +119,7 @@ static struct rtwn8723be_softc seed(void) {
 int main(void) {
     struct rtwn8723be_softc sc = seed();
     assert(rtwn8723be_netbsd_read_eeprom_info(&sc) == 0);
+    assert(!sc.sc_rf_chnlval_valid && !sc.sc_bb_valid);
     assert(sc.sc_package_valid && sc.sc_package_type == 2);
     assert(sc.sc_phy_identity_valid && sc.sc_rf_path_count_valid);
     assert(sc.sc_rf_path_count == 1);
@@ -134,10 +137,11 @@ int main(void) {
     assert(sc.shadow_reads == 1 && sc.package_reads == 1);
 
     sc.sc_mapped = false;
+    sc.sc_rf_chnlval_valid = sc.sc_bb_valid = true;
     assert(rtwn8723be_netbsd_read_eeprom_info(&sc) == ENXIO);
     assert(!sc.sc_package_valid && !sc.sc_phy_identity_valid &&
            !sc.sc_rf_path_count_valid && !sc.sc_xtal_valid &&
-           !sc.sc_bt_ant_valid);
+           !sc.sc_bt_ant_valid && !sc.sc_rf_chnlval_valid && !sc.sc_bb_valid);
 
     sc = seed(); sc.syscfg1 = 0;
     assert(rtwn8723be_netbsd_read_eeprom_info(&sc) == ENODEV);

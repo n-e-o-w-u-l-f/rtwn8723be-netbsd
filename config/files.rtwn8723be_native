@@ -7,9 +7,8 @@
 # The original F8 diagnostic attachment is deliberately not selected here.
 #
 # NetBSD/src baseline: 03d918f6d0e81fa05b8f1160eca0628ad39988a6.
-# Includes only independently present core and portable modules. The staged
-# TX-power PG module is compiler-blocked by a missing <stddef.h>; do NOT
-# silently omit it from the full-port coverage requirement.
+# Includes the source-derived core and portable modules. Callback closure
+# and hardware acceptance remain separate gates after a successful link.
 #
 device  rtwn8723be_native: ifnet, arp, wlan, firmload
 attach  rtwn8723be_native at pci
@@ -23,10 +22,13 @@ file    dev/pci/rtwn8723be_linux_state.c   rtwn8723be_native
 file    dev/pci/rtwn8723be_package.c       rtwn8723be_native
 file    dev/pci/rtwn8723be_pwrseq.c        rtwn8723be_native
 file    dev/pci/rtwn8723be_phy_bb_sequence.c rtwn8723be_native
+file    dev/pci/rtwn8723be_bb_native.c     rtwn8723be_native
+file    dev/pci/rtwn8723be_txpwr_pg.c      rtwn8723be_native
 file    dev/pci/rtwn8723be_phy_exec.c      rtwn8723be_native
 file    dev/pci/rtwn8723be_rf_serial.c     rtwn8723be_native
 file    dev/pci/rtwn8723be_rf_path.c       rtwn8723be_native
 file    dev/pci/rtwn8723be_rf_native.c     rtwn8723be_native
+file    dev/pci/rtwn8723be_rf_channel_state.c rtwn8723be_native
 file    dev/pci/rtwn8723be_rx_decode.c     rtwn8723be_native
 file    dev/pci/rtwn8723be_c2h.c           rtwn8723be_native
 file    dev/pci/rtwn8723be_c2h_native.c    rtwn8723be_native

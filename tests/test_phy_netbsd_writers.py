@@ -5,6 +5,7 @@ Isolates MMIO and delays. It does not validate native NetBSD compilation,
 EFUSE identity, PG power conversion, RF serial I/O or physical hardware.
 """
 from pathlib import Path
+import os
 import subprocess
 import tempfile
 
@@ -101,7 +102,8 @@ int main(void)
 
 
 def main():
-    linux = (Path("/opt/ChatGPT/hp-driver-port/linux") /
+    linux = (Path(os.environ.get("RTWN8723BE_LINUX_TREE",
+                         "/opt/ChatGPT/hp-driver-port/linux")) /
              "drivers/net/wireless/realtek/rtlwifi/rtl8723be/phy.c").read_text()
     original = linux[linux.index("static void _rtl8723be_config_bb_reg("):
                      linux.index("static void _rtl8723be_phy_set_txpower_by_rate_base(")]

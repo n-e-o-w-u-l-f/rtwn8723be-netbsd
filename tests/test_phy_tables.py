@@ -5,11 +5,13 @@ This test does NOT execute PHY/RF programming, validate the RF condition
 interpreter, build the NetBSD kernel, or establish WLAN hardware readiness.
 """
 from pathlib import Path
+import os
 import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-LINUX = Path("/opt/ChatGPT/hp-driver-port/linux")
+LINUX = Path(os.environ.get("RTWN8723BE_LINUX_TREE",
+                         "/opt/ChatGPT/hp-driver-port/linux"))
 HEADER = ROOT / "src/rtwn8723be_phy_tables.h"
 CC_TEST = r"""
 #include <stdint.h>
