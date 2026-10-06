@@ -60,4 +60,5 @@ void rtwn8723be_btc_native_provider_error(struct rtwn8723be_softc *, int);
  */
 int rtwn8723be_btc_native_stop(struct rtwn8723be_softc *);
 int rtwn8723be_btc_native_fini(struct rtwn8723be_softc *);
+int rtwn8723be_netbsd_bt_halt_deinit(void *);
 #endif
