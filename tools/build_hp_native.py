@@ -52,7 +52,7 @@ try:
     manifest = (ROOT / "config/files.rtwn8723be_native").read_text(encoding="utf-8")
     units = re.findall(r"^file\s+dev/pci/(rtwn8723be_\w+\.c)\s+rtwn8723be_native$",
                        manifest, re.M)
-    if len(units) != 35 or len(set(units)) != len(units):
+    if len(units) != 36 or len(set(units)) != len(units):
         raise RuntimeError("unexpected native C manifest; re-inventory first")
     dest = tree / "sys/dev/pci"
     sources = [ROOT / "src" / name for name in units]

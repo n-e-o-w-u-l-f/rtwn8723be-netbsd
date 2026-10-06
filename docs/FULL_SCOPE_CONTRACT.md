@@ -41,11 +41,35 @@ none
 | COV-RTL-017 | RF power/LPS/IPS/suspend/resume/recovery | Linux PM callbacks + reset paths | NetBSD PM lifecycle + recovery ordering | runtime/final | full reinit/teardown | OPEN | PM/recovery verification |
 
 ## CURRENT_DELTA
+2026-10-06 HP-only checkpoint: 46/53 lifecycle callbacks are bound; seven remain
+missing and rf_calibration/hw_disable remain guarded by unassigned real owners.
+The native manifest now includes 36 C units. The BT_MP wire module ports the
+actual H2C0x67 byte encoding and C2H scalar decoding with precise per-sequence
+bounds, unsigned32 wire shifts and copied values. It does not bind a native
+BTC context or complete firmware transactions. The frozen unreachable opcode49
+response case is preserved and documented in docs/BTC_MP_WIRE_SCOPE.md.
+
+Earlier native security, ASPM backdoor, IQK/LCK/recovery, thermal tracking and
+card-disable checkpoints are preserved. The full-scope controller still rejects
+incomplete lifecycle transitions before hardware access. No coverage row is
+CLOSED. Native object or portable protocol tests do not establish kernel link,
+runtime ownership, physical MMIO, association/traffic or recovery acceptance.
+
+## NEXT_UNRESOLVED
+Implement register_ieee80211/init_rfkill; a real per-device BTC context, antenna
+algorithms, H2C transaction and C2H/native completion lifetime plus bt_prepare/
+bt_hw_init/dm_init; and bt_halt_deinit/wait_rf_change_idle. Bind the two guarded
+owners only with actual RF/DM/BTC/IRQ serialization and shutdown/drain evidence.
+Complete net80211 channel/key/PM/datapath lifetimes, integrated kernel link and
+HP association/traffic/recovery. Both complete ports and subsequent HP WLAN
+online remain required. Build and install only on HP.
+
+## Previous current projection (historical)
 2026-10-05 HP-only checkpoint: 42/53 Linux lifecycle callbacks are bound and all 28 native RTL C units compile on HP against the complete NetBSD 03d918f6 source snapshot using the existing GCC 12.5.0 tools, an isolated source stage and object directory. The 32-script RTL regression batch passes on HP. New BB and RF-channel callbacks retain Linux ordering and failure handling; PG now uses the shared kernel/userspace compatibility header and is included in the native build. The earlier stale BB fixture, fixed Legion reference paths and NetBSD fake-errno recursion are repaired. These results supersede prior statements that PG, the matching BB regression or native compilation were blocked/unexecuted.
 
 Full lifecycle closure remains OPEN: probe lacks register_ieee80211/init_rfkill; start lacks bt_prepare/enable_hw_security/enable_aspm_backdoor/bt_hw_init/rf_calibration/dm_init; stop lacks bt_halt_deinit/wait_rf_change_idle/hw_disable. The explicit --require-closure test returns 1 and the controller continues to reject incomplete transitions before hardware access. Kernel link, native runtime locking, key/channel/PM ownership, association/traffic/recovery and all hardware acceptance remain unresolved. No row is CLOSED.
 
-## NEXT_UNRESOLVED
+### Previous next steps
 Complete the eleven missing callbacks and their firmware/BT/calibration/net80211/runtime dependencies, then prove complete source/adapter ownership, integrated kernel link and HP-only runtime acceptance. The unpublished Legion cda48e5 runtime patch was inspected: several phases duplicate already published code; its DBI/MDIO timeout paths silently return zero and its RF-change wait lacks native locking. Preserve it as source history; do not blindly import it as completed behavior. See docs/HP_NATIVE_CHECKPOINT_20261005.md for source provenance, exact commands and artifact evidence.
 
 ## PARENT_STATUS

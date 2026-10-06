@@ -2,6 +2,37 @@
 
 STATE: IN_PROGRESS. Full COV-RTL-000..017 acceptance remains OPEN. Build/install: HP only.
 
+## Bluetooth MP wire protocol
+
+The native manifest now includes the true H2C0x67 request byte encoder and
+BT_MP scalar response decoder. Exact per-sequence extents prevent short
+firmware replies from reading outside RX data. Byte loads handle unaligned
+wire values; unsigned shifts define the entire32-bit BLE value domain.
+The scalar reply retains no borrowed RX pointer. Frozen sequence0xb preserves
+the no-cache-update behavior caused by the source's unreachable opcode49 case.
+
+All 41 scripts and all 36 actual native objects pass on HP. The wire fixture
+executes production C against the pinned constants and well-formed raw Linux
+response body, uses guard pages for every sequence/short extent, tests all
+initial byte/opcode encodings and routes a copied reply through actual C2H.
+65984 cases pass with UBSan. The initial batch found two stale manifest-count
+guards; both now require the actual new module, while missing callbacks and
+guarded-owner gates are retained. The full-scope current projection is refreshed
+without closing any coverage row or removing historical evidence.
+
+See [HP BTC MP wire evidence](evidence/HP_NATIVE_BTC_MP_WIRE_20261006.json).
+This wire module does not implement native H2C submission, request matching/
+serialization or native firmware wait/completion/owner lifetime. Real per-device
+BTC/DM/antenna integration, seven missing callbacks and two unassigned owners,
+net80211/keys/datapath/PM/recovery, full kernel and physical HP WLAN remain OPEN.
+Boot/running/F77 recovery hashes are unchanged. No installation or reboot.
+
+## Earlier checkpoints
+
+### HP RTL8723BE checkpoint, 2026-10-06
+
+STATE: IN_PROGRESS. Full COV-RTL-000..017 acceptance remains OPEN. Build/install: HP only.
+
 ## Pinned card disable and shutdown sequencing
 
 The native card-disable adapter implements the frozen MAC NOLINK/media/beacon
