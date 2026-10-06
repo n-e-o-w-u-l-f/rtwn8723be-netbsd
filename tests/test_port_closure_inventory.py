@@ -10,7 +10,7 @@ EXPECTED_MISSING = {
     "start": ("bt_prepare",
               "bt_hw_init",
               "dm_init"),
-    "stop": ("bt_halt_deinit",),
+    "stop": (),
 }
 
 def check(root, require_closure=False):
@@ -45,11 +45,18 @@ def check(root, require_closure=False):
         raise ValueError("source or native build manifest changed; re-inventory required")
     if set(missing) != expected:
         raise ValueError("callback inventory changed: now missing " + repr(missing))
-    if len(bound) != 47:
+    if len(bound) != 48:
         raise ValueError("bound callback count changed; re-inventory required")
     if dict(bound).get("wait_rf_change_idle") != \
             "rtwn8723be_netbsd_wait_rf_change_idle":
         raise ValueError("RF-change wait callback binding changed")
+    if dict(bound).get("bt_halt_deinit") != \
+            "rtwn8723be_netbsd_bt_halt_deinit":
+        raise ValueError("BTC halt/deinit callback binding changed")
+    btc_native = (src / "rtwn8723be_btc_native.c").read_text()
+    if ("rtwn8723be_btc_native_fini(sc)" not in btc_native or
+            "sc->sc_btcoexist && !sc->sc_btc.initialized" not in btc_native):
+        raise ValueError("BTC halt/deinit lifetime incomplete")
     netbsd = (src / "rtwn8723be_netbsd.c").read_text()
     shutdown_native = (src / "rtwn8723be_hw_disable_native.c").read_text()
     if ("sc_rfchange_inprogress = true" not in netbsd or
