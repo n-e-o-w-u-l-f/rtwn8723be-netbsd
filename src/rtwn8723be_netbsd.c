@@ -22,6 +22,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "rtwn8723be_mac_table.h"
 #include "rtwn8723be_package.h"
 #include "rtwn8723be_rf_native.h"
+#include "rtwn8723be_calibration_native.h"
 #include "rtwn8723be_h2c_native.h"
 
 static int rtwn8723be_netbsd_intr(void *);
@@ -2049,6 +2050,8 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .phy_bb_config = rtwn8723be_netbsd_phy_bb_config,
     .phy_rf_config = rtwn8723be_netbsd_phy_rf_config,
     .rf_channel_state_init = rtwn8723be_netbsd_rf_channel_state_init,
+    /* Guarded until a real RF/BTC/DM owner is bound. */
+    .rf_calibration = rtwn8723be_netbsd_rf_calibration,
     .hw_configure = rtwn8723be_netbsd_hw_configure,
     .cam_reset_all = rtwn8723be_netbsd_cam_reset_all,
     .enable_hw_security = rtwn8723be_netbsd_enable_hw_security,

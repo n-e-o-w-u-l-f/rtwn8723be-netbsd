@@ -23,6 +23,7 @@
 #include "rtwn8723be_phy_exec.h"
 #include "rtwn8723be_txpwr_pg.h"
 #include "rtwn8723be_h2c_native.h"
+#include "rtwn8723be_calibration_native.h"
 
 #define RTWN8723BE_PCI_BAR_MMIO        0x18
 #define RTWN8723BE_DMA_MAXADDR         0xffffffffULL
@@ -98,6 +99,9 @@ struct rtwn8723be_softc {
 
     struct rtwn8723be_linux_state sc_linux;
     struct rtwn8723be_h2c_native sc_h2c;
+    struct rtwn8723be_calibration_state sc_calibration;
+    const struct rtwn8723be_calibration_owner *sc_calibration_owner;
+    void *sc_calibration_owner_arg;
 
     uint32_t sc_receive_config;
     uint32_t sc_mac_rx_conf;

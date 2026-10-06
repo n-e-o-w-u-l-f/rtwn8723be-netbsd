@@ -9,7 +9,7 @@ EXPECTED_MISSING = {
     "probe": ("register_ieee80211", "init_rfkill"),
     "start": ("bt_prepare",
               "bt_hw_init",
-              "rf_calibration", "dm_init"),
+              "dm_init"),
     "stop": ("bt_halt_deinit", "wait_rf_change_idle", "hw_disable"),
 }
 
@@ -36,19 +36,29 @@ def check(root, require_closure=False):
     native_units = re.findall(r"^file\s+dev/pci/(rtwn8723be_\w+\.c)\s+rtwn8723be_native",
                               manifest, re.M)
     pg_in_build = "rtwn8723be_txpwr_pg.c" in native_units
-    if len(names) != 53 or len(native_units) != 30:
+    if len(names) != 53 or len(native_units) != 33:
         raise ValueError("source or native build manifest changed; re-inventory required")
     if set(missing) != expected:
         raise ValueError("callback inventory changed: now missing " + repr(missing))
-    if len(bound) != 44:
+    if len(bound) != 45:
         raise ValueError("bound callback count changed; re-inventory required")
+    calibration = (src / "rtwn8723be_calibration_native.c").read_text()
+    if (dict(bound).get("rf_calibration") != "rtwn8723be_netbsd_rf_calibration" or
+            "sc_calibration_owner" not in calibration or
+            "cal_native_phase" not in calibration):
+        raise ValueError("guarded calibration implementation changed; re-inventory required")
+    if re.search(r"\bsc_calibration_owner\s*=(?!=)",
+                 "\n".join(p.read_text() for p in src.glob("*.c"))):
+        raise ValueError("calibration owner assignment added; audit real BTC/DM/RF ownership first")
+    guarded = ("rf_calibration",)
     print(f"DECLARED={len(names)} BOUND={len(bound)} MISSING={len(missing)}")
     for phase, items in EXPECTED_MISSING.items():
         print(phase.upper() + "=" + ",".join(items))
     print("NATIVE_C_OBJECTS=" + str(len(native_units)))
     print("TX_POWER_PG_IN_NATIVE_BUILD=" + str(pg_in_build).lower())
+    print("GUARDED_CALLBACKS_WITH_OPEN_OWNER=" + ",".join(guarded))
     # This gate is deliberately stricter than a successful kernel link.
-    complete = not missing and pg_in_build
+    complete = not missing and pg_in_build and not guarded
     print("CALLBACK_AND_PG_CLOSURE=" + ("CLOSED" if complete else "OPEN"))
     if require_closure and not complete:
         return 1

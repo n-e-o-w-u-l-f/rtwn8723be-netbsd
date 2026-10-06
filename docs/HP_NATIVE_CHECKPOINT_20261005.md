@@ -1,4 +1,48 @@
-# HP native RTL8723BE checkpoint, 2026-10-05
+# HP RTL8723BE checkpoint, 2026-10-06
+
+STATE: IN_PROGRESS. Full COV-RTL-000..017 acceptance remains OPEN. Builds and installation: HP only.
+
+## Native IQK/LCK and thermal tracking
+
+The real frozen IQK trials, compensation/recovery cache, LCK/RF-path sequence
+and thermal tracking are ported. The thermal module retains the pinned swing
+tables, RF-meter averaging, signed delta/index decisions, CCK/OFDM writes and
+threshold calls into the real calibration engines. Its bounded EFUSE parser
+publishes the meter outputs only on success. Real DM initialization, context
+ownership and runtime watchdog integration remain required.
+
+All 38 regression scripts and33 freshly compiled native NetBSD kernel
+objects pass on HP. Exact-source validators precede differential C11/Werror/
+UBSan tests. Calibration tests inject571 access failures; thermal tests inject
+23+576, including the complete nested LCK/swing/IQK path. Failed thermal
+sessions preserve completed source-derived LCK effects, restore saved swing
+writes where lifetime remains granted and leave staged DM state unpublished.
+These register/owner models do not establish physical RF quality or bus failure
+atomicity. Native object compilation remains a separate bounded proof.
+
+The manifest now includes calibration core, native adapter and thermal core.
+Native staging copies generated includes as well as C/headers; integrity scans
+include those files and their reachable dependencies. The retained first37-test
+run caught the old30-unit inventory assertion. After source re-inventory,
+37/37 passed; the final expanded source passed38/38 with33 native objects.
+
+The callback inventory is53 declared,45 bound and8 missing. rf_calibration
+requires the serialized IRQ-disabled initialization phase and a real prepared,
+bound BTC context, valid RF/scan/channel state and DM owner. Its owner remains
+unbound. BTC context preparation precedes calibration; its coexistence-DM
+initialized flag is set at a later stage. No EFUSE or callback-count substitute
+is accepted as ownership or full-port evidence.
+
+See [integrated HP proof](evidence/HP_NATIVE_CALIBRATION_THERMAL_20261006.json).
+Remaining callbacks: register_ieee80211, init_rfkill, bt_prepare, bt_hw_init,
+dm_init, bt_halt_deinit, wait_rf_change_idle and hw_disable. Complete kernel,
+datapath/keys/net80211/PM/coexistence/recovery and HP association/traffic gates
+remain required. Boot, running and F77 recovery hashes are unchanged.
+No installation or reboot occurred.
+
+## Earlier checkpoints
+
+### HP native RTL8723BE checkpoint, 2026-10-05
 
 STATE: IN_PROGRESS. Full COV-RTL-000..017 acceptance is OPEN.
 Build and installation host: HP only.
