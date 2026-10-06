@@ -2157,6 +2157,7 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .enable_interrupt = rtwn8723be_netbsd_enable_interrupt,
     .init_rx_config = rtwn8723be_netbsd_init_rx_config,
     .mark_hal_start = rtwn8723be_netbsd_mark_hal_start,
+    .bt_halt_deinit = rtwn8723be_netbsd_bt_halt_deinit,
     .mark_hal_stop = rtwn8723be_netbsd_mark_hal_stop,
     .disable_interrupt = rtwn8723be_netbsd_disable_interrupt,
     .wait_rf_change_idle = rtwn8723be_netbsd_wait_rf_change_idle,
