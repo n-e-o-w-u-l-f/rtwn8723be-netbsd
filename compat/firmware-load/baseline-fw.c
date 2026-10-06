@@ -9,40 +9,6 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "rtwn8723be_f16_1.h"
 #include "rtwn8723be_fw.h"
 
-/*
- * Frozen rtl_fw_do_work/rtl8723_download_fw image semantics.  The Linux
- * staging buffer is zero-filled and limited to 0x8000 bytes.  Decode through
- * a bounded local header instead of casting an unaligned firmware pointer.
- * RAM-code length is metadata: Linux transfers the actual file extent.
- */
-int
-rtwn8723be_fw_image_parse(const uint8_t *image, size_t length,
-    struct rtwn8723be_fw_image_info *out)
-{
-    struct rtwn8723be_fw_image_info info = {0};
-    uint8_t header[R23BE_FW_HEADER_SIZE] = {0};
-
-    if (image == NULL || out == NULL || length == 0)
-        return EINVAL;
-    if (length > R23BE_FW_MAX_FILE_SIZE)
-        return EFBIG;
-    memcpy(header, image, MIN(length, sizeof(header)));
-    info.signature = (uint16_t)header[0] | ((uint16_t)header[1] << 8);
-    info.version = (uint16_t)header[4] | ((uint16_t)header[5] << 8);
-    info.subversion = header[6];
-    info.ram_code_size = (uint16_t)header[12] |
-        ((uint16_t)header[13] << 8);
-    info.has_header = (info.signature & 0xfff0U) == 0x5300U;
-    if (info.has_header) {
-        if (length <= R23BE_FW_HEADER_SIZE)
-            return EMSGSIZE;
-        info.payload_offset = R23BE_FW_HEADER_SIZE;
-    }
-    info.payload_length = length - info.payload_offset;
-    *out = info;
-    return 0;
-}
-
 static uint8_t
 r23be_read_1(bus_space_tag_t st, bus_space_handle_t sh, bus_size_t reg)
 {
@@ -164,17 +130,13 @@ rtwn8723be_fw_free_to_go(bus_space_tag_t st, bus_space_handle_t sh)
     uint32_t reg;
     unsigned int n;
 
-    /*
-     * Preserve the frozen post-increment boundaries, including the
-     * checksum acceptance cutoff and the final readiness observation.
-     */
-    n = 0;
-    do {
+    for (n = 0; n < R23BE_FW_POLL_COUNT; n++) {
         reg = r23be_read_4(st, sh, R23BE_REG_MCUFWDL);
-    } while ((n++ < R23BE_FW_POLL_COUNT) &&
-        !(reg & R23BE_MCUFWDL_CHKSUM_RPT));
-    if (n >= R23BE_FW_POLL_COUNT)
-        return EIO;
+        if (reg & R23BE_MCUFWDL_CHKSUM_RPT)
+            break;
+    }
+    if (n == R23BE_FW_POLL_COUNT)
+        return ETIMEDOUT;
 
     reg = r23be_read_4(st, sh, R23BE_REG_MCUFWDL);
     reg |= R23BE_MCUFWDL_RDY;
@@ -183,15 +145,14 @@ rtwn8723be_fw_free_to_go(bus_space_tag_t st, bus_space_handle_t sh)
 
     rtwn8723be_fw_selfreset(st, sh);
 
-    n = 0;
-    do {
+    for (n = 0; n < R23BE_FW_POLL_COUNT; n++) {
         reg = r23be_read_4(st, sh, R23BE_REG_MCUFWDL);
         if (reg & R23BE_MCUFWDL_WINTINI_RDY)
             return 0;
         delay(R23BE_FW_READY_DELAY_US);
-    } while (n++ < R23BE_FW_POLL_COUNT);
+    }
 
-    return EIO;
+    return ETIMEDOUT;
 }
 
 int
@@ -202,9 +163,6 @@ rtwn8723be_fw_download(bus_space_tag_t st, bus_space_handle_t sh,
 
     if (payload == NULL || payload_len == 0)
         return EINVAL;
-    /* Bound padding before the first reset or MMIO operation. */
-    if (payload_len > R23BE_FW_MAX_FILE_SIZE)
-        return EFBIG;
 
     if (r23be_read_1(st, sh, R23BE_REG_MCUFWDL) &
         R23BE_MCUFWDL_RAM_DL_SEL) {

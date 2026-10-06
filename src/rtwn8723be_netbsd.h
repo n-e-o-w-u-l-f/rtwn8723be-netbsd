@@ -20,6 +20,7 @@
 
 #include "rtwn8723be_f16_1.h"
 #include "rtwn8723be_linux_state.h"
+#include "rtwn8723be_fw.h"
 #include "rtwn8723be_phy_exec.h"
 #include "rtwn8723be_txpwr_pg.h"
 #include "rtwn8723be_h2c_native.h"
@@ -113,6 +114,7 @@ struct rtwn8723be_softc {
     uint8_t sc_bcn_ctrl_val;
     uint32_t sc_transmit_config;
     const char *sc_firmware_name;
+    struct rtwn8723be_fw_image_info sc_fw_info;
 
     uint8_t sc_efuse_map[R23BE_EFUSE_HWSET_MAX_SIZE];
     uint16_t sc_eeprom_id;

@@ -12,11 +12,22 @@ Experimental native NetBSD driver development for the Realtek RTL8723BE PCIe WLA
 
 ## Current state
 
-The project is currently at **F8.4** and version **0.1.0**. F8.4 models the complete Linux `RTL8723_NIC_ENABLE_FLOW` ordering as a source-only dry-run: `CARDDIS->CARDEMU`, `CARDEMU->ACT`, and `END`, filtered for the PCI interface.
+Version **0.1.0** remains experimental. The running HP recovery kernel is
+**F77**; WLAN is still down and reports `no network`.
 
-The F8.4 kernel builds successfully and is installed separately as `/netbsd.rtwn8723be-f8.4-dryrun`. It has a dedicated boot entry but has **not yet been boot-tested**. No WLAN interface is functional yet and no power sequence has been executed against the hardware.
+The separate native driver source now includes 36 C units. On 2026-10-06,
+all 36 native objects and all 42 regression scripts passed on HP. The
+firmware loader ports Linux fallback/version/polling behavior through the
+NetBSD firmload API and passes 113 actual-C normal/UBSan scenarios.
+The installed firmware images match the decompressed Arch Linux files.
 
-No DMA, interrupt setup, bus mastering, firmware download, or production-kernel replacement has been performed by F8.4. The last boot-proven-safe experimental kernel remains **F6 #6**. F7/F7a are preserved as failure evidence because additional MMIO reads caused a black screen on the target machine.
+Complete native BTC/lifecycle ownership, seven callback bindings, kernel
+link/install and physical WLAN acceptance remain open. An object build is
+not a functional release. See [the full-scope contract](docs/FULL_SCOPE_CONTRACT.md)
+and [the firmware loading checkpoint](docs/FIRMWARE_LINUX_NETBSD_DIFFERENCES_20261006.md).
+
+Earlier F8.x dry-run kernels and F6/F7 bring-up observations in
+[STATUS.md](STATUS.md) are historical checkpoints.
 
 ## Target hardware
 

@@ -4,6 +4,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/intr.h>
+#include <sys/cpu.h>
 #include <sys/mbuf.h>
 #include <sys/endian.h>
 #include <sys/kmem.h>
@@ -1621,74 +1622,87 @@ int
 rtwn8723be_netbsd_download_firmware(void *arg)
 {
     struct rtwn8723be_softc *sc = arg;
+    struct rtwn8723be_fw_image_info info;
     firmware_handle_t fwh = NULL;
-    uint8_t hdr[R23BE_FW_HEADER_SIZE];
-    uint8_t *payload = NULL;
+    const char *name = RTWN8723BE_FIRMWARE_NAME;
+    uint8_t *image = NULL;
     off_t fwsize;
-    size_t payload_len;
-    uint16_t signature, ramcodesize;
-    int error;
+    size_t image_len = 0;
+    int error, close_error;
 
-    if (!sc->sc_mapped)
+    if (sc == NULL || !sc->sc_mapped ||
+        sc->sc_mapsize < R23BE_FW_START_ADDR + R23BE_FW_PAGE_SIZE)
         return ENXIO;
+    /* firmload(9) and KM_SLEEP require a serialized, sleepable owner. */
+    if (cpu_intr_p() || cpu_softintr_p())
+        return EWOULDBLOCK;
+    if (!sc->sc_h2c.initialized || !sc->sc_linux.being_init_adapter ||
+        sc->sc_linux.stage != R23BE_STAGE_FIRMWARE_DOWNLOAD ||
+        sc->sc_linux.started || sc->sc_linux.fw_ready || sc->sc_irq_enabled)
+        return EAGAIN;
     rtwn8723be_h2c_native_reset(sc);
+    memset(&sc->sc_fw_info, 0, sizeof(sc->sc_fw_info));
+    sc->sc_firmware_name = NULL;
 
+    /* Frozen rtl_fw_do_work: use the alternative only if primary load fails. */
     error = firmware_open(RTWN8723BE_FIRMWARE_DRIVER,
         RTWN8723BE_FIRMWARE_FILE, &fwh);
+    if (error != 0) {
+        error = firmware_open(RTWN8723BE_FIRMWARE_DRIVER,
+            RTWN8723BE_FIRMWARE_ALT_FILE, &fwh);
+        name = RTWN8723BE_FIRMWARE_ALT_NAME;
+    }
     if (error != 0)
         return error;
 
     fwsize = firmware_get_size(fwh);
-    if (fwsize < (off_t)R23BE_FW_HEADER_SIZE) {
+    if (fwsize <= 0) {
         error = EINVAL;
         goto out;
     }
-
-    payload_len = (size_t)fwsize - R23BE_FW_HEADER_SIZE;
-    if (payload_len == 0 ||
-        payload_len > (size_t)R23BE_FW_MAX_PAGES * R23BE_FW_PAGE_SIZE) {
+    if (fwsize > (off_t)R23BE_FW_MAX_FILE_SIZE) {
         error = EFBIG;
         goto out;
     }
-
-    error = firmware_read(fwh, 0, hdr, sizeof(hdr));
-    if (error != 0)
-        goto out;
-
-    signature = (uint16_t)hdr[0] | ((uint16_t)hdr[1] << 8);
-    ramcodesize = (uint16_t)hdr[12] | ((uint16_t)hdr[13] << 8);
-    if ((signature & 0xfff0U) != 0x5300U ||
-        (size_t)ramcodesize != payload_len) {
-        error = EINVAL;
+    image_len = (size_t)fwsize;
+    image = firmware_malloc(image_len);
+    if (image == NULL) {
+        error = ENOMEM;
         goto out;
     }
-
-    payload = kmem_alloc(payload_len, KM_SLEEP);
-    error = firmware_read(fwh, R23BE_FW_HEADER_SIZE, payload, payload_len);
+    error = firmware_read(fwh, 0, image, image_len);
+    /* Release the vnode before MCU polling, as in NetBSD if_rtwn.c. */
+    close_error = firmware_close(fwh);
+    fwh = NULL;
+    if (error == 0)
+        error = close_error;
+    if (error != 0)
+        goto out;
+    error = rtwn8723be_fw_image_parse(image, image_len, &info);
     if (error != 0)
         goto out;
 
+    /* Linux exposes version/subversion before the actual MCU download. */
+    sc->sc_fw_info = info;
+    sc->sc_firmware_name = name;
     error = rtwn8723be_netbsd_bt_preload_firmware(sc);
     if (error != 0)
         goto out;
-
-    /*
-     * rtwn8723be_fw_download() preserves the pinned Linux transfer
-     * semantics: RAM_DL_SEL recovery, page upload, checksum polling,
-     * MCUFWDL_RDY, MCU self-reset and WINTINI_RDY handshake.
-     */
     error = rtwn8723be_fw_download(sc->sc_st, sc->sc_sh,
-        payload, payload_len);
+        image + info.payload_offset, info.payload_length);
     if (error == 0)
         error = rtwn8723be_h2c_native_fw_ready(sc);
 
 out:
-    if (error != 0)
+    if (error != 0) {
         rtwn8723be_h2c_native_reset(sc);
-    if (payload != NULL)
-        kmem_free(payload, payload_len);
+        memset(&sc->sc_fw_info, 0, sizeof(sc->sc_fw_info));
+        sc->sc_firmware_name = NULL;
+    }
+    if (image != NULL)
+        firmware_free(image, image_len);
     if (fwh != NULL)
-        firmware_close(fwh);
+        (void)firmware_close(fwh);
     return error;
 }
 

@@ -37,6 +37,8 @@
 #define RTWN8723BE_FIRMWARE_NAME       "rtlwifi/rtl8723befw_36.bin"
 #define RTWN8723BE_FIRMWARE_DRIVER     "if_rtwn8723be"
 #define RTWN8723BE_FIRMWARE_FILE       "rtl8723befw_36.bin"
+#define RTWN8723BE_FIRMWARE_ALT_FILE   "rtl8723befw.bin"
+#define RTWN8723BE_FIRMWARE_ALT_NAME   "rtlwifi/rtl8723befw.bin"
 #define RTWN8723BE_TCR_DEFAULT         0x03008200U
 #define RTWN8723BE_RCR_DEFAULT         0xf0007a0eU
 
