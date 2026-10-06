@@ -20,7 +20,8 @@ for word in ("struct rtwn8723be_h2c_state state", "kmutex_t lock",
 for name in ("rtwn8723be_h2c.c", "rtwn8723be_h2c_native.c"):
     assert re.search(r"^file\s+dev/pci/" + re.escape(name) +
                      r"\s+rtwn8723be_native\s*$", manifest, re.M), name
-assert "return rtwn8723be_h2c_native_init(sc);" in netbsd
+assert "error = rtwn8723be_h2c_native_init(sc);" in netbsd
+assert "error = rtwn8723be_btc_mp_native_init(sc);" in netbsd
 assert "error = rtwn8723be_h2c_native_fw_ready(sc);" in netbsd
 assert "rtwn8723be_h2c_native_reset(sc);" in netbsd
 assert "rtwn8723be_h2c_native_fini(sc);" in attach
@@ -60,6 +61,7 @@ struct native {
     struct rtwn8723be_softc *sc;
     struct rtwn8723be_h2c_state state;
     kmutex_t lock;
+    uint64_t firmware_generation;
     bool initialized;
 };
 struct linux_state {
@@ -97,6 +99,9 @@ int main(void) {
     sc.sc_linux.stage=R23BE_STAGE_FIRMWARE_DOWNLOAD;
     assert(rtwn8723be_h2c_native_fw_ready(&sc)==0);
     assert(!sc.sc_linux.fw_ready);
+    assert(sc.sc_h2c.firmware_generation==1);
+    assert(rtwn8723be_h2c_native_fw_ready(&sc)==EALREADY);
+    assert(sc.sc_h2c.firmware_generation==1);
     assert(rtwn8723be_h2c_native_send(&sc,5,payload,4)==EAGAIN);
     sc.sc_linux.fw_ready=true;
     assert(rtwn8723be_h2c_native_send(&sc,5,payload,4)==0);
@@ -112,6 +117,14 @@ int main(void) {
     rtwn8723be_h2c_native_reset(&sc);
     assert(!sc.sc_h2c.state.firmware_ready);
     assert(rtwn8723be_h2c_native_send(&sc,5,payload,4)==EAGAIN);
+    sc.sc_linux.being_init_adapter=true;
+    sc.sc_linux.stage=R23BE_STAGE_FIRMWARE_DOWNLOAD;
+    assert(rtwn8723be_h2c_native_fw_ready(&sc)==0);
+    assert(sc.sc_h2c.firmware_generation==2);
+    rtwn8723be_h2c_native_reset(&sc);
+    sc.sc_h2c.firmware_generation=UINT64_MAX;
+    assert(rtwn8723be_h2c_native_fw_ready(&sc)==EOVERFLOW);
+    assert(!sc.sc_h2c.state.firmware_ready);
     sc.sc_mapped=false;
     assert(rtwn8723be_h2c_native_send(&sc,5,payload,4)==ENXIO);
     rtwn8723be_h2c_native_fini(&sc);

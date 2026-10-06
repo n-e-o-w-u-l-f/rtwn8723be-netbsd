@@ -82,6 +82,12 @@ rtwn8723be_native_probe_cleanup(struct rtwn8723be_softc *sc)
         sc->sc_soft_ih != NULL || sc->sc_pihp != NULL)
         rtwn8723be_netbsd_disestablish_irq(sc);
 
+    /* Probe has no external entrants; IRQ callbacks are already quiesced. */
+    if (rtwn8723be_btc_mp_native_fini(sc) != 0) {
+        aprint_error_dev(sc->sc_dev, "cannot drain BT MP; retaining resources\n");
+        return;
+    }
+
     /* No mailbox users remain once IRQ and the owner are quiesced. */
     rtwn8723be_h2c_native_fini(sc);
 

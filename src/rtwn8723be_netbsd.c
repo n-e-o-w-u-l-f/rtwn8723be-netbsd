@@ -635,6 +635,7 @@ int
 rtwn8723be_netbsd_init_sw_vars(void *arg)
 {
     struct rtwn8723be_softc *sc = arg;
+    int error;
 
     /*
      * Exact pinned-Linux rtl8723be_init_sw_vars() state relevant to the
@@ -648,7 +649,13 @@ rtwn8723be_netbsd_init_sw_vars(void *arg)
     sc->sc_led_opendrain = true;
     sc->sc_rfoff_reason = 0; /* RF_CHANGE_BY_INIT */
 
-    return rtwn8723be_h2c_native_init(sc);
+    error = rtwn8723be_h2c_native_init(sc);
+    if (error != 0)
+        return error;
+    error = rtwn8723be_btc_mp_native_init(sc);
+    if (error != 0)
+        rtwn8723be_h2c_native_fini(sc);
+    return error;
 }
 
 int

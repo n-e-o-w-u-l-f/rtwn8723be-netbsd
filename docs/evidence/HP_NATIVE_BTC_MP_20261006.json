@@ -1,0 +1,675 @@
+{
+  "state": "PARTIAL_VERIFIED",
+  "recorded": "2026-10-06T13:21:40.300189+00:00",
+  "objective": "Full frozen Linux RTL8723BE/i915 NetBSD ports, followed by actual HP WLAN acceptance; this checkpoint does not narrow that objective.",
+  "coverage": [
+    "COV-RTL-010",
+    "COV-RTL-015",
+    "COV-RTL-017"
+  ],
+  "source_base": "7963b54ad1ce133f678f8104b05251317df7af19",
+  "linux_pin": "fd179f8a05be3ccae366b9b96e176b51fbe54aab",
+  "netbsd_pin": "03d918f6d0e81fa05b8f1160eca0628ad39988a6",
+  "host": "hp-tpnw121.fritz.box",
+  "hp_only_compilation": true,
+  "reports": {
+    "/root/hp-driver-port-20261005/rtl-btc-mp-native-proof-1791292510194301987/proof.json": {
+      "sha256": "bd2b247a763be440aa64958f42a324dd7296ed01fa051c14b590d8742b3c3bef",
+      "report": {
+        "state": "PASSED",
+        "host": "hp-tpnw121.fritz.box",
+        "started": "2026-10-06T13:15:10.195363+00:00",
+        "linux_pin": "fd179f8a05be3ccae366b9b96e176b51fbe54aab",
+        "runs": [
+          {
+            "kind": "normal",
+            "compile_exit": 0,
+            "run_exit": 0,
+            "scenarios": 42,
+            "checks": 537,
+            "command": [
+              "/usr/bin/cc",
+              "-D_NETBSD_SOURCE",
+              "-std=gnu11",
+              "-O2",
+              "-g",
+              "-Wall",
+              "-Wextra",
+              "-Werror",
+              "-Wshadow",
+              "-pthread",
+              "-I/root/hp-driver-port-20261005/rtl-btc-mp-native-dssnb6es",
+              "-I/root/hp-driver-port-20261005/rtwn8723be/src",
+              "/root/hp-driver-port-20261005/rtl-btc-mp-native-dssnb6es/rtwn8723be_btc_mp_native.c",
+              "/root/hp-driver-port-20261005/rtwn8723be/src/rtwn8723be_btc_mp.c",
+              "/root/hp-driver-port-20261005/rtwn8723be/tests/btc_mp_native_check.c",
+              "-o",
+              "/root/hp-driver-port-20261005/rtl-btc-mp-native-dssnb6es/normal"
+            ]
+          },
+          {
+            "kind": "ubsan",
+            "compile_exit": 0,
+            "run_exit": 0,
+            "scenarios": 42,
+            "checks": 537,
+            "command": [
+              "/usr/bin/cc",
+              "-D_NETBSD_SOURCE",
+              "-std=gnu11",
+              "-O2",
+              "-g",
+              "-Wall",
+              "-Wextra",
+              "-Werror",
+              "-Wshadow",
+              "-pthread",
+              "-fsanitize=undefined",
+              "-fno-sanitize-recover=all",
+              "-I/root/hp-driver-port-20261005/rtl-btc-mp-native-dssnb6es",
+              "-I/root/hp-driver-port-20261005/rtwn8723be/src",
+              "/root/hp-driver-port-20261005/rtl-btc-mp-native-dssnb6es/rtwn8723be_btc_mp_native.c",
+              "/root/hp-driver-port-20261005/rtwn8723be/src/rtwn8723be_btc_mp.c",
+              "/root/hp-driver-port-20261005/rtwn8723be/tests/btc_mp_native_check.c",
+              "-o",
+              "/root/hp-driver-port-20261005/rtl-btc-mp-native-dssnb6es/ubsan"
+            ]
+          }
+        ],
+        "negative_controls": [
+          {
+            "name": "unmatched-reply",
+            "compile_exit": 0,
+            "run_exit": -6,
+            "expected": "nonzero semantic assertion"
+          },
+          {
+            "name": "not-armed-before-send",
+            "compile_exit": 0,
+            "run_exit": -6,
+            "expected": "nonzero semantic assertion"
+          }
+        ],
+        "compiled_source_sha256": {
+          "/root/hp-driver-port-20261005/rtwn8723be/src/rtwn8723be_btc_mp_native.c": "0e4527174abe2683a2ffabdbb773df38b86827671e96c2bc9922002a60837c63",
+          "/root/hp-driver-port-20261005/rtwn8723be/src/rtwn8723be_btc_mp_native.h": "e5b37e3fcab6aa5798e1c68dc671ab9fb5df0de37047dbd9ca0c8693960ef1d0",
+          "/root/hp-driver-port-20261005/rtwn8723be/src/rtwn8723be_h2c_native.h": "2c7d4f8d89b40a27e2ec5792625e4831b46357155c12ff3d4fd4da8e404db583",
+          "/root/hp-driver-port-20261005/rtwn8723be/src/rtwn8723be_btc_mp.c": "9550c28e249a98422f54c3a10db61889e7827a34bfe3b584659be978116e8a5e",
+          "/root/hp-driver-port-20261005/rtwn8723be/src/rtwn8723be_btc_mp.h": "a6ecfcafa79a7ef118590c304922ab8cccf75fe288d7f1eeaf268bafecf8cefb",
+          "/root/hp-driver-port-20261005/rtwn8723be/tests/btc_mp_native_check.c": "bc1f0f5e2f0fba0ec589ae984482566510d4b16ef68c447cd1dcb495de7b9f6e",
+          "/root/hp-driver-port-20261005/rtwn8723be/tests/test_btc_mp_native.py": "624656814d323e0fdebb791d9ef3669efdbdbc735d1c36de9a1420cd5a28a50e"
+        },
+        "frozen_sha256": "5f672eeccfd1593505d853c01ac45cd727433f4ab2732caac0861793845d8100",
+        "scope": "Unmodified native C with explicit pthread mutex/CV/context, H2C and softc models. Real NetBSD object compilation is a separate gate.",
+        "limitations": [
+          "Activation and C2H consumer binding await a real full BTC/MCU/RX/IRQ owner.",
+          "No physical firmware, whole driver, kernel link, WLAN, PM or recovery acceptance.",
+          "Fixed opcode sequences cannot distinguish duplicate older same-opcode replies; reset generation is not a wire nonce."
+        ],
+        "acceptance": "OPEN: complete both full ports and actual HP WLAN online"
+      }
+    },
+    "/root/hp-driver-port-20261005/rtl-btc-mp-regressions43-20261006/status.json": {
+      "sha256": "0d51912016301e95fd7c223401a9167d1ff4bd17a9ed5b35e9ca16a636049728",
+      "report": {
+        "state": "PASSED",
+        "host": "hp-tpnw121.fritz.box",
+        "started": "2026-10-06T13:16:30.288907+00:00",
+        "tests": [
+          {
+            "name": "test_aspm_native_adapter.py",
+            "exit": 0
+          },
+          {
+            "name": "test_bb_native_adapter.py",
+            "exit": 0
+          },
+          {
+            "name": "test_btc_mp_native.py",
+            "exit": 0
+          },
+          {
+            "name": "test_btc_mp_wire.py",
+            "exit": 0
+          },
+          {
+            "name": "test_c2h.py",
+            "exit": 0
+          },
+          {
+            "name": "test_c2h_native.py",
+            "exit": 0
+          },
+          {
+            "name": "test_calibration.py",
+            "exit": 0
+          },
+          {
+            "name": "test_calibration_native.py",
+            "exit": 0
+          },
+          {
+            "name": "test_calibration_source.py",
+            "exit": 0
+          },
+          {
+            "name": "test_dma_mem_unwind.py",
+            "exit": 0
+          },
+          {
+            "name": "test_efuse_shadow_bounds.py",
+            "exit": 0
+          },
+          {
+            "name": "test_firmware_load.py",
+            "exit": 0
+          },
+          {
+            "name": "test_h2c_mailbox.py",
+            "exit": 0
+          },
+          {
+            "name": "test_h2c_native_binding.py",
+            "exit": 0
+          },
+          {
+            "name": "test_hw_disable.py",
+            "exit": 0
+          },
+          {
+            "name": "test_hw_disable_native.py",
+            "exit": 0
+          },
+          {
+            "name": "test_kernel_source_integrity.py",
+            "exit": 0
+          },
+          {
+            "name": "test_late_hw_callbacks.py",
+            "exit": 0
+          },
+          {
+            "name": "test_linux_lifecycle_stop.py",
+            "exit": 0
+          },
+          {
+            "name": "test_mark_hal_start_stage.py",
+            "exit": 0
+          },
+          {
+            "name": "test_net80211_rx_no_phy.py",
+            "exit": 0
+          },
+          {
+            "name": "test_oem.py",
+            "exit": 0
+          },
+          {
+            "name": "test_package.py",
+            "exit": 0
+          },
+          {
+            "name": "test_package_adapter_source.py",
+            "exit": 0
+          },
+          {
+            "name": "test_phy_bb_sequence.py",
+            "exit": 0
+          },
+          {
+            "name": "test_phy_exec.py",
+            "exit": 0
+          },
+          {
+            "name": "test_phy_identity_native.py",
+            "exit": 0
+          },
+          {
+            "name": "test_phy_netbsd_writers.py",
+            "exit": 0
+          },
+          {
+            "name": "test_phy_tables.py",
+            "exit": 0
+          },
+          {
+            "name": "test_port_closure_inventory.py",
+            "exit": 0
+          },
+          {
+            "name": "test_rf_channel_state.py",
+            "exit": 0
+          },
+          {
+            "name": "test_rf_native_adapter.py",
+            "exit": 0
+          },
+          {
+            "name": "test_rf_path.py",
+            "exit": 0
+          },
+          {
+            "name": "test_rf_serial.py",
+            "exit": 0
+          },
+          {
+            "name": "test_rx_binding.py",
+            "exit": 0
+          },
+          {
+            "name": "test_rx_decode.py",
+            "exit": 0
+          },
+          {
+            "name": "test_rx_dma_bounds.py",
+            "exit": 0
+          },
+          {
+            "name": "test_rx_phy.py",
+            "exit": 0
+          },
+          {
+            "name": "test_security_native_adapter.py",
+            "exit": 0
+          },
+          {
+            "name": "test_thermal.py",
+            "exit": 0
+          },
+          {
+            "name": "test_tx_desc.py",
+            "exit": 0
+          },
+          {
+            "name": "test_tx_queue_lifetime.py",
+            "exit": 0
+          },
+          {
+            "name": "test_txpwr_pg.py",
+            "exit": 0
+          }
+        ],
+        "updated": "2026-10-06T13:17:30.935334+00:00"
+      }
+    },
+    "/root/hp-driver-port-20261005/native-obj-btc-mp-20261006/objects-status.json": {
+      "sha256": "0f5bbf3e93a5b7cb68a7bae5a22f82154bf4bb3d434e14f7f16564c5bbda187c",
+      "report": {
+        "state": "PASSED",
+        "host": "hp-tpnw121.fritz.box",
+        "target": "objects",
+        "started": "2026-10-06T13:17:31.214391+00:00",
+        "tree": "/root/hp-driver-port-20261005/netbsd-native",
+        "objdir": "/root/hp-driver-port-20261005/native-obj-btc-mp-20261006",
+        "commands": [
+          [
+            "/root/hp-driver-port-20261005/native-tools/bin/nbconfig",
+            "-s",
+            "/root/hp-driver-port-20261005/netbsd-native/sys",
+            "-b",
+            "/root/hp-driver-port-20261005/native-obj-btc-mp-20261006",
+            "/root/hp-driver-port-20261005/netbsd-native/sys/arch/amd64/conf/HP-RTL-NATIVE-20261005"
+          ],
+          [
+            "/root/hp-driver-port-20261005/native-tools/bin/nbmake-amd64",
+            "-C",
+            "/root/hp-driver-port-20261005/native-obj-btc-mp-20261006",
+            "-j2",
+            "rtwn8723be_native.d",
+            "rtwn8723be_netbsd.d",
+            "rtwn8723be_aspm_native.d",
+            "rtwn8723be_security_native.d",
+            "rtwn8723be_f16_1_dma.d",
+            "rtwn8723be_fw.d",
+            "rtwn8723be_h2c.d",
+            "rtwn8723be_h2c_native.d",
+            "rtwn8723be_linux_state.d",
+            "rtwn8723be_package.d",
+            "rtwn8723be_pwrseq.d",
+            "rtwn8723be_phy_bb_sequence.d",
+            "rtwn8723be_bb_native.d",
+            "rtwn8723be_txpwr_pg.d",
+            "rtwn8723be_phy_exec.d",
+            "rtwn8723be_rf_serial.d",
+            "rtwn8723be_rf_path.d",
+            "rtwn8723be_rf_native.d",
+            "rtwn8723be_rf_channel_state.d",
+            "rtwn8723be_rx_decode.d",
+            "rtwn8723be_c2h.d",
+            "rtwn8723be_btc_mp.d",
+            "rtwn8723be_btc_mp_native.d",
+            "rtwn8723be_c2h_native.d",
+            "rtwn8723be_rx_binding.d",
+            "rtwn8723be_rx_phy.d",
+            "rtwn8723be_rx_native.d",
+            "rtwn8723be_tx_desc.d",
+            "rtwn8723be_tx_native.d",
+            "rtwn8723be_datapath.d",
+            "rtwn8723be_net80211.d",
+            "rtwn8723be_oem.d",
+            "rtwn8723be_calibration.d",
+            "rtwn8723be_calibration_native.d",
+            "rtwn8723be_thermal.d",
+            "rtwn8723be_hw_disable.d",
+            "rtwn8723be_hw_disable_native.d"
+          ],
+          [
+            "/root/hp-driver-port-20261005/native-tools/bin/nbmake-amd64",
+            "-C",
+            "/root/hp-driver-port-20261005/native-obj-btc-mp-20261006",
+            "-j2",
+            "rtwn8723be_native.o",
+            "rtwn8723be_netbsd.o",
+            "rtwn8723be_aspm_native.o",
+            "rtwn8723be_security_native.o",
+            "rtwn8723be_f16_1_dma.o",
+            "rtwn8723be_fw.o",
+            "rtwn8723be_h2c.o",
+            "rtwn8723be_h2c_native.o",
+            "rtwn8723be_linux_state.o",
+            "rtwn8723be_package.o",
+            "rtwn8723be_pwrseq.o",
+            "rtwn8723be_phy_bb_sequence.o",
+            "rtwn8723be_bb_native.o",
+            "rtwn8723be_txpwr_pg.o",
+            "rtwn8723be_phy_exec.o",
+            "rtwn8723be_rf_serial.o",
+            "rtwn8723be_rf_path.o",
+            "rtwn8723be_rf_native.o",
+            "rtwn8723be_rf_channel_state.o",
+            "rtwn8723be_rx_decode.o",
+            "rtwn8723be_c2h.o",
+            "rtwn8723be_btc_mp.o",
+            "rtwn8723be_btc_mp_native.o",
+            "rtwn8723be_c2h_native.o",
+            "rtwn8723be_rx_binding.o",
+            "rtwn8723be_rx_phy.o",
+            "rtwn8723be_rx_native.o",
+            "rtwn8723be_tx_desc.o",
+            "rtwn8723be_tx_native.o",
+            "rtwn8723be_datapath.o",
+            "rtwn8723be_net80211.o",
+            "rtwn8723be_oem.o",
+            "rtwn8723be_calibration.o",
+            "rtwn8723be_calibration_native.o",
+            "rtwn8723be_thermal.o",
+            "rtwn8723be_hw_disable.o",
+            "rtwn8723be_hw_disable_native.o"
+          ]
+        ],
+        "updated": "2026-10-06T13:17:51.246954+00:00",
+        "source_sha256": {
+          "rtwn8723be_native.c": "15d635c4a0a468cc8af8bee22ee30076c6ec4acaf9c682fed99ad67ff55d1ad0",
+          "rtwn8723be_netbsd.c": "b1763b8505b01d66c3f4ac682aaa2f30aa6103a2a183117c5545a921dfa7a0d9",
+          "rtwn8723be_aspm_native.c": "6dfc324f1cac88c5cc52cfec237ed00291e32e19f9787d14415996a46292b121",
+          "rtwn8723be_security_native.c": "0b335e9cf04d482d6414929f70be95666f5154750634f066c27d5e96f3dbe5d0",
+          "rtwn8723be_f16_1_dma.c": "2216178b4e5bb4d80f17035df75b7dda039442657331282089e497e7cf12ec40",
+          "rtwn8723be_fw.c": "85ecec54ff54155d53c7adc79b5544888827a3b75415cf23c519c87ae1b00b61",
+          "rtwn8723be_h2c.c": "7c26bd58d6c23f5e2e249a03cdc608ae611fe84fb0ac97f98c08f41ec79a1ad0",
+          "rtwn8723be_h2c_native.c": "3a2d25a3385cb98ce5d6b2601d51d4318a88521e8b049c6ed583e888d538eef4",
+          "rtwn8723be_linux_state.c": "6529af6dc3c285560887f79d0a13d9cd449f107d3b1f2673de5accf8e5497327",
+          "rtwn8723be_package.c": "519196eb90152bb1edd7cae05798738281f53aca86e54f51bc6cf18ecc291bff",
+          "rtwn8723be_pwrseq.c": "95c9118c19903333978d384fcd512c34c5d0cc609a46e5049c5abb41a890eddf",
+          "rtwn8723be_phy_bb_sequence.c": "57bb375edc0a6f5dda32c8043ec2a82d3f919207d3c9712c11e4450c874d318c",
+          "rtwn8723be_bb_native.c": "47ba1328df5f9abf29554582a2132cebefc64074901814a08ebaa2c15f3a4a75",
+          "rtwn8723be_txpwr_pg.c": "2e8a6c781583c30224211421b6944c9a442aab876930255114660ee6c42218d1",
+          "rtwn8723be_phy_exec.c": "931ba3570809642a012414d84a9990843d1b62525712a911448b008a2082a628",
+          "rtwn8723be_rf_serial.c": "86189e2d29df750fb34cc7224f7f72eed344bef6f2061b37a2805879098ff8ae",
+          "rtwn8723be_rf_path.c": "fe4607be089bd4badd7eff805b69e472dd461f7bc0ab6dc1974bf9443b01bb43",
+          "rtwn8723be_rf_native.c": "07814f08728cb79df92a5a84be0e384ae3a4b61b6a973fe4503d4b5e0f37b10a",
+          "rtwn8723be_rf_channel_state.c": "d3d3a027efc59e331ba276c69b865c1887a6ae63d7b7391f1cfffdf994cc0825",
+          "rtwn8723be_rx_decode.c": "9db1a9cb1ac6db48b39241d617ab690d80f088195f39f3d496217c65bbd616ba",
+          "rtwn8723be_c2h.c": "dea82f7618a8b97c7b1922813c9af81b6b730d8522bfd66a3ca81efaf88fea9a",
+          "rtwn8723be_btc_mp.c": "9550c28e249a98422f54c3a10db61889e7827a34bfe3b584659be978116e8a5e",
+          "rtwn8723be_btc_mp_native.c": "0e4527174abe2683a2ffabdbb773df38b86827671e96c2bc9922002a60837c63",
+          "rtwn8723be_c2h_native.c": "02d47f7e58d93731818e8482c78c6b360583b78c471db5fa35f4dc6eb372d562",
+          "rtwn8723be_rx_binding.c": "4b850ebe04e8a7291621044c599bcf8157f4edbd5f9254fa777fb4cf0ca6081f",
+          "rtwn8723be_rx_phy.c": "f9ac468be59bc99db68615a86d43b781cd6385bde82810f956b3ad2ffe78fbd5",
+          "rtwn8723be_rx_native.c": "9a7459d88bc7c19e55eb0235996dfd311994a2ae80e24c63f4c215476fc95b34",
+          "rtwn8723be_tx_desc.c": "6a0278cbce08cfabe9bc33afdc7ab8d2ce2c48a1024851722f685fa31d3dbd43",
+          "rtwn8723be_tx_native.c": "cee9bba23a1697c4bac05ab2183015724bbb996b28383e0f97d1e94dfd6d82d0",
+          "rtwn8723be_datapath.c": "64e4b31de5fecc75c20cf3487f9bed65368249c77e170c12f095371bf95a2805",
+          "rtwn8723be_net80211.c": "5070cf6df6ab487818bf0990584aa4d7d76919ee7b20a76a9f2d69b93d07d9e1",
+          "rtwn8723be_oem.c": "fd0dfd745c1f376dbfd8264e5213b13bfb6da9665836b44564f01d73e09b0d0b",
+          "rtwn8723be_calibration.c": "6e968c0a9920308244677c0724789c1a5b7934046242bc5d8d6eb44f5ad23086",
+          "rtwn8723be_calibration_native.c": "b2b594abd1c1df466e6330ca15faf0bc213dbe30c6d3cafad2c0fb64e42dc299",
+          "rtwn8723be_thermal.c": "65995bd0e9a0aade53967b927b44f36d5141aeeccc3507d0f3bfad65fb8d2274",
+          "rtwn8723be_hw_disable.c": "e03e2421996d2a960f748b89144d0155cb38862329e9377eddd06b46ddc7814f",
+          "rtwn8723be_hw_disable_native.c": "ff154a6cfa29414b430015557b7c383fc59583a1a90bccc3f993923cbefab500",
+          "rtwn8723be_aspm_native.h": "4614fc0a110900a18be257f1aa0b7beada8e8462f69bbf5c625a667480869a5c",
+          "rtwn8723be_bb_native.h": "36bf60e73a011f0a96d6cac378a8815d086ce5bf24808a6810b1ca3ff55a16a0",
+          "rtwn8723be_btc_mp.h": "a6ecfcafa79a7ef118590c304922ab8cccf75fe288d7f1eeaf268bafecf8cefb",
+          "rtwn8723be_btc_mp_native.h": "e5b37e3fcab6aa5798e1c68dc671ab9fb5df0de37047dbd9ca0c8693960ef1d0",
+          "rtwn8723be_c2h.h": "1f2edcd9f0b78dc0009e815a974558c6079d19257f357c53785f95426fb7ef51",
+          "rtwn8723be_c2h_native.h": "7b1f1735992eb515f6c1917b42cc0d921155c721fe8556081739902ee450cef5",
+          "rtwn8723be_calibration.h": "7067200ffca65cf46e48b5d94c44f72210b1fc0048a5af9e6bee934be06af248",
+          "rtwn8723be_calibration_native.h": "a709567125224c7dee2b0fd3a987e6dec5a2282125b7709edf5d17b10ac73c65",
+          "rtwn8723be_datapath.h": "8e28a2e8e6ed182ec3d512c023ce5e8e118180e7ccca3bfd07f0c64cc8f3a5a4",
+          "rtwn8723be_f16_1.h": "d0307ed754908d71d83be15e6e971f04fe6f06538f0bdd26013e914e576f0b97",
+          "rtwn8723be_fw.h": "75b5066fec5b3df496a0d24c0bd601ed898ce9b5fb11ac00a8a9f3bae86004bf",
+          "rtwn8723be_h2c.h": "562d4721c80b1fa306e76338d1285a26b81b2fa562fded961e80300b088b70d1",
+          "rtwn8723be_h2c_native.h": "2c7d4f8d89b40a27e2ec5792625e4831b46357155c12ff3d4fd4da8e404db583",
+          "rtwn8723be_hw_disable.h": "8130afc5666e6c079c61f505f869671f8a1c0de7bf399f255a48a5d52c93c92d",
+          "rtwn8723be_hw_disable_native.h": "aa6837920feac9aedc40ca828f933365a5489bb977321c0fdb0ee66752aadf62",
+          "rtwn8723be_linux_state.h": "962cce3d341d65b4b7955bc4e0870fbb465674edccd3447290c14655b2eac63e",
+          "rtwn8723be_mac_table.h": "b76c5ca6be6678c45dbde2cb74588b33b4dad3039fba43451180154eab3623b4",
+          "rtwn8723be_net80211.h": "62e4426510ca5bdde0ba8ccb6a292ddca41e61233b4c4f213a055e328255e03c",
+          "rtwn8723be_netbsd.h": "6c75dcc31bd191499b1f4e1f7fc108c7feec8991370cc747a813abbd406d0af9",
+          "rtwn8723be_oem.h": "fc30a52647c9f242a3ea0f5602a10f7bdf7d1713377074b0088cbc97b57f9592",
+          "rtwn8723be_os_compat.h": "9475ce32010944aca36c07d2ac4a5e4eef0b40016898c736347ca84a14a3a240",
+          "rtwn8723be_package.h": "a7e58587024929d3525d29ac34f51e1d3d1441aca2b28e5df49323a85bcd7c19",
+          "rtwn8723be_phy_bb_sequence.h": "42d655960a58cc52ef84c1b54eaf13aa37d9896f4e26e78b40b78af83bee331f",
+          "rtwn8723be_phy_exec.h": "4667e875e40698149d84012e90239b2ec1dd87fb6fee79d120af1d87ba18462a",
+          "rtwn8723be_phy_tables.h": "31cdb6d1063f65c337ddcaa3087df89d8b93cb38a69e148cdae1b0cd718031e0",
+          "rtwn8723be_pwrseq_data.h": "fffc2fbbdcd77bd1eb739e7e8840d58ad8279081bb6e103f59d43cc5b4f1a663",
+          "rtwn8723be_pwrseq_plan.h": "f93dc315cd5036cf7ec8ce98d5b13031729ade995afa6dbf359733de63ee2c44",
+          "rtwn8723be_rf_channel_state.h": "2d3b28764d8eb24fc78ba191908f9d5322fe490aac0c13796ca77f327fe0ff56",
+          "rtwn8723be_rf_native.h": "215d4a96ec14e71d7b0fb7242b0746e5948a92a032cb8089e6453b09e6800dcd",
+          "rtwn8723be_rf_path.h": "bdae3855c9bf5f9f950d6a5f5a3ed43028ced11f0bd51f7132347a3f564a265c",
+          "rtwn8723be_rf_serial.h": "a60f951b56f733e4d0a45d709c7a3c154a7538b9b7971b4d12e7a3082a713da9",
+          "rtwn8723be_rx_binding.h": "70ecf9591e210b1007f45d26edcccc2cd28e4706149439c18f444ef6501ca22f",
+          "rtwn8723be_rx_decode.h": "6affc0dadb2887b78ba798f509e032dd32aec67d3757b171e0aa3b0ad97c9ec9",
+          "rtwn8723be_rx_native.h": "a03fecf5958e94ba3115f85ff2d16889db8439ef0fb771b4a3aed275dcba05ae",
+          "rtwn8723be_rx_phy.h": "8f7d59bdb49460739f50bad3829564db7e988376a7419edcf255e2c2950678ac",
+          "rtwn8723be_security_native.h": "de941d5e7567732d8aca45d3968bc92daf4317d3136c10c2e0dc057d24fa7b70",
+          "rtwn8723be_thermal.h": "7cc212a50501c9ca23950a2231a10353929c336ccadc87e53ea09b7ac583a7ed",
+          "rtwn8723be_tx_desc.h": "4bdb707163de6ae4dd9e0fb69ff1f87c29273d865989ac1a1d7c870ca8e6cb05",
+          "rtwn8723be_tx_native.h": "1da0262d44d875d3c5cd8d4bc52eae94fd627cb45da21df36518490bf13fa468",
+          "rtwn8723be_txpwr_pg.h": "ddc8b613539da8b29c24308823b4a63629f2daa8ef27c00278a152ba48723b3c",
+          "rtwn8723be_calibration_linux.inc": "9856f0a9aef5bf1115d849700029f305f91b8aa0b8272f24b3d90c99758f1139",
+          "rtwn8723be_thermal_body.inc": "048df314db93a78b71df3b8ab7d0d62c97e5117a931909df57534fd0a368b3db",
+          "rtwn8723be_thermal_linux.inc": "dab279d6f88f65ea123cd855d805ed00e42b07ea9e4d083a7cccae5a5a95e438"
+        },
+        "artifacts": {
+          "rtwn8723be_native.o": {
+            "bytes": 122648,
+            "sha256": "362682884d0f9a54c04d5799aacaa0d0fe4fce303d6caeca24fef7fbb4518f68"
+          },
+          "rtwn8723be_netbsd.o": {
+            "bytes": 334480,
+            "sha256": "f99c8b8e9a6db301f800fa81362b33e2cdd422277c2441d5d483ea0bce389e3b"
+          },
+          "rtwn8723be_aspm_native.o": {
+            "bytes": 118768,
+            "sha256": "ff67ba8ce3c237f1bb0389c8e65ca77efb028d012f26b987de43dbfd56db5135"
+          },
+          "rtwn8723be_security_native.o": {
+            "bytes": 104912,
+            "sha256": "a0901da1bf286c230af55d9aecbd87be1df893234359881e25dd45c4c05cc806"
+          },
+          "rtwn8723be_f16_1_dma.o": {
+            "bytes": 117760,
+            "sha256": "a22bf8fbbb7476b77ea880dfe80eea9f925f0a4f05401f0eef4222e6ff7243b5"
+          },
+          "rtwn8723be_fw.o": {
+            "bytes": 40976,
+            "sha256": "5631094cef7cff4f3f7f325d2853717b5052fbd5868ebc1b9997182037c83b60"
+          },
+          "rtwn8723be_h2c.o": {
+            "bytes": 14096,
+            "sha256": "3db593f4966e911bbf064b0f6109ebf626fed00a3bb2e97bb28a75915d1d2a1c"
+          },
+          "rtwn8723be_h2c_native.o": {
+            "bytes": 121920,
+            "sha256": "f40d3477723cc77b63546631b5090eafa30c28d9c8161173d0594f0daf4d6c4d"
+          },
+          "rtwn8723be_linux_state.o": {
+            "bytes": 33720,
+            "sha256": "0c4d565ae7d87f2b8aa63c6cd94e6aa8acb6e6b9686f5908df63a2c10f543069"
+          },
+          "rtwn8723be_package.o": {
+            "bytes": 10560,
+            "sha256": "b9f69abd37d7df2fcc24e384bc1382d9f497f16e5a850bdfbd661a8799585bae"
+          },
+          "rtwn8723be_pwrseq.o": {
+            "bytes": 38120,
+            "sha256": "c56532d48b5355697c6de7af64c3909522e6b873e3a647500f6931ab6fcd5d71"
+          },
+          "rtwn8723be_phy_bb_sequence.o": {
+            "bytes": 11232,
+            "sha256": "8cc7111a7b8348a06e3f0532a6f79940d4936b1d09620d5be11565cdab6caca8"
+          },
+          "rtwn8723be_bb_native.o": {
+            "bytes": 121528,
+            "sha256": "aed29372849905e62ead93767f711c2273fddbe5fa16a27c223cf73f5b0bb09a"
+          },
+          "rtwn8723be_txpwr_pg.o": {
+            "bytes": 25976,
+            "sha256": "a8544db7015c960236048af7f274d585b972ed73a0b9668c8ee9fcc59ea745b2"
+          },
+          "rtwn8723be_phy_exec.o": {
+            "bytes": 24320,
+            "sha256": "29a484d8848d0d7b3f4231a6590d65a952d84d7c11b0e3a6135419d2d7948d7c"
+          },
+          "rtwn8723be_rf_serial.o": {
+            "bytes": 23872,
+            "sha256": "1115d3d2dd529fed563b3cf6e264e5f74c9e95ad77f2d33ffbab37b3675f8f5f"
+          },
+          "rtwn8723be_rf_path.o": {
+            "bytes": 12944,
+            "sha256": "00e300046bf7400446df0224d17444c1cf731af553464e916083abdd9c989216"
+          },
+          "rtwn8723be_rf_native.o": {
+            "bytes": 115192,
+            "sha256": "a7d1a1c0affdd0006c95a4b343e5cceeed4bfbc37998b78b8e473029d69fe9e1"
+          },
+          "rtwn8723be_rf_channel_state.o": {
+            "bytes": 8024,
+            "sha256": "0b7350c659c63d9aaa156d7a68982e3c9b63ffa427718f17a1b3da54d5b39db0"
+          },
+          "rtwn8723be_rx_decode.o": {
+            "bytes": 11816,
+            "sha256": "b1ab493ff0efe02113cfdf41de04ad6b5169dff253a4704629e4ad9dc7799dd4"
+          },
+          "rtwn8723be_c2h.o": {
+            "bytes": 11408,
+            "sha256": "baf07fc9b42addb349db3b415e9a971161761df7614b3d4e5f4ebabd791d344a"
+          },
+          "rtwn8723be_btc_mp.o": {
+            "bytes": 12976,
+            "sha256": "c1a5cc845d5d3638adeefe63f5e7c20a42ca06569128a9e0ca1dce29293f566a"
+          },
+          "rtwn8723be_btc_mp_native.o": {
+            "bytes": 122456,
+            "sha256": "a925af2503d86c2b830f5dff3bbf3c18df66eafbfbfcdf730ee625cc46597403"
+          },
+          "rtwn8723be_c2h_native.o": {
+            "bytes": 13032,
+            "sha256": "729aaa2f862147bfdcfdecc7f772eba36173c3106ba947e257a6db0b429064d3"
+          },
+          "rtwn8723be_rx_binding.o": {
+            "bytes": 110832,
+            "sha256": "323f4017d6c776363d7aaed88bc91d2db8471310d18ef46988d3cc38b21ab9f6"
+          },
+          "rtwn8723be_rx_phy.o": {
+            "bytes": 11872,
+            "sha256": "7c1a3fb868f6ec01c3d0f2cd5b5a89df5046afc2016e25439b39449cc57c218b"
+          },
+          "rtwn8723be_rx_native.o": {
+            "bytes": 114656,
+            "sha256": "16a7f6fa63aefdf146b91f4a9d167727115aa34ee268b9c8853e8b6f295969a1"
+          },
+          "rtwn8723be_tx_desc.o": {
+            "bytes": 14712,
+            "sha256": "aba08a8a819cc47e44c5d7e9db5751fc3cb834c56c113fc217706ddad9bc885e"
+          },
+          "rtwn8723be_tx_native.o": {
+            "bytes": 117656,
+            "sha256": "e6d76b6fdd312522c3c5adfd8565a8c1809d42661526f8849acc8b46f99ce01f"
+          },
+          "rtwn8723be_datapath.o": {
+            "bytes": 119048,
+            "sha256": "dec1c3e3d26fff46a2c01e730c4a56cbfc07fed2e31cd1d04393f385081b7f06"
+          },
+          "rtwn8723be_net80211.o": {
+            "bytes": 128200,
+            "sha256": "f97a1ece484429ceb2f3f0f3980ea9a32b604d4f359856bc7815ae3935778b83"
+          },
+          "rtwn8723be_oem.o": {
+            "bytes": 6440,
+            "sha256": "04056a0ed74feda263a5ec4b490827cf1f7e03197de98d0abed5bfd61b1b663d"
+          },
+          "rtwn8723be_calibration.o": {
+            "bytes": 112424,
+            "sha256": "7068cd6955ad7f6d0cc553995d6d514b3bc98b6e7dfdaafa3e2f09d36c1e6741"
+          },
+          "rtwn8723be_calibration_native.o": {
+            "bytes": 148904,
+            "sha256": "a7e6326acc141c937b5cc32d4e2ac5f65efc73f132a798bc0dc14efb25d0fac8"
+          },
+          "rtwn8723be_thermal.o": {
+            "bytes": 38048,
+            "sha256": "8d262ce8fc4acf2fe958042c8317d423838bab35abb8a550cd62cf634fbac83a"
+          },
+          "rtwn8723be_hw_disable.o": {
+            "bytes": 20488,
+            "sha256": "0b5bad1f497e0d4930c20625f8fc8bc03ef3930eb7bca9094a09342eb9600dad"
+          },
+          "rtwn8723be_hw_disable_native.o": {
+            "bytes": 115632,
+            "sha256": "a5d0af8c395d0e35b58a59acd1476414f5614fe2c6b565bc12555a6d67337ca9"
+          }
+        },
+        "limitation": "experimental compile only; full-port and hardware gates remain open"
+      }
+    }
+  },
+  "closure": {
+    "expected_exit": 1,
+    "actual_exit": 1,
+    "output": "DECLARED=53 BOUND=46 MISSING=7\nPROBE=register_ieee80211,init_rfkill\nSTART=bt_prepare,bt_hw_init,dm_init\nSTOP=bt_halt_deinit,wait_rf_change_idle\nNATIVE_C_OBJECTS=37\nTX_POWER_PG_IN_NATIVE_BUILD=true\nGUARDED_CALLBACKS_WITH_OPEN_OWNER=rf_calibration,hw_disable\nCALLBACK_AND_PG_CLOSURE=OPEN\n"
+  },
+  "safe_artifact_sha256": {
+    "/boot.cfg": "aaf16e4c185f59e925ab8cff9aaf1d45545896ab84a5cf46ddcb3d3c85ba6b1f",
+    "/netbsd": "9b65629c0527bbd40f7ffa0d4ef0c59a32b5edceb597a5df8c86d1e7be1c8fde",
+    "/netbsd.v1-f77-linux-efuse-map-20260926": "b14ef473add01bbfa8523bc97aec9d0d9ea3ce38cd16663f221d33f323ab73de"
+  },
+  "runtime": {
+    "uname": "NetBSD hp-tpnw121.fritz.box 11.0 NetBSD 11.0 (RTWN8723BE-F77-LINUX-EFUSE-MAP) #0: Sat Sep 26 19:13:52 CEST 2026  root@hp-tpnw121.fritz.box:/usr/obj/sys/arch/amd64/compile/RTWN8723BE-F77-LINUX-EFUSE-MAP amd64",
+    "wlan": "rtwn8723be0: flags=0x8802<BROADCAST,SIMPLEX,MULTICAST> mtu 1500\n\tssid \"\"\n\tpowersave off\n\taddress: 54:8c:a0:98:b0:57\n\tmedia: IEEE802.11 autoselect\n\tstatus: no network\n",
+    "boot_time": "kern.boottime = Sun Oct  4 23:08:20 2026"
+  },
+  "i915": {
+    "head": "5be8a510f6c790460616441bd2a1a70545653adb",
+    "working_tree": "clean",
+    "unchanged": true
+  },
+  "retained_initial_failures": [
+    {
+      "kind": "fixture reference matcher",
+      "reason": "wrong expected first H2C argument; corrected to the actual frozen rtlpriv->mac80211.hw",
+      "rc": 1
+    },
+    {
+      "kind": "fixture header model",
+      "reason": "errno shim shadowed real errno definitions; removed shim and used native bintimecmp spelling",
+      "proof_prefix": "rtl-btc-mp-native-proof-",
+      "rc": 1
+    }
+  ],
+  "remaining": [
+    "Real BTC DM/STA/27 callbacks and activation/lifetime owner remain open; no fake bindings",
+    "Full rollback/stop/recovery, net80211 HT/AMPDU, kernel link and physical acceptance remain open"
+  ],
+  "scope": "Unmodified actual MP native C with explicit kernel/CV/H2C models, and37 real native objects. Activation/C2H binding/full BTC/lifecycle/kernel/physical acceptance remain OPEN. No install/reboot/boot mutation."
+}

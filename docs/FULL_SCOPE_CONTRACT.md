@@ -31,16 +31,31 @@ none
 | COV-RTL-007 | BB/RF configuration | frozen rtl8723be/phy.c, hw.c, rtl8723com/phy_common.c and table.c | Native phy_bb_config binds exact setup widths/order, 193 BB writes with delays, TX-power initialization/group reset, six PG entries and BCD/base/relative conversion, 131 AGC writes, CCK-high-power and crystal-cap RMW. Guarded phy_rf_config and RF-channel state callback bind portable RF serial/RFENV/Radio-A; both A/B RF_CHNLBW reads publish atomically. All three additional C modules are selected by the native manifest. | serialized init before IRQ/DMA; firmware and validated EFUSE/PHY/antenna/crystal identity required; BB validity required before RF; every BB/AGC register preflighted before setup MMIO | invalid preflight performs no MMIO; table errors propagate; crystal programming follows Linux even on table failure; RF snapshot fails without partial publication; RF/runtime locking and recovery remain open | IN_PROGRESS | 2026-10-05 HP/NetBSD: actual new callback C11/UBSan tests PASS after missing-symbol negative controls; all 32 published RTL scripts PASS; all 28 native C objects compile with real pinned NetBSD kernel headers and -Werror. No physical MMIO callback, kernel link, WLAN or whole-port acceptance is claimed |
 | COV-RTL-008 | HW policy/configuration | frozen rtl8723be/hw.c:_rtl8723be_hw_configure | all 17 RRSR/ARFR/retry/TBTT/NAV/EDCA/aggregation policy writes ported exactly with width/order and wired; NAV=235 and retry-limit=7 callbacks also wired | after BB/RF and post-init | restore/reset | IN_PROGRESS | strict actual-body C mock verifies all 17 register addresses, values, widths and exact order plus NAV/retry; full NetBSD build, hardware and integration pending |
 | COV-RTL-009 | Security/CAM/MAC address | rtl_cam_reset_all_entry() + HW_VAR_ETHER_ADDR + enable_hw_security | CAM reset writes 0xc0000000 to REG_CAMCMD; MAC identity writes all six EFUSE-derived bytes to REG_MACID; HW key/security and net80211 integration remain open | after HW config | CAM clear | IN_PROGRESS | strict isolated C tests pass for CAM command, byte order and EFUSE readiness; keys/kernel/hardware not tested |
-| COV-RTL-010 | ASPM backdoor/BT coexistence | enable_aspm_back_door + bt_hw_init | PCIe/BT coexist adapter | after core HW config | coexist teardown | OPEN | coexist/state audit |
+| COV-RTL-010 | ASPM backdoor/BT coexistence | enable_aspm_back_door + bt_hw_init + frozen halbtc_send_bt_mp_operation | PCIe backdoor and per-device native MP mutex/CV request provider; real BTC DM/STA, 27 callbacks and antenna algorithms remain open | fresh MCU handshake, old RX/IRQ drain and real BTC activation owner required; activation/consumer binding remain unbound | copied reply, one request/device, timeout/send/no-wait quarantine, cancel/drain before H2C release | IN_PROGRESS | HP:42 actual-native-C modeled scenarios/537 checks normal+UBSan, two semantic controls, all43 scripts/all37 objects PASS; full BTC/runtime OPEN; docs/BTC_MP_NATIVE_NETBSD_20261006.md |
 | COV-RTL-011 | IQK/LC/TX-power tracking/DM | PHY calibration + DM init | exact calibration/DM state | before final DMA release/normal runtime | calibration fallback | OPEN | calibration evidence |
 | COV-RTL-012 | Final RX/PCIe DMA release | REG_RXDMA_CONTROL + REG_PCIE_CTRL_REG+1 | conditional RX-DMA clear followed by PCIe DMA release; callbacks wired | strictly after COV-RTL-001..011 as applicable | re-block DMA on failure | IN_PROGRESS | isolated C callback/order/register tests passed; prerequisites, error unwind and target verification pending |
 | COV-RTL-013 | IRQ masks/handler | HIMR/HIMRE/HSIMR + recognized/enable/disable | PCI interrupt + exact masks | after rings/HW ready | mask/teardown | IN_PROGRESS | interrupt service evidence |
 | COV-RTL-014 | TX/RX datapath descriptors | 64-byte TX PCI ring stride + 32-byte RX descriptor, frozen RTL8723BE old-TRX | Partial NetBSD mbuf/bus_dma RX/TX producers/consumers, descriptor encoders, typed RX/C2H callbacks, explicit RX DMA mapping/segment/span preflight; full net80211/IRQ/TX-report ownership and teardown absent | after valid rings/DMA and full IRQ/firmware prerequisites | reverse unmap/reclaim/queue stop and callback lifetime still OPEN | IN_PROGRESS | Direct production RX DMA guard source readback and isolated strict C11/UBSan 12 boundary assertions PASS; exact published test script, native NetBSD objects/link, traffic and HP runtime NOT RUN |
-| COV-RTL-015 | H2C/C2H firmware protocol | rtl8723be fw.c/mailboxes | firmware command/event adapter | after firmware ready | mailbox reset | OPEN | command/event evidence |
+| COV-RTL-015 | H2C/C2H firmware protocol | frozen rtl8723be fw.c/mailboxes + halbtcoutsrc.c/rtl_btc.c | H2C0x67 copied wire submission and native per-device matched scalar reply/CV completion provider | armed before send, sleepable requests, SOFTINT_NET replies; full RX/BTC consumer owner remains open | decreasing200ms budget, conservative uncertainty quarantine, fresh MCU generation required after stop/timeout; no wire nonce | IN_PROGRESS | HP normal/UBSan actual-C races/errors, compiled semantic controls, native37 objects/all43 scripts PASS; physical protocol and full integration OPEN |
 | COV-RTL-016 | Media/QoS/channel/beacon/runtime state | rtl_init_rx_config() + HAL/PHY/channel paths | cached RX configuration copied from PCI receive_config to MAC rx_conf; other net80211 state/QoS/channel work remains open | normal runtime | state rollback | IN_PROGRESS | actual-body isolated C test verifies preconditions and receive_config transfer; association/traffic pending |
-| COV-RTL-017 | RF power/LPS/IPS/suspend/resume/recovery | Linux PM callbacks + reset paths | NetBSD PM lifecycle + recovery ordering | runtime/final | full reinit/teardown | OPEN | PM/recovery verification |
+| COV-RTL-017 | RF power/LPS/IPS/suspend/resume/recovery | Linux PM callbacks + reset paths | NetBSD MP stop provider cancels and drains both submission and wait; full RF/LPS/IPS/PM/recovery owner remains open | stop before H2C/DMA release; owner excludes new entrants, drains RX/IRQ and performs real MCU restart before activation | stop during send/wait proven with pthread model; real full lifecycle/rollback binding remains open | IN_PROGRESS | HP actual-C stop races and37 native object compilation PASS; whole recovery/PM and physical verification OPEN |
 
 ## CURRENT_DELTA
+2026-10-06 native BTC MP checkpoint: the per-device mutex/CV provider now
+arms before H2C0x67 submission, matches copied scalar replies, serializes
+requests, preserves a decreasing200ms wait budget and cancels/drains an
+in-flight send or waiter before resources are released. Timeout, uncertain
+send and no-wait submission quarantine the channel; reactivation requires a
+fresh MCU-ready generation plus an owner-proven RX/IRQ drain. Generation is
+not a wire nonce and cannot identify a duplicate older same-opcode reply.
+42 actual-native-C modeled scenarios/537 checks pass normal and UBSan;
+two compiled semantic controls fail as expected. All43 regression scripts
+and all37 fresh native objects pass on HP. MP storage init/probe-cleanup are
+bound, while activation and C2H consumer binding remain deliberately unbound
+pending the real full BTC/lifecycle owner. COV-RTL-010/015/017 remain
+IN_PROGRESS. See [native MP implementation](BTC_MP_NATIVE_NETBSD_20261006.md)
+and [exact evidence](evidence/HP_NATIVE_BTC_MP_20261006.json).
+
 2026-10-06 firmware-load checkpoint: HP and Arch-Linux firmware bytes match.
 The actual native loader now ports fallback, bounded header/raw extent,
 per-device version identity, NetBSD firmload resource order, loading-context
@@ -55,7 +70,7 @@ remain IN_PROGRESS pending lifecycle/kernel/hardware acceptance.
 
 2026-10-06 HP-only checkpoint: 46/53 lifecycle callbacks are bound; seven remain
 missing and rf_calibration/hw_disable remain guarded by unassigned real owners.
-The native manifest now includes 36 C units. The BT_MP wire module ports the
+The earlier wire-only checkpoint included 36 C units. The BT_MP wire module ports the
 actual H2C0x67 byte encoding and C2H scalar decoding with precise per-sequence
 bounds, unsigned32 wire shifts and copied values. It does not bind a native
 BTC context or complete firmware transactions. The frozen unreachable opcode49
@@ -69,7 +84,8 @@ runtime ownership, physical MMIO, association/traffic or recovery acceptance.
 
 ## NEXT_UNRESOLVED
 Implement register_ieee80211/init_rfkill; a real per-device BTC context, antenna
-algorithms, H2C transaction and C2H/native completion lifetime plus bt_prepare/
+algorithms, activation/C2H binding of the tested native MP provider, full
+H2C/C2H cache and consumer lifetime plus bt_prepare/
 bt_hw_init/dm_init; and bt_halt_deinit/wait_rf_change_idle. Bind the two guarded
 owners only with actual RF/DM/BTC/IRQ serialization and shutdown/drain evidence.
 Complete net80211 channel/key/PM/datapath lifetimes, integrated kernel link and

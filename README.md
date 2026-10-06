@@ -15,16 +15,21 @@ Experimental native NetBSD driver development for the Realtek RTL8723BE PCIe WLA
 Version **0.1.0** remains experimental. The running HP recovery kernel is
 **F77**; WLAN is still down and reports `no network`.
 
-The separate native driver source now includes 36 C units. On 2026-10-06,
-all 36 native objects and all 42 regression scripts passed on HP. The
-firmware loader ports Linux fallback/version/polling behavior through the
-NetBSD firmload API and passes 113 actual-C normal/UBSan scenarios.
+The separate native driver source now includes 37 C units. On 2026-10-06,
+all 37 native objects and all 43 regression scripts passed on HP. The
+per-device Bluetooth MP request/reply, timeout quarantine and cancel/drain
+provider passes 42 actual-C modeled scenarios/537 checks normal and UBSan;
+its activation and RX consumer binding still require the full BTC owner.
+The firmware loader retains the verified Linux fallback/version/polling
+behavior and NetBSD firmload resource order (113 actual-C scenarios).
 The installed firmware images match the decompressed Arch Linux files.
 
 Complete native BTC/lifecycle ownership, seven callback bindings, kernel
 link/install and physical WLAN acceptance remain open. An object build is
 not a functional release. See [the full-scope contract](docs/FULL_SCOPE_CONTRACT.md)
 and [the firmware loading checkpoint](docs/FIRMWARE_LINUX_NETBSD_DIFFERENCES_20261006.md).
+See [the native Bluetooth MP checkpoint](docs/BTC_MP_NATIVE_NETBSD_20261006.md)
+for synchronization rules, verified limits and the remaining bindings.
 
 Earlier F8.x dry-run kernels and F6/F7 bring-up observations in
 [STATUS.md](STATUS.md) are historical checkpoints.

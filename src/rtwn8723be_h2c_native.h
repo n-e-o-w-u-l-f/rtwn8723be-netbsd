@@ -11,6 +11,7 @@ struct rtwn8723be_h2c_native {
     struct rtwn8723be_softc *sc;
     struct rtwn8723be_h2c_state state;
     kmutex_t lock;
+    uint64_t firmware_generation; /* increments on a fresh MCU ready handshake */
     bool initialized;
 };
 

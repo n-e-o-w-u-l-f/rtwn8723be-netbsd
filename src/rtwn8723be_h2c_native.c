@@ -101,6 +101,7 @@ rtwn8723be_h2c_native_init(struct rtwn8723be_softc *sc)
         return EALREADY;
     mutex_init(&sc->sc_h2c.lock, MUTEX_DEFAULT, IPL_NONE);
     sc->sc_h2c.sc = sc;
+    sc->sc_h2c.firmware_generation = 0;
     rtwn8723be_h2c_reset(&sc->sc_h2c.state);
     sc->sc_h2c.initialized = true;
     return 0;
@@ -137,9 +138,18 @@ rtwn8723be_h2c_native_fw_ready(struct rtwn8723be_softc *sc)
         sc->sc_linux.stage != R23BE_STAGE_FIRMWARE_DOWNLOAD)
         return EAGAIN;
     mutex_enter(&sc->sc_h2c.lock);
+    if (sc->sc_h2c.state.firmware_ready) {
+        mutex_exit(&sc->sc_h2c.lock);
+        return EALREADY;
+    }
+    if (sc->sc_h2c.firmware_generation == UINT64_MAX) {
+        mutex_exit(&sc->sc_h2c.lock);
+        return EOVERFLOW;
+    }
     /* Firmware upload just completed its real checksum/ready handshake. */
     rtwn8723be_h2c_reset(&sc->sc_h2c.state);
     sc->sc_h2c.state.firmware_ready = true;
+    sc->sc_h2c.firmware_generation++;
     mutex_exit(&sc->sc_h2c.lock);
     return 0;
 }
