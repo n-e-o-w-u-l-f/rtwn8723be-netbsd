@@ -19,6 +19,7 @@ disable_native_phase(const struct rtwn8723be_softc *sc)
     return sc != NULL && sc->sc_mapped && sc->sc_core_initialized &&
         sc->sc_linux.stage == R23BE_STAGE_STOPPING && sc->sc_linux.started &&
         !sc->sc_hal_started && !sc->sc_irq_enabled &&
+        rtwn8723be_netbsd_rf_change_owned((struct rtwn8723be_softc *)sc) &&
         sc->sc_mapsize >= 0x1000U;
 }
 static bool
@@ -84,13 +85,17 @@ rtwn8723be_netbsd_hw_disable(void *arg)
         return EAGAIN;
     owner = sc->sc_hw_disable_owner;
     if (owner == NULL || owner->acquire == NULL || owner->ready == NULL ||
-        owner->release == NULL)
+        owner->release == NULL) {
+        rtwn8723be_netbsd_rf_change_end(sc);
         return ENXIO;
+    }
     memset(&input, 0, sizeof(input));
     state = sc->sc_hw_disable;
     error = owner->acquire(sc->sc_hw_disable_owner_arg, sc, &input, &state);
-    if (error != 0)
+    if (error != 0) {
+        rtwn8723be_netbsd_rf_change_end(sc);
         return error;
+    }
     s.sc = sc;
     s.owner = owner;
     s.arg = sc->sc_hw_disable_owner_arg;
@@ -102,5 +107,6 @@ rtwn8723be_netbsd_hw_disable(void *arg)
     sc->sc_bcn_ctrl_val = state.bcn_ctrl;
     sc->sc_hw_disable = state;
     owner->release(s.arg, sc, &state, error);
+    rtwn8723be_netbsd_rf_change_end(sc);
     return error;
 }
