@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <sys/device.h>
 #include <sys/bus.h>
+#include <sys/mutex.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -166,11 +167,17 @@ struct rtwn8723be_softc {
     uint8_t sc_sw_led1;
     bool sc_core_initialized;
     bool sc_hal_started; /* pinned Linux rtl_hal.state START/STOP */
+
+    /* Linux rtl_ps_ctl.rfchange_inprogress under locks.rf_ps_lock. */
+    kmutex_t sc_rf_ps_lock;
+    bool sc_rf_ps_lock_initialized;
+    bool sc_rfchange_inprogress;
     uint32_t sc_rfoff_reason;
 };
 
 void rtwn8723be_netbsd_context_init(struct rtwn8723be_softc *,
     device_t, const struct pci_attach_args *);
+void rtwn8723be_netbsd_context_fini(struct rtwn8723be_softc *);
 
 uint8_t rtwn8723be_read_1(struct rtwn8723be_softc *, bus_size_t);
 uint16_t rtwn8723be_read_2(struct rtwn8723be_softc *, bus_size_t);
@@ -227,6 +234,9 @@ int rtwn8723be_netbsd_init_rx_config(void *);
 int rtwn8723be_netbsd_hw_configure(void *);
 int rtwn8723be_netbsd_mark_hal_start(void *);
 int rtwn8723be_netbsd_mark_hal_stop(void *);
+int rtwn8723be_netbsd_wait_rf_change_idle(void *);
+bool rtwn8723be_netbsd_rf_change_owned(struct rtwn8723be_softc *);
+void rtwn8723be_netbsd_rf_change_end(struct rtwn8723be_softc *);
 
 void rtwn8723be_netbsd_irq_set_dispatch(struct rtwn8723be_softc *,
     const struct rtwn8723be_irq_dispatch *, void *);
