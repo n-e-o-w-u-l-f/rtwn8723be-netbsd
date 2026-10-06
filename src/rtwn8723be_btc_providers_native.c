@@ -341,6 +341,262 @@ btc_fill_h2c(void *context, uint8_t id, uint32_t length, uint8_t *command)
     btc_provider_fail(sc, error);
 }
 
+static int
+btc_mp_request(struct btc_coexist *btc, uint8_t opcode, size_t length,
+    enum rtwn8723be_btc_mp_field field, uint32_t *value, uint8_t *subversion)
+{
+    struct rtwn8723be_softc *sc = btc_sc(btc);
+    struct rtwn8723be_btc_mp_reply reply;
+    uint8_t command[4] = {0};
+    int error;
+
+    if (!btc_provider_ready(sc))
+        return EAGAIN;
+    if (length != 2U && length != 4U)
+        return EINVAL;
+    error = rtwn8723be_btc_mp_native_request(sc, opcode,
+        command, length, true, &reply);
+    if (error != 0)
+        return error;
+    if (reply.field != field)
+        return EPROTO;
+    if (value != NULL)
+        *value = reply.value;
+    if (subversion != NULL)
+        *subversion = reply.firmware_subversion;
+    return 0;
+}
+
+static void
+btc_set_bt_reg(void *context, uint8_t reg_type, uint32_t offset,
+    uint32_t value)
+{
+    struct btc_coexist *btc = context;
+    struct rtwn8723be_softc *sc = btc_sc(context);
+    struct rtwn8723be_btc_mp_reply reply;
+    uint8_t command[4] = {0};
+    int error;
+
+    if (!btc_provider_ready(sc))
+        return;
+
+    /* Frozen halbtc_set_bt_reg(): value transaction first, then address. */
+    command[2] = (uint8_t)(value & 0xffU);
+    command[3] = (uint8_t)((value >> 8) & 0xffU);
+    error = rtwn8723be_btc_mp_native_request(sc,
+        R23BE_BT_OP_WRITE_REG_VALUE, command, sizeof(command), true, &reply);
+    if (error != 0) {
+        btc_provider_fail(sc, error);
+        return;
+    }
+
+    memset(command, 0, sizeof(command));
+    command[2] = reg_type;
+    command[3] = (uint8_t)offset;
+    error = rtwn8723be_btc_mp_native_request(sc,
+        R23BE_BT_OP_WRITE_REG_ADDR, command, sizeof(command), true, &reply);
+    btc_provider_fail(sc, error);
+    (void)btc;
+}
+
+static uint32_t
+btc_get_bt_reg(void *context, uint8_t reg_type, uint32_t offset)
+{
+    /*
+     * Frozen halbtcoutsrc.c returns zero unconditionally for this provider.
+     * Preserve that exact behavior; do not invent an unsupported MP read.
+     */
+    (void)context;
+    (void)reg_type;
+    (void)offset;
+    return 0;
+}
+
+static uint32_t
+btc_get_feature(void *context)
+{
+    struct btc_coexist *btc = context;
+    struct rtwn8723be_softc *sc = btc_sc(context);
+    uint32_t value = 0;
+    int error;
+
+    if (btc == NULL || !btc_provider_ready(sc))
+        return 0;
+    if (btc->bt_info.bt_supported_feature != 0)
+        return btc->bt_info.bt_supported_feature;
+    error = btc_mp_request(btc, R23BE_BT_OP_FEATURE, 4,
+        R23BE_BT_MP_FEATURE, &value, NULL);
+    if (error != 0) {
+        btc_provider_fail(sc, error);
+        return 0;
+    }
+    btc->bt_info.bt_supported_feature = value;
+    return value;
+}
+
+static uint32_t
+btc_get_supported_version(void *context)
+{
+    struct btc_coexist *btc = context;
+    struct rtwn8723be_softc *sc = btc_sc(context);
+    uint32_t value = 0;
+    int error;
+
+    if (btc == NULL || !btc_provider_ready(sc))
+        return 0;
+    if (btc->bt_info.bt_supported_version != 0)
+        return btc->bt_info.bt_supported_version;
+    error = btc_mp_request(btc, R23BE_BT_OP_SUPPORTED_VERSION, 4,
+        R23BE_BT_MP_SUPPORTED_VERSION, &value, NULL);
+    if (error != 0) {
+        btc_provider_fail(sc, error);
+        return 0;
+    }
+    btc->bt_info.bt_supported_version = value;
+    return value;
+}
+
+static uint32_t
+btc_get_phydm_version(void *context)
+{
+    /* Frozen Linux provider is an intentional zero stub. */
+    (void)context;
+    return 0;
+}
+
+static void
+btc_modify_ra_threshold(void *context, uint8_t direction, uint8_t offset)
+{
+    /* Frozen Linux provider is intentionally empty. */
+    (void)context;
+    (void)direction;
+    (void)offset;
+}
+
+static uint32_t
+btc_query_phy_counter(void *context, enum dm_info_query id)
+{
+    /* Frozen Linux provider returns zero for all three IQK counters. */
+    (void)context;
+    (void)id;
+    return 0;
+}
+
+static uint8_t
+btc_get_ant_det(void *context)
+{
+    struct btc_coexist *btc = context;
+    struct rtwn8723be_softc *sc = btc_sc(context);
+    uint32_t value = 0;
+    int error;
+
+    if (btc == NULL || !btc_provider_ready(sc))
+        return 0;
+    error = btc_mp_request(btc, R23BE_BT_OP_ANT_DETECTION, 4,
+        R23BE_BT_MP_ANT_DETECTION, &value, NULL);
+    if (error != 0) {
+        btc_provider_fail(sc, error);
+        return 0;
+    }
+    btc->bt_info.bt_ant_det_val = (uint8_t)value;
+    return btc->bt_info.bt_ant_det_val;
+}
+
+static uint8_t
+btc_get_ble_scan_type(void *context)
+{
+    struct btc_coexist *btc = context;
+    struct rtwn8723be_softc *sc = btc_sc(context);
+    uint32_t value = 0;
+    int error;
+
+    if (btc == NULL || !btc_provider_ready(sc))
+        return 0;
+    error = btc_mp_request(btc, R23BE_BT_OP_BLE_SCAN_TYPE, 4,
+        R23BE_BT_MP_BLE_SCAN_TYPE, &value, NULL);
+    if (error != 0) {
+        btc_provider_fail(sc, error);
+        return 0;
+    }
+    btc->bt_info.bt_ble_scan_type = (uint8_t)value;
+    return btc->bt_info.bt_ble_scan_type;
+}
+
+static uint32_t
+btc_get_ble_scan_para(void *context, uint8_t scan_type)
+{
+    struct btc_coexist *btc = context;
+    struct rtwn8723be_softc *sc = btc_sc(context);
+    uint32_t value = 0;
+    int error;
+
+    (void)scan_type; /* Frozen Linux ignores this argument. */
+    if (btc == NULL || !btc_provider_ready(sc))
+        return 0;
+    error = btc_mp_request(btc, R23BE_BT_OP_BLE_SCAN_PARAMETERS, 4,
+        R23BE_BT_MP_BLE_SCAN_PARAMETERS, &value, NULL);
+    if (error != 0) {
+        btc_provider_fail(sc, error);
+        return 0;
+    }
+    btc->bt_info.bt_ble_scan_para = value;
+    return value;
+}
+
+static bool
+btc_get_afh_map(void *context, uint8_t map_type, uint8_t *map)
+{
+    struct btc_coexist *btc = context;
+    struct rtwn8723be_softc *sc = btc_sc(context);
+    uint32_t low = 0, middle = 0, high = 0;
+    int error;
+
+    (void)map_type; /* Frozen Linux ignores this selector. */
+    if (btc == NULL || map == NULL || !btc_provider_ready(sc))
+        return false;
+
+    error = btc_mp_request(btc, R23BE_BT_OP_AFH_L, 2,
+        R23BE_BT_MP_AFH_L, &low, NULL);
+    if (error == 0)
+        error = btc_mp_request(btc, R23BE_BT_OP_AFH_M, 2,
+            R23BE_BT_MP_AFH_M, &middle, NULL);
+    if (error == 0)
+        error = btc_mp_request(btc, R23BE_BT_OP_AFH_H, 2,
+            R23BE_BT_MP_AFH_H, &high, NULL);
+    if (error != 0) {
+        btc_provider_fail(sc, error);
+        return false;
+    }
+
+    btc->bt_info.afh_map_l = low;
+    btc->bt_info.afh_map_m = middle;
+    btc->bt_info.afh_map_h = (uint16_t)high;
+    map[0] = (uint8_t)low;
+    map[1] = (uint8_t)(low >> 8);
+    map[2] = (uint8_t)(low >> 16);
+    map[3] = (uint8_t)(low >> 24);
+    map[4] = (uint8_t)middle;
+    map[5] = (uint8_t)(middle >> 8);
+    map[6] = (uint8_t)(middle >> 16);
+    map[7] = (uint8_t)(middle >> 24);
+    map[8] = (uint8_t)high;
+    map[9] = (uint8_t)(high >> 8);
+    return true;
+}
+
+static void
+btc_display_debug(void *context, uint8_t type, struct seq_file *m)
+{
+    /*
+     * The frozen statistics/link displays are empty; Wi-Fi display is purely
+     * diagnostic. NetBSD has no seq_file ABI, so retain a side-effect-free
+     * diagnostic provider rather than fabricating state or touching hardware.
+     */
+    (void)context;
+    (void)type;
+    (void)m;
+}
+
 static void
 btc_delay_ms(void *context, unsigned int ms)
 {
@@ -376,6 +632,18 @@ rtwn8723be_btc_native_seed_lowlevel(struct btc_coexist *btc,
     btc->btc_set_rf_reg = btc_set_rf;
     btc->btc_get_rf_reg = btc_get_rf;
     btc->btc_fill_h2c = btc_fill_h2c;
+    btc->btc_disp_dbg_msg = btc_display_debug;
+    btc->btc_set_bt_reg = btc_set_bt_reg;
+    btc->btc_get_bt_reg = btc_get_bt_reg;
+    btc->btc_get_bt_coex_supported_feature = btc_get_feature;
+    btc->btc_get_bt_coex_supported_version = btc_get_supported_version;
+    btc->btc_get_bt_phydm_version = btc_get_phydm_version;
+    btc->btc_phydm_modify_ra_pcr_threshold = btc_modify_ra_threshold;
+    btc->btc_phydm_query_phy_counter = btc_query_phy_counter;
+    btc->btc_get_ant_det_val_from_bt = btc_get_ant_det;
+    btc->btc_get_ble_scan_type_from_bt = btc_get_ble_scan_type;
+    btc->btc_get_ble_scan_para_from_bt = btc_get_ble_scan_para;
+    btc->btc_get_bt_afh_map_from_bt = btc_get_afh_map;
     btc->r23be_delay_ms = btc_delay_ms;
     return 0;
 }
