@@ -15,8 +15,15 @@ Experimental native NetBSD driver development for the Realtek RTL8723BE PCIe WLA
 Version **0.1.0** remains experimental. The running HP recovery kernel is
 **F77**; WLAN is still down and reports `no network`.
 
-The separate native driver source now includes 37 C units. On 2026-10-06,
-all 37 native objects and all 43 regression scripts passed on HP. The
+The separate native driver source now includes 41 C units. On 2026-10-06,
+all 41 native objects and all 45 regression scripts passed on HP. The full
+frozen one- and two-antenna Bluetooth algorithms now use per-device DM/STA
+and all 20 formerly shared histories. Actual Linux/port C traces pass
+33 scenarios/41,280 events and 128,640 compared operations in each normal
+and UBSan run. The native copied-event workqueue and stop/error broker pass
+10 scenarios/208 checks in each run. Real OS providers and full owner
+binding remain open; see [the algorithm checkpoint](docs/BTC_ALGORITHMS_NATIVE_NETBSD_20261006.md).
+The
 per-device Bluetooth MP request/reply, timeout quarantine and cancel/drain
 provider passes 42 actual-C modeled scenarios/537 checks normal and UBSan;
 its activation and RX consumer binding still require the full BTC owner.

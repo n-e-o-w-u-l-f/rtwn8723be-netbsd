@@ -1,0 +1,172 @@
+{
+  "linux_pin": "fd179f8a05be3ccae366b9b96e176b51fbe54aab",
+  "sources": {
+    "drivers/net/wireless/realtek/rtlwifi/btcoexist/halbtcoutsrc.h": {
+      "git_blob": "d8d88a98980601d4dc10c512761a58d029858444",
+      "sha256": "4fdb3a6af02cff337bd3e6af204c8da5b8b495cef2af072edd95a6744a77e659",
+      "bytes": 20310
+    },
+    "drivers/net/wireless/realtek/rtlwifi/btcoexist/halbtc8723b1ant.h": {
+      "git_blob": "a4506d838dc74e74986a7c7daa28fc6348f0dd79",
+      "sha256": "c4af1f5658959ece64d0298ab1ff2752789057400d99d6f938d391c6361de8a7",
+      "bytes": 6009
+    },
+    "drivers/net/wireless/realtek/rtlwifi/btcoexist/halbtc8723b2ant.h": {
+      "git_blob": "08aad6ef4046c2f6f9dd45067f1d6507050c555c",
+      "sha256": "1223d00de6d6b321e5ce0095b0ad8493d103bb1d2debf301745cc988f62aea0a",
+      "bytes": 5393
+    },
+    "drivers/net/wireless/realtek/rtlwifi/btcoexist/halbtc8723b1ant.c": {
+      "git_blob": "379193b2442879a0b95d3f62e4d8fad1a2b5c22e",
+      "sha256": "6e5911d4e1a291cbf0efb2eba0dace1952e977c72fb3ef96ce93803289de4e77",
+      "bytes": 106408
+    },
+    "drivers/net/wireless/realtek/rtlwifi/btcoexist/halbtc8723b2ant.c": {
+      "git_blob": "7a71f063015ab771f030ecf7354c0e4aa4fcca60",
+      "sha256": "3536ad85f1150bdbe31aaccb08df52c0f52d115c5152a1712cdb76343d0caeab",
+      "bytes": 131148
+    },
+    "drivers/net/wireless/realtek/rtlwifi/wifi.h": {
+      "git_blob": "f1830ddcdd8c19fb742c1b3409b162e8a2d5d3a8",
+      "sha256": "e7aa5187eee1b1e6329e507014e5e4a730870d48218dac8f0b4b5ba031438513",
+      "bytes": 72368
+    }
+  },
+  "history_transforms": {
+    "1": [
+      {
+        "function": "halbtc8723b1ant_monitor_bt_ctr",
+        "local": "num_of_bt_counter_chk",
+        "field": "halbtc8723b1ant_monitor_bt_ctr__num_of_bt_counter_chk",
+        "type": "u32"
+      },
+      {
+        "function": "halbtc8723b1ant_monitor_wifi_ctr",
+        "local": "cck_lock_counter",
+        "field": "halbtc8723b1ant_monitor_wifi_ctr__cck_lock_counter",
+        "type": "u8"
+      },
+      {
+        "function": "btc8723b1ant_is_wifi_status_changed",
+        "local": "pre_wifi_busy",
+        "field": "btc8723b1ant_is_wifi_status_changed__pre_wifi_busy",
+        "type": "bool"
+      },
+      {
+        "function": "btc8723b1ant_is_wifi_status_changed",
+        "local": "pre_under_4way",
+        "field": "btc8723b1ant_is_wifi_status_changed__pre_under_4way",
+        "type": "bool"
+      },
+      {
+        "function": "btc8723b1ant_is_wifi_status_changed",
+        "local": "pre_bt_hs_on",
+        "field": "btc8723b1ant_is_wifi_status_changed__pre_bt_hs_on",
+        "type": "bool"
+      },
+      {
+        "function": "halbtc8723b1ant_ps_tdma",
+        "local": "pre_wifi_busy",
+        "field": "halbtc8723b1ant_ps_tdma__pre_wifi_busy",
+        "type": "bool"
+      },
+      {
+        "function": "btc8723b1ant_tdma_dur_adj_for_acl",
+        "local": "up",
+        "field": "btc8723b1ant_tdma_dur_adj_for_acl__up",
+        "type": "s32"
+      },
+      {
+        "function": "btc8723b1ant_tdma_dur_adj_for_acl",
+        "local": "dn",
+        "field": "btc8723b1ant_tdma_dur_adj_for_acl__dn",
+        "type": "s32"
+      },
+      {
+        "function": "btc8723b1ant_tdma_dur_adj_for_acl",
+        "local": "m",
+        "field": "btc8723b1ant_tdma_dur_adj_for_acl__m",
+        "type": "s32"
+      },
+      {
+        "function": "btc8723b1ant_tdma_dur_adj_for_acl",
+        "local": "n",
+        "field": "btc8723b1ant_tdma_dur_adj_for_acl__n",
+        "type": "s32"
+      },
+      {
+        "function": "btc8723b1ant_tdma_dur_adj_for_acl",
+        "local": "wait_count",
+        "field": "btc8723b1ant_tdma_dur_adj_for_acl__wait_count",
+        "type": "s32"
+      },
+      {
+        "function": "halbtc8723b1ant_monitor_bt_enable_disable",
+        "local": "bt_disable_cnt",
+        "field": "halbtc8723b1ant_monitor_bt_enable_disable__bt_disable_cnt",
+        "type": "u32"
+      }
+    ],
+    "2": [
+      {
+        "function": "btc8723b2ant_is_wifi_status_changed",
+        "local": "pre_wifi_busy",
+        "field": "btc8723b2ant_is_wifi_status_changed__pre_wifi_busy",
+        "type": "bool"
+      },
+      {
+        "function": "btc8723b2ant_is_wifi_status_changed",
+        "local": "pre_under_4way",
+        "field": "btc8723b2ant_is_wifi_status_changed__pre_under_4way",
+        "type": "bool"
+      },
+      {
+        "function": "btc8723b2ant_is_wifi_status_changed",
+        "local": "pre_bt_hs_on",
+        "field": "btc8723b2ant_is_wifi_status_changed__pre_bt_hs_on",
+        "type": "bool"
+      },
+      {
+        "function": "btc8723b2ant_tdma_duration_adjust",
+        "local": "up",
+        "field": "btc8723b2ant_tdma_duration_adjust__up",
+        "type": "s32"
+      },
+      {
+        "function": "btc8723b2ant_tdma_duration_adjust",
+        "local": "dn",
+        "field": "btc8723b2ant_tdma_duration_adjust__dn",
+        "type": "s32"
+      },
+      {
+        "function": "btc8723b2ant_tdma_duration_adjust",
+        "local": "m",
+        "field": "btc8723b2ant_tdma_duration_adjust__m",
+        "type": "s32"
+      },
+      {
+        "function": "btc8723b2ant_tdma_duration_adjust",
+        "local": "n",
+        "field": "btc8723b2ant_tdma_duration_adjust__n",
+        "type": "s32"
+      },
+      {
+        "function": "btc8723b2ant_tdma_duration_adjust",
+        "local": "wait_count",
+        "field": "btc8723b2ant_tdma_duration_adjust__wait_count",
+        "type": "s32"
+      }
+    ]
+  },
+  "generated_sha256": {
+    "src/rtwn8723be_btc1_linux.inc": "0182cfc4b70010161eb8a7aa2a7fd211ef5d036c873ab463f3e329bb6f1521e3",
+    "src/rtwn8723be_btc1_types.h": "892477676ad1ffb84d7d1d1a0f96b3bce3f63891978dd19db0b4209f0e654ee1",
+    "src/rtwn8723be_btc2_linux.inc": "25ececb952efb8c77dfb781748d8a0167c710e4cc9a90e037c20492f35b22630",
+    "src/rtwn8723be_btc2_types.h": "1223d00de6d6b321e5ce0095b0ad8493d103bb1d2debf301745cc988f62aea0a",
+    "src/rtwn8723be_btc_linux_types.h": "aa44b6e76437ce377d13226135f9223a1e3161688956c4ea6ea06e541b5d9f0a",
+    "src/rtwn8723be_btc_dm_types.h": "3ef88c4fb69e31a1511579bdc7fa478187f5d0d117aa8045838cce1dd8676aa7",
+    "src/rtwn8723be_btc_history.h": "7f3ca5bb7040dc6038e0584273f2f1fe594bc3edf2fa8ccd37004b83cdfc146f"
+  },
+  "layer": "algorithm/state layer; OS providers and full lifecycle remain required",
+  "unchanged": "hardware register/firmware command order, conditions, values and algorithm calculations"
+}

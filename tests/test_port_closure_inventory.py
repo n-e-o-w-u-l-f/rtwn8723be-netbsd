@@ -38,7 +38,10 @@ def check(root, require_closure=False):
     pg_in_build = "rtwn8723be_txpwr_pg.c" in native_units
     if not {"rtwn8723be_btc_mp.c", "rtwn8723be_btc_mp_native.c"} <= set(native_units):
         raise ValueError("actual BTC MP wire unit missing from native manifest")
-    if len(names) != 53 or len(native_units) != 37:
+    if not {"rtwn8723be_btc1.c", "rtwn8723be_btc2.c",
+            "rtwn8723be_btc_engine.c", "rtwn8723be_btc_native.c"} <= set(native_units):
+        raise ValueError("actual BTC algorithms/native event owner missing from manifest")
+    if len(names) != 53 or len(native_units) != 41:
         raise ValueError("source or native build manifest changed; re-inventory required")
     if set(missing) != expected:
         raise ValueError("callback inventory changed: now missing " + repr(missing))
@@ -60,12 +63,17 @@ def check(root, require_closure=False):
                  "\n".join(p.read_text() for p in src.glob("*.c"))):
         raise ValueError("card-disable owner assignment added; audit real STOPPING/BTC/RF/IRQ lifetime first")
     guarded = ("rf_calibration", "hw_disable")
+    if re.search(r"\brtwn8723be_btc_native_init\s*\(",
+        "\n".join(p.read_text() for p in src.glob("*.c")
+                    if p.name != "rtwn8723be_btc_native.c")):
+        raise ValueError("BTC owner bound; audit all 27 providers and real state/MCU/RX lifetime first")
     print(f"DECLARED={len(names)} BOUND={len(bound)} MISSING={len(missing)}")
     for phase, items in EXPECTED_MISSING.items():
         print(phase.upper() + "=" + ",".join(items))
     print("NATIVE_C_OBJECTS=" + str(len(native_units)))
     print("TX_POWER_PG_IN_NATIVE_BUILD=" + str(pg_in_build).lower())
     print("GUARDED_CALLBACKS_WITH_OPEN_OWNER=" + ",".join(guarded))
+    print("BTC_ALGORITHMS_BUILT=1ant,2ant; BTC_FULL_PROVIDER_LIFETIME=OPEN")
     # This gate is deliberately stricter than a successful kernel link.
     complete = not missing and pg_in_build and not guarded
     print("CALLBACK_AND_PG_CLOSURE=" + ("CLOSED" if complete else "OPEN"))

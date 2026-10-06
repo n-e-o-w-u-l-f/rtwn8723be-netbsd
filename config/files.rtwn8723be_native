@@ -35,6 +35,10 @@ file    dev/pci/rtwn8723be_rx_decode.c     rtwn8723be_native
 file    dev/pci/rtwn8723be_c2h.c           rtwn8723be_native
 file dev/pci/rtwn8723be_btc_mp.c rtwn8723be_native
 file dev/pci/rtwn8723be_btc_mp_native.c rtwn8723be_native
+file dev/pci/rtwn8723be_btc1.c rtwn8723be_native
+file dev/pci/rtwn8723be_btc2.c rtwn8723be_native
+file dev/pci/rtwn8723be_btc_engine.c rtwn8723be_native
+file dev/pci/rtwn8723be_btc_native.c rtwn8723be_native
 file    dev/pci/rtwn8723be_c2h_native.c    rtwn8723be_native
 file    dev/pci/rtwn8723be_rx_binding.c    rtwn8723be_native
 file    dev/pci/rtwn8723be_rx_phy.c        rtwn8723be_native
