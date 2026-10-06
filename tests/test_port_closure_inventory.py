@@ -10,7 +10,7 @@ EXPECTED_MISSING = {
     "start": ("bt_prepare",
               "bt_hw_init",
               "dm_init"),
-    "stop": ("bt_halt_deinit", "wait_rf_change_idle"),
+    "stop": ("bt_halt_deinit",),
 }
 
 def check(root, require_closure=False):
@@ -45,8 +45,17 @@ def check(root, require_closure=False):
         raise ValueError("source or native build manifest changed; re-inventory required")
     if set(missing) != expected:
         raise ValueError("callback inventory changed: now missing " + repr(missing))
-    if len(bound) != 46:
+    if len(bound) != 47:
         raise ValueError("bound callback count changed; re-inventory required")
+    if dict(bound).get("wait_rf_change_idle") != \
+            "rtwn8723be_netbsd_wait_rf_change_idle":
+        raise ValueError("RF-change wait callback binding changed")
+    netbsd = (src / "rtwn8723be_netbsd.c").read_text()
+    shutdown_native = (src / "rtwn8723be_hw_disable_native.c").read_text()
+    if ("sc_rfchange_inprogress = true" not in netbsd or
+            "ETIMEDOUT" not in netbsd or
+            "rtwn8723be_netbsd_rf_change_end(sc)" not in shutdown_native):
+        raise ValueError("RF-change wait/release lifetime incomplete")
     calibration = (src / "rtwn8723be_calibration_native.c").read_text()
     if (dict(bound).get("rf_calibration") != "rtwn8723be_netbsd_rf_calibration" or
             "sc_calibration_owner" not in calibration or
