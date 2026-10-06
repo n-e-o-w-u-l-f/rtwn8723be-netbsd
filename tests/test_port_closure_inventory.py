@@ -39,9 +39,10 @@ def check(root, require_closure=False):
     if not {"rtwn8723be_btc_mp.c", "rtwn8723be_btc_mp_native.c"} <= set(native_units):
         raise ValueError("actual BTC MP wire unit missing from native manifest")
     if not {"rtwn8723be_btc1.c", "rtwn8723be_btc2.c",
-            "rtwn8723be_btc_engine.c", "rtwn8723be_btc_native.c"} <= set(native_units):
+            "rtwn8723be_btc_engine.c", "rtwn8723be_btc_native.c",
+            "rtwn8723be_btc_providers_native.c"} <= set(native_units):
         raise ValueError("actual BTC algorithms/native event owner missing from manifest")
-    if len(names) != 53 or len(native_units) != 41:
+    if len(names) != 53 or len(native_units) != 42:
         raise ValueError("source or native build manifest changed; re-inventory required")
     if set(missing) != expected:
         raise ValueError("callback inventory changed: now missing " + repr(missing))
@@ -78,6 +79,21 @@ def check(root, require_closure=False):
     if re.search(r"\bsc_hw_disable_owner\s*=(?!=)",
                  "\n".join(p.read_text() for p in src.glob("*.c"))):
         raise ValueError("card-disable owner assignment added; audit real STOPPING/BTC/RF/IRQ lifetime first")
+    providers = (src / "rtwn8723be_btc_providers_native.c").read_text()
+    provider_header = (src / "rtwn8723be_btc_providers_native.h").read_text()
+    for token in (
+            "btc_read_1byte = btc_read_1",
+            "btc_write_1byte_bitmask = btc_write_1_mask",
+            "btc_set_bb_reg = btc_set_bb",
+            "btc_get_bb_reg = btc_get_bb",
+            "btc_set_rf_reg = btc_set_rf",
+            "btc_get_rf_reg = btc_get_rf",
+            "btc_fill_h2c = btc_fill_h2c",
+            "r23be_delay_ms = btc_delay_ms"):
+        if token not in providers:
+            raise ValueError("native BTC low-level provider missing: " + token)
+    if "This does NOT make the coexistence" not in provider_header:
+        raise ValueError("BTC provider partial-closure guard missing")
     guarded = ("rf_calibration", "hw_disable")
     if re.search(r"\brtwn8723be_btc_native_init\s*\(",
         "\n".join(p.read_text() for p in src.glob("*.c")
