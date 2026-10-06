@@ -1,5 +1,38 @@
 # HP RTL8723BE checkpoint, 2026-10-06
 
+STATE: IN_PROGRESS. Full COV-RTL-000..017 acceptance remains OPEN. Build/install: HP only.
+
+## Pinned card disable and shutdown sequencing
+
+The native card-disable adapter implements the frozen MAC NOLINK/media/beacon
+sequence, actual LED behavior, conditional LED power-off, RF HALT_NIC state and
+dispatch into the existing poweroff engine. This HAL always reports BTC
+capability, so the source preserves IQK state, including with EFUSE BT absent.
+Fallible writes preserve the first error, report partial poweroff separately,
+release every acquired owner and stop accesses after lifetime revocation.
+
+All 40 scripts and 35 freshly compiled native NetBSD objects pass on HP. Twelve
+unchanged raw source functions, three enums and constants precede 120 healthy
+differential cases, 16 access failures/revocations and native owner fixtures.
+The existing poweroff engine is a dispatch model in these new tests; its
+physical internals are not established by the new fixtures.
+
+The callback inventory is 53 declared, 46 bound and 7 missing. Calibration and
+card disable require real serialized owners; both owners remain unassigned.
+STOPPING flags and IRQ-disabled state do not prove BTC/RF/DM/mailbox drain or
+MMIO lifetime. Native BTC power-on/preload EFUSE gates also require the real
+unconditional HAL context and per-device coexistence integration.
+
+See [integrated HP evidence](evidence/HP_NATIVE_CARD_DISABLE_20261006.json).
+Missing callbacks: register_ieee80211, init_rfkill, bt_prepare, bt_hw_init,
+dm_init, bt_halt_deinit and wait_rf_change_idle. Full native kernel,
+net80211/keys/datapath/PM/recovery and physical WLAN remain OPEN. Boot/running/
+F77 recovery hashes are unchanged. No installation or reboot occurred.
+
+## Earlier checkpoints
+
+### HP RTL8723BE checkpoint, 2026-10-06
+
 STATE: IN_PROGRESS. Full COV-RTL-000..017 acceptance remains OPEN. Builds and installation: HP only.
 
 ## Native IQK/LCK and thermal tracking

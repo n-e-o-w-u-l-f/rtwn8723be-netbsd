@@ -2068,4 +2068,6 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .mark_hal_start = rtwn8723be_netbsd_mark_hal_start,
     .mark_hal_stop = rtwn8723be_netbsd_mark_hal_stop,
     .disable_interrupt = rtwn8723be_netbsd_disable_interrupt,
+    /* Guarded until the real MAC/RF-PS/teardown lifetime owner is bound. */
+    .hw_disable = rtwn8723be_netbsd_hw_disable,
 };

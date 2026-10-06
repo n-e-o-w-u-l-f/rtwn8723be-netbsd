@@ -45,3 +45,5 @@ file    dev/pci/rtwn8723be_oem.c           rtwn8723be_native
 file    dev/pci/rtwn8723be_calibration.c    rtwn8723be_native
 file    dev/pci/rtwn8723be_calibration_native.c rtwn8723be_native
 file    dev/pci/rtwn8723be_thermal.c rtwn8723be_native
+file    dev/pci/rtwn8723be_hw_disable.c rtwn8723be_native
+file    dev/pci/rtwn8723be_hw_disable_native.c rtwn8723be_native
