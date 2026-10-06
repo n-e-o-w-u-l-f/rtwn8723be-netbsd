@@ -322,3 +322,31 @@ rtwn8723be_btc_native_fini(struct rtwn8723be_softc *sc)
     memset(n, 0, sizeof(*n));
     return 0;
 }
+
+/*
+ * Frozen rtlwifi/pci.c:rtl_pci_stop() first sends btc_halt_notify when
+ * coexistence is active, then unconditionally btc_deinit_variables when
+ * btc_ops exists.  The native fini path performs exactly that lifetime:
+ * drain accepted work/callers, run one HALT event, then destroy BTC state.
+ */
+int
+rtwn8723be_netbsd_bt_halt_deinit(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+
+    if (sc == NULL)
+        return EINVAL;
+    if (sc->sc_linux.stage != R23BE_STAGE_STOPPING ||
+        !sc->sc_linux.started)
+        return EAGAIN;
+
+    /*
+     * A coexistence-capable board must have been prepared by bt_prepare.
+     * Returning success here would otherwise hide a missing provider/owner.
+     * Wi-Fi-only operation legitimately has no full coexistence context.
+     */
+    if (sc->sc_btcoexist && !sc->sc_btc.initialized)
+        return ENXIO;
+
+    return rtwn8723be_btc_native_fini(sc);
+}
