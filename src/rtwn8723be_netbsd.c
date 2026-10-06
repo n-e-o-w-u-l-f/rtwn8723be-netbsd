@@ -54,6 +54,8 @@ rtwn8723be_netbsd_context_init(struct rtwn8723be_softc *sc,
     sc->sc_tag = pa->pa_tag;
     sc->sc_dmat_parent = pa->pa_dmat;
     sc->sc_dmat = pa->pa_dmat;
+    mutex_init(&sc->sc_rf_ps_lock, MUTEX_DEFAULT, IPL_NET);
+    sc->sc_rf_ps_lock_initialized = true;
 
     /*
      * Linux rtl8723be_mod_params leaves dma64 false, so rtl_pci_probe()
@@ -68,6 +70,74 @@ rtwn8723be_netbsd_context_init(struct rtwn8723be_softc *sc,
     sc->sc_irq_mask[1] = R23BE_IMR1_DEFAULT;
     sc->sc_sys_irq_mask = R23BE_HSIMR_PDN_INT_EN |
         R23BE_HSIMR_RON_INT_EN;
+}
+
+void
+rtwn8723be_netbsd_context_fini(struct rtwn8723be_softc *sc)
+{
+    if (sc == NULL || !sc->sc_rf_ps_lock_initialized)
+        return;
+    mutex_enter(&sc->sc_rf_ps_lock);
+    KASSERT(!sc->sc_rfchange_inprogress);
+    mutex_exit(&sc->sc_rf_ps_lock);
+    mutex_destroy(&sc->sc_rf_ps_lock);
+    sc->sc_rf_ps_lock_initialized = false;
+}
+
+bool
+rtwn8723be_netbsd_rf_change_owned(struct rtwn8723be_softc *sc)
+{
+    bool owned;
+
+    if (sc == NULL || !sc->sc_rf_ps_lock_initialized)
+        return false;
+    mutex_enter(&sc->sc_rf_ps_lock);
+    owned = sc->sc_rfchange_inprogress;
+    mutex_exit(&sc->sc_rf_ps_lock);
+    return owned;
+}
+
+void
+rtwn8723be_netbsd_rf_change_end(struct rtwn8723be_softc *sc)
+{
+    if (sc == NULL || !sc->sc_rf_ps_lock_initialized)
+        return;
+    mutex_enter(&sc->sc_rf_ps_lock);
+    sc->sc_rfchange_inprogress = false;
+    mutex_exit(&sc->sc_rf_ps_lock);
+}
+
+int
+rtwn8723be_netbsd_wait_rf_change_idle(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+    unsigned int waited_ms = 0;
+
+    if (sc == NULL)
+        return EINVAL;
+    if (!sc->sc_rf_ps_lock_initialized ||
+        sc->sc_linux.stage != R23BE_STAGE_STOPPING ||
+        !sc->sc_linux.started || sc->sc_hal_started ||
+        sc->sc_irq_enabled)
+        return EAGAIN;
+
+    /*
+     * Frozen rtlwifi/pci.c waits in 1 ms steps under rf_ps_lock before
+     * claiming rfchange_inprogress for card disable.  NetBSD can report the
+     * bounded timeout instead of silently stealing ownership from a live
+     * RF transition; STOPPING then remains an explicit recovery state.
+     */
+    mutex_enter(&sc->sc_rf_ps_lock);
+    while (sc->sc_rfchange_inprogress) {
+        mutex_exit(&sc->sc_rf_ps_lock);
+        if (waited_ms++ >= 100U)
+            return ETIMEDOUT;
+        DELAY(1000);
+        mutex_enter(&sc->sc_rf_ps_lock);
+    }
+    sc->sc_rfchange_inprogress = true;
+    mutex_exit(&sc->sc_rf_ps_lock);
+    return 0;
 }
 
 uint8_t
@@ -2089,6 +2159,7 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .mark_hal_start = rtwn8723be_netbsd_mark_hal_start,
     .mark_hal_stop = rtwn8723be_netbsd_mark_hal_stop,
     .disable_interrupt = rtwn8723be_netbsd_disable_interrupt,
+    .wait_rf_change_idle = rtwn8723be_netbsd_wait_rf_change_idle,
     /* Guarded until the real MAC/RF-PS/teardown lifetime owner is bound. */
     .hw_disable = rtwn8723be_netbsd_hw_disable,
 };
