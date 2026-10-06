@@ -139,6 +139,10 @@ rtwn8723be_native_detach(device_t self, int flags)
     if (sc->sc_linux.stage >= R23BE_STAGE_IEEE80211_REGISTER)
         return EBUSY;
     rtwn8723be_native_probe_cleanup(sc);
+    if (sc->sc_linux.stage != R23BE_STAGE_IDLE ||
+        sc->sc_initial_pci_saved)
+        return EBUSY;
+    rtwn8723be_netbsd_context_fini(sc);
     return 0;
 }
 
