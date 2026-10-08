@@ -94,6 +94,33 @@ def check(root, require_closure=False):
             raise ValueError("native BTC low-level provider missing: " + token)
     if "This does NOT make the coexistence" not in provider_header:
         raise ValueError("BTC provider partial-closure guard missing")
+    # Frozen halbtc_get_bt_afh_map_from_bt() publishes L then M then H.
+    # These are source-order guards, not an executable native/firmware test.
+    afh_match = re.search(
+        r"static bool\s+btc_get_afh_map\s*\(.*?\n\}\n",
+        providers, re.S)
+    if afh_match is None:
+        raise ValueError("native AFH provider missing")
+    afh = afh_match.group(0)
+    ordered = (
+        "R23BE_BT_OP_AFH_L",
+        "btc->bt_info.afh_map_l = low;",
+        "map[3] =",
+        "R23BE_BT_OP_AFH_M",
+        "btc->bt_info.afh_map_m = middle;",
+        "map[7] =",
+        "R23BE_BT_OP_AFH_H",
+        "btc->bt_info.afh_map_h = (uint16_t)high;",
+        "map[9] =",
+        "return true;",
+        "fail:",
+        "btc_provider_fail(sc, error);",
+        "return false;",
+    )
+    offsets = [afh.find(token) for token in ordered]
+    if (any(i < 0 for i in offsets) or offsets != sorted(offsets) or
+            afh.count("goto fail;") != 3):
+        raise ValueError("AFH per-segment publication/partial-error parity changed")
     guarded = ("rf_calibration", "hw_disable")
     if re.search(r"\brtwn8723be_btc_native_init\s*\(",
         "\n".join(p.read_text() for p in src.glob("*.c")
