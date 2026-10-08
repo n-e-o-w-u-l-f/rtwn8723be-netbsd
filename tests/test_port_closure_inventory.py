@@ -117,7 +117,10 @@ def check(root, require_closure=False):
         "btc_provider_fail(sc, error);",
         "return false;",
     )
-    offsets = [afh.find(token) for token in ordered]
+    # The input guard also returns false; require the terminal failure
+    # return rather than that earlier, legitimate NULL/not-ready guard.
+    offsets = [afh.rfind(token) if token == "return false;" else afh.find(token)
+               for token in ordered]
     if (any(i < 0 for i in offsets) or offsets != sorted(offsets) or
             afh.count("goto fail;") != 3):
         raise ValueError("AFH per-segment publication/partial-error parity changed")
