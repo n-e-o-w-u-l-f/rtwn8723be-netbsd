@@ -543,6 +543,7 @@ btc_get_ble_scan_para(void *context, uint8_t scan_type)
     return value;
 }
 
+
 static bool
 btc_get_afh_map(void *context, uint8_t map_type, uint8_t *map)
 {
@@ -555,33 +556,44 @@ btc_get_afh_map(void *context, uint8_t map_type, uint8_t *map)
     if (btc == NULL || map == NULL || !btc_provider_ready(sc))
         return false;
 
+    /*
+     * Frozen halbtc_get_bt_afh_map_from_bt() publishes each successful
+     * segment immediately: a later timeout must not erase the earlier
+     * output or the corresponding BT cache state.  Explicit byte stores
+     * avoid Linux's potentially unaligned u32/u16 output casts.
+     */
     error = btc_mp_request(btc, R23BE_BT_OP_AFH_L, 2,
         R23BE_BT_MP_AFH_L, &low, NULL);
-    if (error == 0)
-        error = btc_mp_request(btc, R23BE_BT_OP_AFH_M, 2,
-            R23BE_BT_MP_AFH_M, &middle, NULL);
-    if (error == 0)
-        error = btc_mp_request(btc, R23BE_BT_OP_AFH_H, 2,
-            R23BE_BT_MP_AFH_H, &high, NULL);
-    if (error != 0) {
-        btc_provider_fail(sc, error);
-        return false;
-    }
-
+    if (error != 0)
+        goto fail;
     btc->bt_info.afh_map_l = low;
-    btc->bt_info.afh_map_m = middle;
-    btc->bt_info.afh_map_h = (uint16_t)high;
     map[0] = (uint8_t)low;
     map[1] = (uint8_t)(low >> 8);
     map[2] = (uint8_t)(low >> 16);
     map[3] = (uint8_t)(low >> 24);
+
+    error = btc_mp_request(btc, R23BE_BT_OP_AFH_M, 2,
+        R23BE_BT_MP_AFH_M, &middle, NULL);
+    if (error != 0)
+        goto fail;
+    btc->bt_info.afh_map_m = middle;
     map[4] = (uint8_t)middle;
     map[5] = (uint8_t)(middle >> 8);
     map[6] = (uint8_t)(middle >> 16);
     map[7] = (uint8_t)(middle >> 24);
+
+    error = btc_mp_request(btc, R23BE_BT_OP_AFH_H, 2,
+        R23BE_BT_MP_AFH_H, &high, NULL);
+    if (error != 0)
+        goto fail;
+    btc->bt_info.afh_map_h = (uint16_t)high;
     map[8] = (uint8_t)high;
     map[9] = (uint8_t)(high >> 8);
     return true;
+
+fail:
+    btc_provider_fail(sc, error);
+    return false;
 }
 
 static void
