@@ -20,6 +20,12 @@ ROOT = Path(__file__).resolve().parents[1]
 # path, unique source excerpt, mutation, expected diagnostic substring
 CONTROLS = (
     (
+        "src/rtwn8723be_btc_providers_native.c",
+        "        sc->sc_rf_path_count == 1;",
+        "        sc->sc_rf_path_count == 2; /* phantom RF_B */",
+        "BTC RF_1T1R readiness accepts phantom path B",
+    ),
+    (
         "src/rtwn8723be_rx_native.c",
         "            *delivered = seen; /* Earlier queue may already have delivered. */",
         "            *delivered = 0; /* regression: loses earlier RX packets */",
