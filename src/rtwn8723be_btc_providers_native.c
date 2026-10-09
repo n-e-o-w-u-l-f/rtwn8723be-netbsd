@@ -288,7 +288,15 @@ btc_set_rf(void *context, uint8_t path, uint32_t reg,
 
     if (!btc_provider_ready(sc))
         return;
-    if (path > RTWN8723BE_RF_PATH_B || mask == 0 ||
+    /*
+     * The frozen rtl8723be/hw.c initializes RF_1T1R: one real RF
+     * serial path (A), irrespective of one/two BT antenna topology.
+     * Do not let a coexistence algorithm access path B when the
+     * physical RF-path inventory reports only path A.
+     */
+    if (!sc->sc_rf_path_count_valid ||
+        path >= sc->sc_rf_path_count ||
+        path > RTWN8723BE_RF_PATH_B || mask == 0 ||
         (mask & ~RTWN8723BE_RF_FULL_MASK) != 0) {
         btc_provider_fail(sc, EINVAL);
         return;
@@ -309,7 +317,15 @@ btc_get_rf(void *context, uint8_t path, uint32_t reg, uint32_t mask)
 
     if (!btc_provider_ready(sc))
         return 0;
-    if (path > RTWN8723BE_RF_PATH_B || mask == 0 ||
+    /*
+     * The frozen rtl8723be/hw.c initializes RF_1T1R: one real RF
+     * serial path (A), irrespective of one/two BT antenna topology.
+     * Do not let a coexistence algorithm access path B when the
+     * physical RF-path inventory reports only path A.
+     */
+    if (!sc->sc_rf_path_count_valid ||
+        path >= sc->sc_rf_path_count ||
+        path > RTWN8723BE_RF_PATH_B || mask == 0 ||
         (mask & ~RTWN8723BE_RF_FULL_MASK) != 0) {
         btc_provider_fail(sc, EINVAL);
         return 0;
