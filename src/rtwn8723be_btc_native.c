@@ -61,7 +61,15 @@ btc_run(struct rtwn8723be_softc *sc, const struct rtwn8723be_btc_event *event)
         error = ENXIO;
     else {
         error = rtwn8723be_btc_engine_execute(&n->engine, event);
-        if (n->first_error != 0) error = n->first_error;
+        if (n->first_error != 0)
+            error = n->first_error;
+        /*
+         * Frozen exhalbtc_init_coex_dm() publishes initialized only after
+         * the antenna-specific initialization.  Native providers can fail,
+         * so do not publish the state of an incomplete hardware setup.
+         */
+        if (error == 0 && event->kind == R23BE_BTC_INIT_DM)
+            n->engine.btc.initialized = true;
     }
     if (error != 0) {
         btc_fault(n, error);
