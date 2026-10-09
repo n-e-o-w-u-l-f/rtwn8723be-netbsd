@@ -20,6 +20,27 @@ ROOT = Path(__file__).resolve().parents[1]
 # path, unique source excerpt, mutation, expected diagnostic substring
 CONTROLS = (
     (
+        "src/rtwn8723be_tx_native.c",
+        "    if (!sc->sc_mapped || !sc->sc_rings_allocated ||\n"
+        "        !sc->sc_dma_32bit || sc->sc_dmat == NULL)\n"
+        "        return ENXIO;\n"
+        "    ring = &sc->sc_tx_ring[qid];",
+        "    if (!sc->sc_rings_allocated || sc->sc_dmat == NULL)\n"
+        "        return ENXIO; /* regression: bypasses DMA32 tag */\n"
+        "    ring = &sc->sc_tx_ring[qid];",
+        "TX completion accepts invalid DMA subregion tag",
+    ),
+    (
+        "src/rtwn8723be_tx_native.c",
+        "            !rtwn8723be_dma32_range_valid(\n"
+        "                slot->map->dm_segs[0].ds_addr,\n"
+        "                slot->map->dm_mapsize))\n"
+        "            return EIO;",
+        "            false) /* regression: invalid TX map accepted */\n"
+        "            return EIO;",
+        "TX completion may free corrupt payload DMA map",
+    ),
+    (
         "src/rtwn8723be_rx_native.c",
         "        !sc->sc_dma_32bit || sc->sc_dmat == NULL)",
         "        sc->sc_dmat == NULL) /* incorrect: DMA tag not verified */",
