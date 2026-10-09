@@ -90,7 +90,11 @@ rtwn8723be_tx_native_enqueue(struct rtwn8723be_softc *sc,
         ring->producer >= ring->count ||
         ring->consumer >= ring->count ||
         ring->slot == NULL || ring->desc_dma.kva == NULL ||
-        ring->desc_dma.map == NULL)
+        ring->desc_dma.map == NULL ||
+        ring->desc_dma.size < (bus_size_t)ring->count *
+            sizeof(struct rtwn8723be_tx_desc) ||
+        !rtwn8723be_dma32_range_valid(
+            ring->desc_dma.paddr, ring->desc_dma.size))
         return EIO;
 
     idx = ring->producer;
@@ -116,9 +120,13 @@ rtwn8723be_tx_native_enqueue(struct rtwn8723be_softc *sc,
     if (error != 0)
         return error; /* Original mbuf still belongs to caller. */
     if (slot->map->dm_nsegs != 1 ||
-        slot->map->dm_segs[0].ds_addr > RTWN8723BE_DMA_MAXADDR) {
+        slot->map->dm_segs[0].ds_len <
+            (bus_size_t)input->buffer_len ||
+        !rtwn8723be_dma32_range_valid(
+            slot->map->dm_segs[0].ds_addr,
+            (bus_size_t)input->buffer_len)) {
         bus_dmamap_unload(sc->sc_dmat, slot->map);
-        return EFBIG;
+        return EFBIG; /* Reject a packet straddling the 4-GiB limit. */
     }
     if (slot->map->dm_mapsize != (bus_size_t)input->buffer_len) {
         bus_dmamap_unload(sc->sc_dmat, slot->map);
@@ -127,7 +135,7 @@ rtwn8723be_tx_native_enqueue(struct rtwn8723be_softc *sc,
 
     next = ring->desc_dma.paddr +
         (bus_addr_t)(((idx + 1U) % ring->count) * sizeof(*desc));
-    if (next > RTWN8723BE_DMA_MAXADDR) {
+    if (!rtwn8723be_dma32_range_valid(next, sizeof(*desc))) {
         bus_dmamap_unload(sc->sc_dmat, slot->map);
         return EFBIG;
     }
@@ -180,7 +188,11 @@ rtwn8723be_tx_native_reclaim(struct rtwn8723be_softc *sc,
     ring = &sc->sc_tx_ring[qid];
     if (ring->count == 0 || ring->consumer >= ring->count ||
         ring->slot == NULL || ring->desc_dma.kva == NULL ||
-        ring->desc_dma.map == NULL)
+        ring->desc_dma.map == NULL ||
+        ring->desc_dma.size < (bus_size_t)ring->count *
+            sizeof(struct rtwn8723be_tx_desc) ||
+        !rtwn8723be_dma32_range_valid(
+            ring->desc_dma.paddr, ring->desc_dma.size))
         return EIO;
     descs = ring->desc_dma.kva;
 
