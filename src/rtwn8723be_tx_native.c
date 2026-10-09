@@ -196,10 +196,13 @@ rtwn8723be_tx_native_reclaim(struct rtwn8723be_softc *sc,
         qid >= RTWN8723BE_TX_QUEUE_COUNT)
         return EINVAL;
     *reclaimed = 0;
-    if (!sc->sc_rings_allocated || sc->sc_dmat == NULL)
+    if (!sc->sc_mapped || !sc->sc_rings_allocated ||
+        !sc->sc_dma_32bit || sc->sc_dmat == NULL)
         return ENXIO;
     ring = &sc->sc_tx_ring[qid];
-    if (ring->count == 0 || ring->consumer >= ring->count ||
+    if (ring->count == 0 ||
+        ring->count > RTWN8723BE_TX_RING_BE_COUNT ||
+        ring->consumer >= ring->count ||
         ring->slot == NULL || ring->desc_dma.kva == NULL ||
         ring->desc_dma.map == NULL ||
         ring->desc_dma.size < (bus_size_t)ring->count *
@@ -218,7 +221,21 @@ rtwn8723be_tx_native_reclaim(struct rtwn8723be_softc *sc,
 
         if (slot->m == NULL)
             break;
-        if (slot->map == NULL || slot->map->dm_nsegs != 1)
+        /*
+         * The original TX mbuf stays owned by the slot until POSTWRITE
+         * completes.  Corrupt maps must remain quarantined for the real
+         * device stop/recovery owner, not be synced/freed speculatively.
+         */
+        if (slot->map == NULL || slot->map->dm_nsegs != 1 ||
+            slot->map->dm_mapsize == 0 ||
+            slot->map->dm_mapsize !=
+                (bus_size_t)slot->m->m_pkthdr.len ||
+            slot->map->dm_mapsize > RTWN8723BE_RX_BUFFER_SIZE ||
+            slot->map->dm_segs[0].ds_len <
+                slot->map->dm_mapsize ||
+            !rtwn8723be_dma32_range_valid(
+                slot->map->dm_segs[0].ds_addr,
+                slot->map->dm_mapsize))
             return EIO;
 
         rtwn8723be_f16_1_dma_sync_for_cpu(sc->sc_dmat,
