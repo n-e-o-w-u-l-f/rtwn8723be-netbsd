@@ -78,6 +78,16 @@ def check(root, require_closure=False):
             btc_native or
             "n->engine.btc.initialized = true;" not in btc_native):
         raise ValueError("BTC init_coex_dm success publication missing")
+    btc_engine = (src / "rtwn8723be_btc_engine.c").read_text()
+    engine_init = btc_engine.split("rtwn8723be_btc_engine_init(", 1)
+    if len(engine_init) != 2:
+        raise ValueError("BTC engine initializer not found")
+    engine_init = engine_init[1].split("rtwn8723be_btc_event_validate(", 1)[0]
+    if ("s->btc = copy;" not in engine_init or
+            "s->btc.initialized = false;" not in engine_init or
+            engine_init.index("s->btc = copy;") >
+            engine_init.index("s->btc.initialized = false;")):
+        raise ValueError("BTC copied context published pre-initialized")
     if ("rtwn8723be_btc_native_fini(sc)" not in btc_native or
             "sc->sc_btcoexist && !sc->sc_btc.initialized" not in btc_native):
         raise ValueError("BTC halt/deinit lifetime incomplete")
