@@ -20,6 +20,33 @@ ROOT = Path(__file__).resolve().parents[1]
 # path, unique source excerpt, mutation, expected diagnostic substring
 CONTROLS = (
     (
+        "src/rtwn8723be_f16_1.h",
+        "(uint64_t)(bytes - 1) <= UINT32_MAX - (uint64_t)addr;",
+        "(uint64_t)bytes <= UINT32_MAX - (uint64_t)addr;",
+        "DMA32 validator missing 4-GiB boundary/overflow check",
+    ),
+    (
+        "src/rtwn8723be_f16_1_dma.c",
+        "        dma->map->dm_segs[0].ds_len < size ||",
+        "        false || /* regression: truncated DMA segment accepted */",
+        "descriptor DMA mapping omits complete 32-bit span",
+    ),
+    (
+        "src/rtwn8723be_f16_1_dma.c",
+        "            !rtwn8723be_dma32_range_valid(\n"
+        "                ring->slot[i].map->dm_segs[0].ds_addr,\n"
+        "                RTWN8723BE_RX_BUFFER_SIZE)) {",
+        "            false) { /* regression: out-of-range RX segment */",
+        "native RX DMA slot published without full span check",
+    ),
+    (
+        "src/rtwn8723be_tx_native.c",
+        "        slot->map->dm_segs[0].ds_len <\n"
+        "            (bus_size_t)input->buffer_len ||",
+        "        false || /* regression: truncated TX mapped span */",
+        "native TX may publish truncated 32-bit DMA",
+    ),
+    (
         "src/rtwn8723be_net80211.c",
         "        IEEE80211_C_WPA2;",
         "        0;",
