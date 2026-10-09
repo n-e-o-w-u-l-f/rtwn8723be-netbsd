@@ -128,6 +128,8 @@ def check(root, require_closure=False):
     if len(rx_check) != 2:
         raise ValueError("native RX drain owner missing")
     rx_check = rx_check[1]
+    if ("!sc->sc_dma_32bit || sc->sc_dmat == NULL" not in rx_check):
+        raise ValueError("RX drain accepts non-32-bit DMA tag")
     if ("ring->desc_dma.paddr, ring->desc_dma.size)" not in rx_check or
             "!rtwn8723be_dma32_range_valid(" not in rx_check):
         raise ValueError("RX ring lacks complete DMA address-span guard")
