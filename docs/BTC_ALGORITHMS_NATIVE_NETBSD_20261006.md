@@ -181,3 +181,52 @@ native-manifest objects**; no C compiler or hardware exercised.
 This does NOT bind bt_prepare, PHY dm_init, net80211 registration/rfkill,
 or supply full ownership, native NetBSD compilation or HP WLAN
 authentication. Previous recovery F77 remains last observed 2026-10-06.
+
+
+## 2026-10-09 continuation: RTL8723BE GPIO hardware RF-kill sampler
+
+Frozen source and active-port review:
+- `rtlwifi/base.c:rtl_init_rfkill()` initially publishes RF-on,
+  invokes the `radio_onoff_checking` chipset callback with `valid=0`,
+  and starts polling. `rtl_deinit_rfkill()` stops that polling.
+- `rtl8723be/hw.c:rtl8723be_gpio_radio_on_off_checking()`
+  refuses RF changes during hardware init, software RF processing or an
+  already-owned RF transition, clears bit1 of GPIO_IO_SEL_2 (0x62),
+  reads bit1 of GPIO_PIN_CTRL_2 (0x60), and publishes radio state
+  only when valid. The RTL8723BE frozen source never assigns
+  `rtlphy.polarity_ctl`, so its zero-initialized polarity selects
+  GPIO bit1 high=ERFON, low=ERFOFF. These findings are grounded in
+  `torvalds/linux@fd179f8a05be3ccae366b9b96e176b51fbe54aab`.
+
+Production implementation:
+- `26aa971`: source-derived RTL8723BE GPIO register definitions
+  in the shared hardware header.
+- `1c55896`: explicit per-card hardware-radio-off and
+  last-successful-sample state in the NetBSD softc, plus typed native
+  sampling ABI.
+- `76f343d`: `rtwn8723be_netbsd_rfkill_gpio_sample()`
+  implements guarded, lock-excluded GPIO selector/write/read, RF-PS
+  ownership claim/release, non-inverted source polarity, valid/error
+  outputs and BOOT/STOP stage rejection. The snapshot is only valid
+  for a present mapped BAR and initialized 802.11 core; the external
+  lifecycle must prevent concurrent detach/unmap and must never enter
+  from hard/soft IRQ.
+- `b7420ae`, `7bfd6c7`, `f7d1f8e`, `79468b6`:
+  source-only inventory checks and two fixture corrections (literal
+  Python regex backslashes and correctly distinguishing the busy-branch
+  mutex unlock from successful-owner unlock).
+  On Spinnennet, `python3 -B tests/test_port_closure_inventory.py --root .`
+  returned exit0 and `git diff --check c316f6e HEAD` passed at
+  `79468b6c2221a457e9d886e8f61d7307ff9c6b22`.
+
+**NOT a completed rfkill owner or driver:** frozen Linux also maintains
+`swrf_processing`, publishes `wiphy_rfkill_set_hw_state` and schedules
+periodic polling; NetBSD's own net80211/radio-policy equivalent plus
+registration, radio-off interface actions, stop/detach quiescence,
+failure rollback and native build tests remain open. For that reason
+`rtwn8723be_netbsd_ops.init_rfkill` remains deliberately NULL,
+and the probe still fails its preflight before hardware writes.
+Callback inventory remains **53 total / 49 bound / four unbound**
+(register_ieee80211, init_rfkill, bt_prepare, dm_init), not a false
+closure claim. No compile, HP kernel install, WLAN association, PM or
+physical KMS testing was performed; preserve F77.
