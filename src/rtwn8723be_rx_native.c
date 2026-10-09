@@ -33,8 +33,13 @@ rtwn8723be_rx_native_drain(struct rtwn8723be_softc *sc,
     /* Do not touch MMIO or bus_dma until BOTH packet paths can be serviced. */
     if (dispatch->frame == NULL || dispatch->c2h == NULL)
         return ENOSYS;
+    /*
+     * The old-TRX hardware uses 32-bit descriptors and packet addresses:
+     * require the real NetBSD 32-bit DMA subregion tag, not merely a
+     * nominally valid descriptor address.
+     */
     if (!sc->sc_mapped || !sc->sc_rings_allocated ||
-        sc->sc_dmat == NULL)
+        !sc->sc_dma_32bit || sc->sc_dmat == NULL)
         return ENXIO;
 
     for (q = 0; q < RTWN8723BE_RX_QUEUE_COUNT; q++) {
