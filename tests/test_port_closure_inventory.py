@@ -94,6 +94,24 @@ def check(root, require_closure=False):
             raise ValueError("native BTC low-level provider missing: " + token)
     if "This does NOT make the coexistence" not in provider_header:
         raise ValueError("BTC provider partial-closure guard missing")
+    # Complete typed receive ABI is necessary but not sufficient: the
+    # external lifecycle owner must prove a fresh MCU/RX lifetime first.
+    mp_source = (src / "rtwn8723be_btc_mp_native.c").read_text()
+    mp_header = (src / "rtwn8723be_btc_mp_native.h").read_text()
+    rx_binding = (src / "rtwn8723be_rx_binding.c").read_text()
+    if ("rtwn8723be_btc_mp_native_c2h(void *context," not in mp_source or
+            "return rtwn8723be_btc_mp_native_receive(context, event);" not in
+            mp_source or
+            "rtwn8723be_btc_mp_native_c2h(void *," not in mp_header):
+        raise ValueError("typed native BTC MP C2H consumer adapter missing")
+    publish = rx_binding.find("memset(binding, 0, sizeof(*binding))")
+    if publish < 0 or any(
+            rx_binding.find(token) < 0 or rx_binding.find(token) > publish
+            for token in ("!net->sc->sc_btc.initialized",
+                          "!net->sc->sc_btc_mp.initialized",
+                          "!net->sc->sc_btc_mp.active")):
+        raise ValueError("BTC C2H RX callbacks publish before activation")
+
     # Frozen halbtc_get_bt_afh_map_from_bt() publishes L then M then H.
     # These are source-order guards, not an executable native/firmware test.
     afh_match = re.search(
