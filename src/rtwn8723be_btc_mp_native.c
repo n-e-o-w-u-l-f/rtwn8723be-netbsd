@@ -191,6 +191,20 @@ rtwn8723be_btc_mp_native_receive(struct rtwn8723be_softc *sc,
     return 0;
 }
 
+
+/*
+ * Typed C2H routing adapter: RX callbacks use (void *, event *), while
+ * the MP protocol owner intentionally accepts the concrete device softc.
+ * The caller must still serialize IRQ/softint drain and MP stop/fini.
+ * This adapter neither activates MP nor manufactures a firmware reply.
+ */
+int
+rtwn8723be_btc_mp_native_c2h(void *context,
+    const struct rtwn8723be_c2h_event *event)
+{
+    return rtwn8723be_btc_mp_native_receive(context, event);
+}
+
 int
 rtwn8723be_btc_mp_native_stop(struct rtwn8723be_softc *sc)
 {
