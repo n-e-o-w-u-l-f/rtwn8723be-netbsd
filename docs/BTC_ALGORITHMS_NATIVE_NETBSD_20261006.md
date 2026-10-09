@@ -94,3 +94,49 @@ callbacks; real calibration/card-disable RF/DM/BTC owners; net80211 HT/AMPDU,
 keys, datapath and runtime PM/recovery; full kernel and physical HP WLAN.
 The sibling i915 full port and subsequent actual WLAN online objective
 remain unchanged. Gates COV-RTL-010/015/017 are still IN_PROGRESS.
+
+
+## 2026-10-09 BT hardware init lifecycle binding
+
+Frozen source authority (same immutable Linux commit as above):
+`rtl8723be/hw.c:rtl8723be_bt_hw_init` calls the actual BTC hardware
+initializer conditionally on `get_btc_status()`.
+`btcoexist/rtl_btc.c:rtl_btc_init_hw_config` invokes
+`exhalbtc_init_hw_config(btcoexist, !bt_exist)` **then**
+`exhalbtc_init_coex_dm(btcoexist)`, where the former selects the
+one-/two-antenna 8723B algorithm and the latter sets the BTC context's
+`initialized` flag. The original BTC context comes from `kzalloc`;
+initialization must not be assumed from a caller-provided copy.
+
+Production commits:
+- `baafe4a` publishes the per-device `btc.initialized` flag only
+  when `R23BE_BTC_INIT_DM` returns with no provider/owner error.
+- `6958c3f` implements `rtwn8723be_netbsd_bt_hw_init` using
+  the real native algorithm broker, in exact INIT_HW -> INIT_DM order.
+  It checks the Linux HW_INIT stage, mapped MMIO, H2C, firmware-ready
+  and existing prepared BTC owner. Non-coexistence boards honor the
+  frozen get_btc_status() no-call branch; missing actual coexistence
+  lifetime produces ENXIO instead of fabricated success.
+- `4766174` declares the actual callback in the owning native header;
+  `b3c71b0` binds it to `rtwn8723be_netbsd_ops.bt_hw_init`.
+- `b3e9315` inventories the actual source-event order and callback
+  binding. `49f2cbe` ensures the copied BTC context starts explicitly
+  **uninitialized** before any hardware IO, as with frozen Linux
+  `rtl_btc_alloc_variable` zero-initialization; `2ba2cc2`
+  adds this safeguard to the source inventory.
+- Spinnennet: source-only `python3 -B
+  tests/test_port_closure_inventory.py --root .` PASS, exit 0,
+  HEAD `2ba2cc212f8b782356b6c979af91ee01ad43680f`:
+  53 declared, 49 bound, four missing, 42 native manifest units.
+  **No C compiler** was run on Spinnennet.
+
+This does **not** initialize BTC yet on the actual HP:
+`bt_prepare`, one of the four unbound callbacks, must construct the
+whole 27-provider context, authentic device/antenna state and real
+RF/DM/MMIO/H2C exclusion owner. No BTC owner has been faked or registered.
+Native MP/RX activation and the precise firmware/IRQ-generation
+dependencies must be satisfied separately. `dm_init` (the actual
+rtl8723be PHY dynamic mechanism) is NOT equivalent to BTC INIT_DM and
+remains unbound. All kernel, WLAN/HT/keys/PM/recovery and i915
+acceptance gates remain OPEN; HP F77 remains the last authenticated
+2026-10-06 recovery state.
