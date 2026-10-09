@@ -121,8 +121,8 @@ def check(root, require_closure=False):
     # invalid-sample ownership and RF-change lock order before any MMIO.
     regs = (src / "rtwn8723be_f16_1.h").read_text()
     softc_h = (src / "rtwn8723be_netbsd.h").read_text()
-    if (not re.search(r"R23BE_REG_GPIO_PIN_CTRL_2\\s+0x0060\\b", regs)
-            or not re.search(r"R23BE_REG_GPIO_IO_SEL_2\\s+0x0062\\b", regs)
+    if (not re.search(r"R23BE_REG_GPIO_PIN_CTRL_2\s+0x0060\b", regs)
+            or not re.search(r"R23BE_REG_GPIO_IO_SEL_2\s+0x0062\b", regs)
             or "sc_hwradiooff;" not in softc_h
             or "sc_rfkill_sample_valid;" not in softc_h):
         raise ValueError("pinned RTL8723BE GPIO register/state ABI missing")
