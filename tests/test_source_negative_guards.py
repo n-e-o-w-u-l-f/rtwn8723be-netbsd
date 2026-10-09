@@ -20,6 +20,13 @@ ROOT = Path(__file__).resolve().parents[1]
 # path, unique source excerpt, mutation, expected diagnostic substring
 CONTROLS = (
     (
+        "src/rtwn8723be_btc_providers_native.c",
+        "    if (!sc->sc_rf_path_count_valid ||\n"
+        "        path >= sc->sc_rf_path_count ||",
+        "    if (path > RTWN8723BE_RF_PATH_B || /* missing physical RF path */",
+        "BTC RF provider permits nonexistent PHY path",
+    ),
+    (
         "src/rtwn8723be_tx_native.c",
         "    *desc = saved_desc;",
         "    *desc = *desc; /* regression: failed TX leaves partial encoder IO */",
