@@ -33,6 +33,8 @@ rtwn8723be_f16_1_dma_mem_alloc(bus_dma_tag_t dmat,
     int nsegs;
     int error;
 
+    if (dmat == NULL || dma == NULL || size == 0 || alignment == 0)
+        return EINVAL;
     memset(dma, 0, sizeof(*dma));
     dma->size = size;
 
@@ -68,9 +70,13 @@ rtwn8723be_f16_1_dma_mem_alloc(bus_dma_tag_t dmat,
         BUS_DMA_WAITOK);
     if (error != 0)
         goto fail;
-    if (dma->map->dm_nsegs != 1) {
+    if (dma->map->dm_nsegs != 1 ||
+        dma->map->dm_mapsize != size ||
+        dma->map->dm_segs[0].ds_len < size ||
+        !rtwn8723be_dma32_range_valid(
+            dma->map->dm_segs[0].ds_addr, size)) {
         error = EFBIG;
-        goto fail;
+        goto fail; /* Return all resources; never publish a truncated DMA. */
     }
 
     memset(dma->kva, 0, size);
@@ -144,6 +150,9 @@ rtwn8723be_f16_1_tx_ring_alloc(bus_dma_tag_t dmat,
     uint32_t i;
     int error;
 
+    if (dmat == NULL || ring == NULL || count == 0 ||
+        count > RTWN8723BE_TX_RING_BE_COUNT)
+        return EINVAL;
     memset(ring, 0, sizeof(*ring));
     ring->count = count;
     size = (bus_size_t)count * sizeof(struct rtwn8723be_tx_desc);
@@ -171,7 +180,11 @@ rtwn8723be_f16_1_tx_ring_alloc(bus_dma_tag_t dmat,
         next = ring->desc_dma.paddr +
             (bus_addr_t)(((i + 1) % count) *
             sizeof(struct rtwn8723be_tx_desc));
-        KASSERT(next <= UINT32_MAX);
+        if (!rtwn8723be_dma32_range_valid(next,
+            sizeof(struct rtwn8723be_tx_desc))) {
+            error = EFBIG;
+            goto fail; /* Do not commit a partial linked TX ring. */
+        }
         desc[i].d[RTWN8723BE_TX_NEXT_DESC_DW] =
             htole32((uint32_t)next);
     }
@@ -229,6 +242,9 @@ rtwn8723be_f16_1_rx_ring_alloc(bus_dma_tag_t dmat,
     bus_size_t size;
     int error;
 
+    if (dmat == NULL || ring == NULL || count == 0 ||
+        count > RTWN8723BE_RX_RING_COUNT)
+        return EINVAL;
     memset(ring, 0, sizeof(*ring));
     ring->count = count;
     size = (bus_size_t)count * sizeof(struct rtwn8723be_rx_desc);
@@ -272,7 +288,14 @@ rtwn8723be_f16_1_rx_ring_alloc(bus_dma_tag_t dmat,
             m_freem(m);
             goto fail;
         }
-        if (ring->slot[i].map->dm_nsegs != 1) {
+        if (ring->slot[i].map->dm_nsegs != 1 ||
+            ring->slot[i].map->dm_mapsize !=
+                RTWN8723BE_RX_BUFFER_SIZE ||
+            ring->slot[i].map->dm_segs[0].ds_len <
+                RTWN8723BE_RX_BUFFER_SIZE ||
+            !rtwn8723be_dma32_range_valid(
+                ring->slot[i].map->dm_segs[0].ds_addr,
+                RTWN8723BE_RX_BUFFER_SIZE)) {
             bus_dmamap_unload(dmat, ring->slot[i].map);
             m_freem(m);
             error = EFBIG;
@@ -280,7 +303,6 @@ rtwn8723be_f16_1_rx_ring_alloc(bus_dma_tag_t dmat,
         }
 
         ring->slot[i].m = m;
-        KASSERT(ring->slot[i].map->dm_segs[0].ds_addr <= UINT32_MAX);
 
         bus_dmamap_sync(dmat, ring->slot[i].map, 0,
             RTWN8723BE_RX_BUFFER_SIZE, BUS_DMASYNC_PREREAD);
