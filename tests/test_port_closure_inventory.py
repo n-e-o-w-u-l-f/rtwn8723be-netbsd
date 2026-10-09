@@ -153,9 +153,9 @@ def check(root, require_closure=False):
         raise ValueError("GPIO RF sample violated frozen ordering/validity")
     # The busy branch unlocks earlier than successful admission; check
     # the second unlock next to the successful ownership claim explicitly.
-    if ("sc->sc_rfchange_inprogress = true;\\n    mutex_exit(&sc->sc_rf_ps_lock);" not in
+    if ("sc->sc_rfchange_inprogress = true;\n    mutex_exit(&sc->sc_rf_ps_lock);" not in
             sample or
-            "if (sc->sc_rfchange_inprogress) {\\n        mutex_exit(&sc->sc_rf_ps_lock);"
+            "if (sc->sc_rfchange_inprogress) {\n        mutex_exit(&sc->sc_rf_ps_lock);"
             not in sample):
         raise ValueError("GPIO RF owner is not released on both paths")
     if "if (sc->sc_linux.stage == R23BE_STAGE_RUNNING &&" not in sample:
