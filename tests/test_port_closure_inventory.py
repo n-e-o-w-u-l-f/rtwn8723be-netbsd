@@ -81,8 +81,13 @@ def check(root, require_closure=False):
     # Source-derived NetBSD DMA ownership: any mapping/encoding failure
     # after descriptor POSTREAD must restore saved bytes, then re-sync
     # PREWRITE/PREREAD before returning. No partial OWN or mbuf publication.
+    tx_tail = enqueue.split("saved_desc = *desc;", 1)
+    if len(tx_tail) != 2:
+        raise ValueError("native TX descriptor snapshot missing")
+    # Only inspect the post-snapshot region; earlier legitimate returns
+    # and the successful path's DMA sync are not rollback statements.
+    tx_tail = tx_tail[1]
     tx_rollback = (
-        "saved_desc = *desc;",
         "error = bus_dmamap_load_mbuf(",
         "goto restore_desc;",
         "goto unload_map;",
@@ -91,17 +96,23 @@ def check(root, require_closure=False):
         "unload_map:",
         "bus_dmamap_unload(sc->sc_dmat, slot->map);",
         "restore_desc:",
+    )
+    tx_positions = [tx_tail.find(tok) for tok in tx_rollback]
+    if (any(i < 0 for i in tx_positions) or
+            tx_positions != sorted(tx_positions) or
+            tx_tail.count("goto unload_map;") < 4):
+        raise ValueError("native TX error path may leak CPU-owned descriptor")
+    rollback = tx_tail.split("restore_desc:", 1)[1]
+    rollback_order = (
         "*desc = saved_desc;",
         "rtwn8723be_f16_1_dma_sync_for_device(sc->sc_dmat,",
         "return error;",
     )
-    tx_positions = [enqueue.find(tok) for tok in tx_rollback]
-    if (any(i < 0 for i in tx_positions) or
-            tx_positions != sorted(tx_positions) or
-            enqueue.count("goto unload_map;") < 4):
-        raise ValueError("native TX error path may leak CPU-owned descriptor")
-    if enqueue.index("slot->m = m;") > enqueue.index("unload_map:"):
-        raise ValueError("native TX publishes mbuf inside error path")
+    rollback_pos = [rollback.find(t) for t in rollback_order]
+    if (any(i < 0 for i in rollback_pos) or
+            rollback_pos != sorted(rollback_pos) or
+            tx_tail.index("slot->m = m;") > tx_tail.index("unload_map:")):
+        raise ValueError("native TX must restore descriptor before error return")
     reclaim = tx_native.split("rtwn8723be_tx_native_reclaim(", 1)
     if len(reclaim) != 2 or not all(x in reclaim[1] for x in (
             "!rtwn8723be_dma32_range_valid(",
