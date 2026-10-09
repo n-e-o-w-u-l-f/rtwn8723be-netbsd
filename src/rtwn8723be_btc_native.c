@@ -332,6 +332,49 @@ rtwn8723be_btc_native_fini(struct rtwn8723be_softc *sc)
 }
 
 /*
+ * Frozen Linux rtl8723be_bt_hw_init() calls rtl_btc_init_hw_config()
+ * only when get_btc_status() is true.  rtl_btc_init_hw_config() runs
+ * exhalbtc_init_hw_config(btcoexist, !bt_exist) followed by
+ * exhalbtc_init_coex_dm(), in this order.  On this path BT is present,
+ * so the one-antenna wifi_only argument must be false.
+ *
+ * The native engine owns the exact frozen 1/2-antenna algorithm bodies
+ * and 27 provider contract; native_execute acquires real resource owner,
+ * serializes the algorithm and propagates any provider failure.
+ * This is intentionally NOT a synthetic bt_prepare or MCU-ready owner.
+ */
+int
+rtwn8723be_netbsd_bt_hw_init(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+    struct rtwn8723be_btc_event event;
+    int error;
+
+    if (sc == NULL)
+        return EINVAL;
+    if (!sc->sc_linux.being_init_adapter ||
+        sc->sc_linux.stage != R23BE_STAGE_BT_HW ||
+        !sc->sc_linux.fw_ready || !sc->sc_h2c.initialized ||
+        !sc->sc_mapped)
+        return EAGAIN;
+
+    if (!sc->sc_btcoexist)
+        return 0; /* Linux get_btc_status(): no coexistence callback. */
+    if (!sc->sc_btc.initialized)
+        return ENXIO; /* Never treat a missing bt_prepare as success. */
+
+    memset(&event, 0, sizeof(event));
+    event.kind = R23BE_BTC_INIT_HW;
+    event.value = 0; /* Frozen rtl_btc_init_hw_config(): !bt_exist. */
+    error = rtwn8723be_btc_native_execute(sc, &event);
+    if (error != 0)
+        return error;
+
+    event.kind = R23BE_BTC_INIT_DM;
+    return rtwn8723be_btc_native_execute(sc, &event);
+}
+
+/*
  * Frozen rtlwifi/pci.c:rtl_pci_stop() first sends btc_halt_notify when
  * coexistence is active, then unconditionally btc_deinit_variables when
  * btc_ops exists.  The native fini path performs exactly that lifetime:
