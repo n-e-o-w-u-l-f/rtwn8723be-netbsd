@@ -21,9 +21,15 @@ ROOT = Path(__file__).resolve().parents[1]
 CONTROLS = (
     (
         "src/rtwn8723be_btc_providers_native.c",
-        "    if (!sc->sc_rf_path_count_valid ||\n"
-        "        path >= sc->sc_rf_path_count ||",
-        "    if (path > RTWN8723BE_RF_PATH_B || /* missing physical RF path */",
+        "        path >= sc->sc_rf_path_count ||\n"
+        "        path > RTWN8723BE_RF_PATH_B || mask == 0 ||\n"
+        "        (mask & ~RTWN8723BE_RF_FULL_MASK) != 0) {\n"
+        "        btc_provider_fail(sc, EINVAL);\n"
+        "        return;",
+        "        path > RTWN8723BE_RF_PATH_B || mask == 0 ||\n"
+        "        (mask & ~RTWN8723BE_RF_FULL_MASK) != 0) {\n"
+        "        btc_provider_fail(sc, EINVAL);\n"
+        "        return; /* mutation: path-count bypass */",
         "BTC RF provider permits nonexistent PHY path",
     ),
     (
