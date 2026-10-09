@@ -16,6 +16,76 @@ def check(root, require_closure=False):
     header = (src / "rtwn8723be_linux_state.h").read_text()
     body = (src / "rtwn8723be_netbsd.c").read_text()
     manifest = (root / "config/files.rtwn8723be_native").read_text()
+    # The frozen rtlwifi RTL8723BE old-TRX ABI uses 32-bit bus addresses.
+    # No single 32-bit pointer, descriptor or buffer span may cross the
+    # 4-GiB boundary. Validate spans before a descriptor/mbuf is published,
+    # not just the starting address.  This is SOURCE-only, NOT a C build.
+    dma_h = (src / "rtwn8723be_f16_1.h").read_text()
+    dma_alloc = (src / "rtwn8723be_f16_1_dma.c").read_text()
+    tx_native = (src / "rtwn8723be_tx_native.c").read_text()
+    rx_native = (src / "rtwn8723be_rx_native.c").read_text()
+    helper = dma_h.split("rtwn8723be_dma32_range_valid(", 1)
+    if len(helper) != 2:
+        raise ValueError("missing source-derived 32-bit DMA span validator")
+    helper = helper[1].split("}", 1)[0]
+    if not all(tok in helper for tok in (
+            "bytes != 0",
+            "(uint64_t)addr <= UINT32_MAX",
+            "(uint64_t)(bytes - 1) <= UINT32_MAX - (uint64_t)addr")):
+        raise ValueError("DMA32 validator missing 4-GiB boundary/overflow check")
+    mem_alloc = dma_alloc.split("rtwn8723be_f16_1_dma_mem_alloc(", 1)
+    if len(mem_alloc) != 2:
+        raise ValueError("native descriptor DMA alloc not found")
+    mem_alloc = mem_alloc[1].split("rtwn8723be_f16_1_dma_mem_free(", 1)[0]
+    if not all(tok in mem_alloc for tok in (
+            "dma->map->dm_mapsize != size",
+            "dma->map->dm_segs[0].ds_len < size",
+            "!rtwn8723be_dma32_range_valid(")):
+        raise ValueError("descriptor DMA mapping omits complete 32-bit span")
+    if mem_alloc.find("!rtwn8723be_dma32_range_valid(") > mem_alloc.find(
+            "dma->paddr ="):
+        raise ValueError("DMA descriptor was published before span check")
+    tx_alloc = dma_alloc.split("rtwn8723be_f16_1_tx_ring_alloc(", 1)
+    if len(tx_alloc) != 2:
+        raise ValueError("native TX ring allocator not found")
+    tx_alloc = tx_alloc[1].split("rtwn8723be_f16_1_tx_ring_free(", 1)[0]
+    if (not all(x in tx_alloc for x in (
+            "count == 0", "count > RTWN8723BE_TX_RING_BE_COUNT",
+            "!rtwn8723be_dma32_range_valid(next,",
+            "goto fail; /* Do not commit a partial linked TX ring. */")) or
+            tx_alloc.find("!rtwn8723be_dma32_range_valid(next,") >
+            tx_alloc.find("desc[i].d[RTWN8723BE_TX_NEXT_DESC_DW] =")):
+        raise ValueError("native TX descriptor list may cross 4-GiB limit")
+    rx_alloc = dma_alloc.split("rtwn8723be_f16_1_rx_ring_alloc(", 1)
+    if len(rx_alloc) != 2:
+        raise ValueError("native RX ring allocator not found")
+    rx_alloc = rx_alloc[1].split("rtwn8723be_f16_1_rx_ring_free(", 1)[0]
+    if (not all(x in rx_alloc for x in (
+            "count == 0", "count > RTWN8723BE_RX_RING_COUNT",
+            "ring->slot[i].map->dm_mapsize !=",
+            "ring->slot[i].map->dm_segs[0].ds_len <",
+            "!rtwn8723be_dma32_range_valid(")) or
+            rx_alloc.find("!rtwn8723be_dma32_range_valid(") >
+            rx_alloc.find("ring->slot[i].m = m;")):
+        raise ValueError("native RX DMA slot published without full span check")
+    enqueue = tx_native.split("rtwn8723be_tx_native_enqueue(", 1)
+    if len(enqueue) != 2:
+        raise ValueError("native TX old-TRX enqueue not found")
+    enqueue = enqueue[1].split("rtwn8723be_tx_native_reclaim(", 1)[0]
+    if (enqueue.count("!rtwn8723be_dma32_range_valid(") < 3 or
+            "slot->map->dm_segs[0].ds_len <" not in enqueue or
+            "ring->desc_dma.size < (bus_size_t)ring->count *" not in enqueue or
+            enqueue.find("slot->map->dm_segs[0].ds_len <") >
+            enqueue.find("slot->m = m;")):
+        raise ValueError("native TX may publish truncated 32-bit DMA")
+    reclaim = tx_native.split("rtwn8723be_tx_native_reclaim(", 1)
+    if len(reclaim) != 2 or not all(x in reclaim[1] for x in (
+            "!rtwn8723be_dma32_range_valid(",
+            "ring->desc_dma.size < (bus_size_t)ring->count *")):
+        raise ValueError("native TX completion lacks valid DMA ring guard")
+    if ("!rtwn8723be_dma32_range_valid(" not in rx_native or
+            "slot->map->dm_segs[0].ds_len <" not in rx_native):
+        raise ValueError("native RX rearm lacks complete DMA segment guard")
     struct = re.search(r"struct rtwn8723be_linux_ops\s*\{(.*?)\n\};", header, re.S)
     initializer = re.search(
         r"const struct rtwn8723be_linux_ops\s+rtwn8723be_netbsd_ops\s*=\s*\{(.*?)\n\};",
