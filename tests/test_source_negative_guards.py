@@ -20,6 +20,12 @@ ROOT = Path(__file__).resolve().parents[1]
 # path, unique source excerpt, mutation, expected diagnostic substring
 CONTROLS = (
     (
+        "src/rtwn8723be_tx_native.c",
+        "    *desc = saved_desc;",
+        "    *desc = *desc; /* regression: failed TX leaves partial encoder IO */",
+        "native TX must restore descriptor before error return",
+    ),
+    (
         "src/rtwn8723be_f16_1.h",
         "(uint64_t)(bytes - 1) <= UINT32_MAX - (uint64_t)addr;",
         "(uint64_t)bytes <= UINT32_MAX - (uint64_t)addr;",
