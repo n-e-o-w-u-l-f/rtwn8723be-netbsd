@@ -105,6 +105,45 @@ def check(root, require_closure=False):
             "if (sc->sc_btcoexist && !sc->sc_btc.initialized)" in
             stop_part[1]):
         raise ValueError("BTC HALT must follow Linux always-true get_btc_status")
+    # NetBSD/src if.c requires if_register() before if_detach(); it is
+    # invalid to call if_detach() from if_percpuq_create()'s pre-register
+    # branch. Frozen if_percpuq_create uses KM_SLEEP allocation and
+    # NetBSD if_rtwn.c follows if_initialize -> ieee80211_ifattach ->
+    # if_percpuq_create -> if_register, with no such fake ENOMEM unwind.
+    # Station WPA2 is software-only here; this must not be mistaken for
+    # a working key/TX/RX datapath.
+    n80211 = (src / "rtwn8723be_net80211.c").read_text()
+    registration = n80211.split(
+        "rtwn8723be_net80211_register(", 1)
+    if len(registration) != 2:
+        raise ValueError("net80211 registration entry missing")
+    registration = registration[1].split(
+        "rtwn8723be_net80211_unregister(", 1)[0]
+    required = (
+        "ic->ic_caps = IEEE80211_C_SHPREAMBLE | IEEE80211_C_SHSLOT |",
+        "IEEE80211_C_WPA2;",
+        "sc->sc_sw_crypto = true;",
+        "sc->sc_use_sw_sec = true;",
+        "sc->sc_use_defaultkey = false;",
+    )
+    if not all(token in registration for token in required):
+        raise ValueError("software WPA2 station capability/policy incomplete")
+    net_register_path = registration.split("if_initialize(ifp);", 1)
+    if len(net_register_path) != 2:
+        raise ValueError("NetBSD if_initialize registration order lost")
+    reg_window = net_register_path[1].split("if_register(ifp);", 1)
+    if len(reg_window) != 2:
+        raise ValueError("NetBSD interface is not registered")
+    reg_window = reg_window[0]
+    if (reg_window.find("ieee80211_ifattach(ic);") < 0 or
+            reg_window.find("ifp->if_percpuq = if_percpuq_create(ifp);") < 0 or
+            "if_detach(ifp);" in reg_window or
+            "ieee80211_ifdetach(ic);" in reg_window or
+            "KASSERT(ifp->if_percpuq != NULL);" not in reg_window):
+        raise ValueError("unregistered ifnet cleanup or NetBSD attach order")
+    if registration.index("if_initialize(ifp);") > registration.index(
+            "ieee80211_ifattach(ic);"):
+        raise ValueError("NetBSD if_initialize must precede ieee80211_ifattach")
     netbsd = (src / "rtwn8723be_netbsd.c").read_text()
     btc_power = netbsd.split("rtwn8723be_netbsd_bt_power_on_setting(", 1)
     if len(btc_power) != 2:
