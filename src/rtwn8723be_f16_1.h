@@ -82,6 +82,9 @@
 #define R23BE_REG_SYS_CFG1             0x00fc
 #define R23BE_REG_ROM_VERSION          0x00fd
 #define R23BE_REG_GPIO_MUXCFG          0x0040
+/* Frozen RTL8723BE reg.h: GPIO_PIN_CTRL_2 / GPIO_IO_SEL_2. */
+#define R23BE_REG_GPIO_PIN_CTRL_2      0x0060
+#define R23BE_REG_GPIO_IO_SEL_2        0x0062
 #define R23BE_REG_MAC_PINMUX_CFG       0x0043
 #define R23BE_REG_LEDCFG1              0x004d
 #define R23BE_REG_LEDCFG2              0x004e
