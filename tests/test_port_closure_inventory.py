@@ -105,6 +105,47 @@ def check(root, require_closure=False):
             "if (sc->sc_btcoexist && !sc->sc_btc.initialized)" in
             stop_part[1]):
         raise ValueError("BTC HALT must follow Linux always-true get_btc_status")
+    # Failed full-callback preflight occurs with state IDLE and zero
+    # hardware writes.  The PCI snapshot must be retired, otherwise native
+    # detach incorrectly returns EBUSY forever.  Any partially registered
+    # net80211 resource must STILL be retained and cannot be freed by the
+    # pre-registration cleanup path.
+    pci_attach = (src / "rtwn8723be_native.c").read_text()
+    cleanup = pci_attach.split(
+        "rtwn8723be_native_probe_cleanup(struct rtwn8723be_softc *sc)", 1)
+    if len(cleanup) != 2:
+        raise ValueError("native PCI probe rollback missing")
+    cleanup = cleanup[1].split("rtwn8723be_native_detach(", 1)[0]
+    preflight = cleanup.split("if (stage == R23BE_STAGE_IDLE)", 1)
+    if len(preflight) != 2:
+        raise ValueError("IDLE no-write rollback gate missing")
+    preflight = preflight[1].split("if (stage >= R23BE_STAGE_IEEE80211_REGISTER)", 1)
+    if (len(preflight) != 2 or
+            "sc->sc_initial_pci_saved = false;" not in preflight[0] or
+            "return;" not in preflight[0] or
+            "refusing incomplete post-registration teardown" not in preflight[1]):
+        raise ValueError("unsafe IDLE or post-registration probe cleanup")
+    attach = pci_attach.split("rtwn8723be_native_attach(", 1)
+    if len(attach) != 2:
+        raise ValueError("native PCI attach entry missing")
+    attach = attach[1]
+    snapshot_error = attach.split("cannot snapshot original PCI power state;", 1)
+    if (len(snapshot_error) != 2 or
+            "rtwn8723be_netbsd_context_fini(sc);" not in
+            snapshot_error[1].split("return;", 1)[0]):
+        raise ValueError("PCI snapshot failure leaks RF-PS lock")
+    fail_cleanup = attach.split("failed_stage = sc->sc_linux.stage;", 1)
+    if len(fail_cleanup) != 2:
+        raise ValueError("probe failure cleanup missing")
+    fail_cleanup = fail_cleanup[1].split("native RTL8723BE probe failed:", 1)[0]
+    if (not re.search(
+            r"rtwn8723be_native_probe_cleanup\\(sc\\);.*"
+            r"if \\(sc->sc_linux.stage == R23BE_STAGE_IDLE &&"
+            r".*!sc->sc_initial_pci_saved\\).*"
+            r"rtwn8723be_netbsd_context_fini\\(sc\\);",
+            fail_cleanup, re.S)):
+        raise ValueError("pre-registration probe failure leaves RF owner active")
+
     # NetBSD/src if.c requires if_register() before if_detach(); it is
     # invalid to call if_detach() from if_percpuq_create()'s pre-register
     # branch. Frozen if_percpuq_create uses KM_SLEEP allocation and
