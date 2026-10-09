@@ -47,8 +47,12 @@ rtwn8723be_rx_native_drain(struct rtwn8723be_softc *sc,
             ring->desc_dma.map == NULL ||
             ring->desc_dma.size < (bus_size_t)ring->count *
                 sizeof(*descs) ||
-            ring->consumer >= ring->count)
+            !rtwn8723be_dma32_range_valid(
+                ring->desc_dma.paddr, ring->desc_dma.size) ||
+            ring->consumer >= ring->count) {
+            *delivered = seen; /* Earlier queue may already have delivered. */
             return EIO;
+        }
 
         /* Each IRQ runs at most one complete rotation per RX queue. */
         for (work = 0; work < ring->count; work++) {
@@ -79,8 +83,17 @@ rtwn8723be_rx_native_drain(struct rtwn8723be_softc *sc,
                     RTWN8723BE_RX_BUFFER_SIZE ||
                 !rtwn8723be_dma32_range_valid(
                     slot->map->dm_segs[0].ds_addr,
-                    RTWN8723BE_RX_BUFFER_SIZE))
-                return EIO; /* Do not rearm a corrupt DMA slot. */
+                    RTWN8723BE_RX_BUFFER_SIZE)) {
+                /*
+                 * The descriptor was POSTREAD-synchronized before the
+                 * slot check. Give its unchanged, OWN-cleared state back
+                 * to bus_dma; never rearm or reuse the invalid buffer.
+                 */
+                rtwn8723be_f16_1_dma_sync_for_device(sc->sc_dmat,
+                    &ring->desc_dma, off, sizeof(*desc));
+                *delivered = seen;
+                return EIO;
+            }
 
             bus_dmamap_sync(sc->sc_dmat, slot->map, 0,
                 RTWN8723BE_RX_BUFFER_SIZE, BUS_DMASYNC_POSTREAD);
