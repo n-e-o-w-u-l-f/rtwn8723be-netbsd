@@ -52,6 +52,11 @@ int rtwn8723be_btc_mp_native_request(struct rtwn8723be_softc *, uint8_t,
     const uint8_t *, size_t, bool, struct rtwn8723be_btc_mp_reply *);
 int rtwn8723be_btc_mp_native_receive(struct rtwn8723be_softc *,
     const struct rtwn8723be_c2h_event *);
+/* Exact callback ABI for rtwn8723be_c2h_handlers.bt_mp. No activation
+ * or lifetime acquisition is implicit; the RX/lifecycle owner provides it.
+ */
+int rtwn8723be_btc_mp_native_c2h(void *,
+    const struct rtwn8723be_c2h_event *);
 /* stop cancels and drains the submitting/waiting request BEFORE H2C,
  * firmware or DMA resources can be released. Owner then drains RX/IRQs
  * and excludes all other entry points before fini destroys mutex/CVs.
