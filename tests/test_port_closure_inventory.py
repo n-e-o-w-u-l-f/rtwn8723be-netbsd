@@ -7,9 +7,7 @@ import sys
 
 EXPECTED_MISSING = {
     "probe": ("register_ieee80211", "init_rfkill"),
-    "start": ("bt_prepare",
-              "bt_hw_init",
-              "dm_init"),
+    "start": ("bt_prepare", "dm_init"),
     "stop": (),
 }
 
@@ -46,7 +44,7 @@ def check(root, require_closure=False):
         raise ValueError("source or native build manifest changed; re-inventory required")
     if set(missing) != expected:
         raise ValueError("callback inventory changed: now missing " + repr(missing))
-    if len(bound) != 48:
+    if len(bound) != 49:
         raise ValueError("bound callback count changed; re-inventory required")
     if dict(bound).get("wait_rf_change_idle") != \
             "rtwn8723be_netbsd_wait_rf_change_idle":
@@ -55,6 +53,31 @@ def check(root, require_closure=False):
             "rtwn8723be_netbsd_bt_halt_deinit":
         raise ValueError("BTC halt/deinit callback binding changed")
     btc_native = (src / "rtwn8723be_btc_native.c").read_text()
+    if dict(bound).get("bt_hw_init") != "rtwn8723be_netbsd_bt_hw_init":
+        raise ValueError("source-backed BTC hardware init binding missing")
+    hw_init_match = re.search(
+        r"\nint\nrtwn8723be_netbsd_bt_hw_init\(void \*arg\).*?\n\}\n",
+        btc_native, re.S)
+    if hw_init_match is None:
+        raise ValueError("native BTC hardware init callback missing")
+    hw_init = hw_init_match.group(0)
+    ordered = (
+        "R23BE_STAGE_BT_HW",
+        "sc->sc_btcoexist",
+        "!sc->sc_btc.initialized",
+        "event.kind = R23BE_BTC_INIT_HW;",
+        "rtwn8723be_btc_native_execute(sc, &event);",
+        "if (error != 0)",
+        "event.kind = R23BE_BTC_INIT_DM;",
+        "return rtwn8723be_btc_native_execute(sc, &event);",
+    )
+    offsets = [hw_init.find(token) for token in ordered]
+    if any(i < 0 for i in offsets) or offsets != sorted(offsets):
+        raise ValueError("BTC native HW/DM source order or preflight changed")
+    if ("if (error == 0 && event->kind == R23BE_BTC_INIT_DM)" not in
+            btc_native or
+            "n->engine.btc.initialized = true;" not in btc_native):
+        raise ValueError("BTC init_coex_dm success publication missing")
     if ("rtwn8723be_btc_native_fini(sc)" not in btc_native or
             "sc->sc_btcoexist && !sc->sc_btc.initialized" not in btc_native):
         raise ValueError("BTC halt/deinit lifetime incomplete")
