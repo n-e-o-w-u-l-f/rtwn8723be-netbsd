@@ -2153,6 +2153,7 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .release_pcie_dma = rtwn8723be_netbsd_release_pcie_dma,
     .enable_aspm = rtwn8723be_netbsd_enable_aspm,
     .enable_aspm_backdoor = rtwn8723be_netbsd_enable_aspm_backdoor,
+    .bt_hw_init = rtwn8723be_netbsd_bt_hw_init,
     .establish_irq = rtwn8723be_netbsd_establish_irq,
     .enable_interrupt = rtwn8723be_netbsd_enable_interrupt,
     .init_rx_config = rtwn8723be_netbsd_init_rx_config,
