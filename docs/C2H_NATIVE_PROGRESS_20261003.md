@@ -21,3 +21,31 @@ STATUS: SOURCE-COMMITTED / ISOLATED-HOST-TESTED / NETBSD-NATIVE-BUILD-OPEN / HP-
 4. Parallel i915 repo remains at baseline `b8101ecc54bf8f8970f44937bdcfaf40ecc26a52` in this step, without source edits; full 323-unit DRM/TTM dependency closure and HP Cherryview KMS display tests OPEN. HP direct access remains unverified this turn. F77 and the existing six-edit i915 overlay were not modified.
 
 Canonical Agent-Governance LAST_TASKS remains at its prior verified state: its oversized in-place update path was previously externally refused. This scoped project handoff does not claim canonical synchronization.
+
+
+## 2026-10-09: typed MP C2H consumer and fail-closed RX admission
+
+- Native `rtwn8723be_btc_mp_native_c2h(void *, const struct
+  rtwn8723be_c2h_event *)` is a real typed RX callback adapter for the
+  per-device MP receiver. Its implementation delegates to the existing
+  decoder/admission/completion logic; it neither synthesizes a reply nor
+  activates a suspended MP channel. Added to the actual MP kernel object
+  and exported by the existing header, not by a mock.
+- Coexistence-board `rtwn8723be_rx_binding_init()` now requires a
+  fully initialized BTC broker and initialized **active** MP channel,
+  in addition to non-NULL BT_INFO and BT_MP consumers, before it publishes
+  an RX dispatch context. The lifecycle owner must serialize this
+  preflight and callback lifetime against STOPPING and IRQ/softint draining;
+  this preflight does not by itself implement that ownership.
+- `tests/test_rx_binding.py` gains negative-state scenarios for BTC
+  uninitialized, MP uninitialized and MP inactive. This compiler-invoking
+  test is **not run here** because target compilation/tests are restricted
+  to HP. `tests/test_port_closure_inventory.py` now statically guards the
+  production callback ABI and activation-before-publication order.
+- Actual Spinnennet source-only inventory/check succeeded (exit0)
+  at RTL GitHub `22a4d0fe542844c4ead2a46bda6f7ef31bda6418`:
+  declared53/bound48/missing5; native manifest42; closure OPEN.
+  Neither a native NetBSD object build nor hardware C2H/RX/IRQ verification
+  occurred. Existing real init/start/stop/DM/provider and net80211 gates
+  are **not** bypassed. F77 recovery boot remains last verified on
+  2026-10-06, not a newly observed physical state.
