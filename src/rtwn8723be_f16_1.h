@@ -88,6 +88,8 @@ rtwn8723be_dma32_range_valid(bus_addr_t addr, bus_size_t bytes)
 #define R23BE_EEPROM_SVID              0x00da
 #define R23BE_EEPROM_SMID              0x00dc
 /* Pinned Linux rtl8723be/reg.h: EEPROM_XTAL_8723BE. */
+/* Linux rtl8723be/reg.h: channel-plan byte in decoded EFUSE shadow. */
+#define R23BE_EEPROM_CHANNELPLAN       0x00b8
 #define R23BE_EEPROM_XTAL_8723BE       0x00b9
 #define R23BE_EEPROM_RF_BT_SETTING     0x00c3
 #define R23BE_REG_MCUFWDL              0x0080
