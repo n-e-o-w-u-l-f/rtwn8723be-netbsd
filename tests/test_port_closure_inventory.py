@@ -118,6 +118,29 @@ def check(root, require_closure=False):
             "!rtwn8723be_dma32_range_valid(",
             "ring->desc_dma.size < (bus_size_t)ring->count *")):
         raise ValueError("native TX completion lacks valid DMA ring guard")
+    # The completion path does POSTWRITE followed by map unload/mbuf free.
+    # It must reject an invalid/partial map and wrong bus_dmatag before
+    # either operation, otherwise TX hardware may DMA to unowned memory.
+    completed = reclaim[1]
+    tag_ready = "!sc->sc_dma_32bit || sc->sc_dmat == NULL"
+    if (tag_ready not in completed or
+            "ring->count > RTWN8723BE_TX_RING_BE_COUNT" not in completed):
+        raise ValueError("TX completion accepts invalid DMA subregion tag")
+    map_invariants = (
+        "slot->map->dm_mapsize == 0",
+        "slot->map->dm_mapsize !=",
+        "(bus_size_t)slot->m->m_pkthdr.len",
+        "slot->map->dm_segs[0].ds_len <",
+        "slot->map->dm_mapsize ||",
+        "!rtwn8723be_dma32_range_valid(",
+        "slot->map->dm_segs[0].ds_addr,",
+        "slot->map->dm_mapsize))",
+    )
+    first_postwrite = completed.find("BUS_DMASYNC_POSTWRITE")
+    map_checks = [completed.find(t) for t in map_invariants]
+    if (first_postwrite < 0 or
+            any(p < 0 or p > first_postwrite for p in map_checks)):
+        raise ValueError("TX completion may free corrupt payload DMA map")
     if ("!rtwn8723be_dma32_range_valid(" not in rx_native or
             "slot->map->dm_segs[0].ds_len <" not in rx_native):
         raise ValueError("native RX rearm lacks complete DMA segment guard")
