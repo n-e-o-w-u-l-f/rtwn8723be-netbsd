@@ -64,8 +64,19 @@ rtwn8723be_native_probe_cleanup(struct rtwn8723be_softc *sc)
 {
     enum rtwn8723be_linux_stage stage = sc->sc_linux.stage;
 
-    if (!sc->sc_initial_pci_saved || stage == R23BE_STAGE_IDLE)
+    if (!sc->sc_initial_pci_saved)
         return;
+    /*
+     * linux_probe() performs its complete callback preflight while IDLE.
+     * ENOSYS at that point has changed NO hardware/PCI resources; only
+     * the PCI snapshot taken by attach exists.  Retire the snapshot here
+     * so a failed probe does not leave a permanently busy device.
+     * Never restore PCI_COMMAND or the D0 state in this no-write branch.
+     */
+    if (stage == R23BE_STAGE_IDLE) {
+        sc->sc_initial_pci_saved = false;
+        return;
+    }
 
     /*
      * A registered net80211 interface cannot be freed using the present
@@ -166,6 +177,7 @@ rtwn8723be_native_attach(device_t parent, device_t self, void *aux)
         &sc->sc_pci_powerstate_initial) != 0) {
         aprint_error_dev(self,
             "cannot snapshot original PCI power state; probe aborted\n");
+        rtwn8723be_netbsd_context_fini(sc);
         return;
     }
     sc->sc_pci_command_initial =
@@ -192,6 +204,15 @@ rtwn8723be_native_attach(device_t parent, device_t self, void *aux)
     if (error != 0) {
         failed_stage = sc->sc_linux.stage;
         rtwn8723be_native_probe_cleanup(sc);
+        /*
+         * A complete pre-registration rollback (including the IDLE
+         * callback preflight) has no remaining hardware entrants.
+         * Retire the RF-PS lock now.  If cleanup deliberately retained
+         * post-registration resources, retain the context as well.
+         */
+        if (sc->sc_linux.stage == R23BE_STAGE_IDLE &&
+            !sc->sc_initial_pci_saved)
+            rtwn8723be_netbsd_context_fini(sc);
         aprint_error_dev(self,
             "native RTL8723BE probe failed: %d (stage %d); "
             "WLAN not registered\n", error, (int)failed_stage);
