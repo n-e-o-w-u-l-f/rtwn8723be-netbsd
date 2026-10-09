@@ -189,6 +189,27 @@ def check(root, require_closure=False):
     if registration.index("if_initialize(ifp);") > registration.index(
             "ieee80211_ifattach(ic);"):
         raise ValueError("NetBSD if_initialize must precede ieee80211_ifattach")
+    # WPA2 capability is backed by the NetBSD software crypto choice,
+    # not by an unimplemented hardware CAM programming path. The native
+    # security callback must exit before any SECCFG or CR register write.
+    security_native = (src / "rtwn8723be_security_native.c").read_text()
+    software = security_native.split(
+        "rtwn8723be_netbsd_enable_hw_security(void *arg)", 1)
+    if len(software) != 2:
+        raise ValueError("native security owner missing")
+    software = software[1]
+    software_branch = software.split(
+        "if (sc->sc_sw_crypto || sc->sc_use_sw_sec) {", 1)
+    if len(software_branch) != 2:
+        raise ValueError("software WPA2 policy lacks cipher-engine gate")
+    software_branch = software_branch[1].split("}", 1)[0]
+    if ("sc->sc_security_configured = true;" not in software_branch or
+            "return 0;" not in software_branch or
+            "rtwn8723be_write_" in software_branch):
+        raise ValueError("software WPA2 branch must not program HW cipher")
+    if software.find("if (sc->sc_sw_crypto || sc->sc_use_sw_sec)") > \
+            software.find("rtwn8723be_write_1(sc, 0x100U + 1"):
+        raise ValueError("native WPA2 software decision occurs after HW IO")
     netbsd = (src / "rtwn8723be_netbsd.c").read_text()
     btc_power = netbsd.split("rtwn8723be_netbsd_bt_power_on_setting(", 1)
     if len(btc_power) != 2:
