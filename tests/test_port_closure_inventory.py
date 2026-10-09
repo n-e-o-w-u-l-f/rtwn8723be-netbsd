@@ -106,6 +106,16 @@ def check(root, require_closure=False):
             stop_part[1]):
         raise ValueError("BTC HALT must follow Linux always-true get_btc_status")
     netbsd = (src / "rtwn8723be_netbsd.c").read_text()
+    btc_power = netbsd.split("rtwn8723be_netbsd_bt_power_on_setting(", 1)
+    if len(btc_power) != 2:
+        raise ValueError("native BTC MAC power-on missing")
+    btc_power = btc_power[1].split(
+        "rtwn8723be_netbsd_bt_preload_firmware(", 1)[0]
+    if ("!sc->sc_mapped || !sc->sc_btc.initialized" not in btc_power or
+            "if (!sc->sc_btcoexist)" in btc_power or
+            btc_power.find("!sc->sc_btc.initialized") >
+            btc_power.find("rtwn8723be_write_1(sc, 0x0067")):
+        raise ValueError("BTC power-on context/order mismatches RTL8723BE")
     shutdown_native = (src / "rtwn8723be_hw_disable_native.c").read_text()
     if ("sc_rfchange_inprogress = true" not in netbsd or
             "ETIMEDOUT" not in netbsd or
