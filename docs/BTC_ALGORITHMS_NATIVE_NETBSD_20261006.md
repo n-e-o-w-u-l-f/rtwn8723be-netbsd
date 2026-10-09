@@ -114,9 +114,11 @@ Production commits:
 - `6958c3f` implements `rtwn8723be_netbsd_bt_hw_init` using
   the real native algorithm broker, in exact INIT_HW -> INIT_DM order.
   It checks the Linux HW_INIT stage, mapped MMIO, H2C, firmware-ready
-  and existing prepared BTC owner. Non-coexistence boards honor the
-  frozen get_btc_status() no-call branch; missing actual coexistence
-  lifetime produces ENXIO instead of fabricated success.
+  and existing prepared BTC owner. A later pinned-source comparison
+  showed that RTL8723BE get_btc_status() is unconditionally true;
+  correction 9fb6ee4 eliminates the earlier physical-BT skip and
+  computes wifi_only from the separate BT-presence flag instead.
+  Missing actual coexistence lifetime produces ENXIO.
 - `4766174` declares the actual callback in the owning native header;
   `b3c71b0` binds it to `rtwn8723be_netbsd_ops.bt_hw_init`.
 - `b3e9315` inventories the actual source-event order and callback
@@ -140,3 +142,42 @@ rtl8723be PHY dynamic mechanism) is NOT equivalent to BTC INIT_DM and
 remains unbound. All kernel, WLAN/HT/keys/PM/recovery and i915
 acceptance gates remain OPEN; HP F77 remains the last authenticated
 2026-10-06 recovery state.
+
+
+## 2026-10-09: hardware-present vs BTC-framework identity corrected
+
+Pin `rtl8723be/sw.c:rtl8723be_get_btc_status()` returns **true**
+unconditionally. `rtlwifi/pci.c:rtl_pci_start()` consequently initializes
+the BTC context even when physical Bluetooth is absent, and
+`rtl_pci_stop()` always sends BTC HALT/deinit on a successfully started
+8723BE. Conversely, `rtl_btc_get_hwpg_bt_exist()` returns
+`rtlpriv->btcoexist.btc_info.btcoexist`, an independent physical
+bit derived from `REG_MULTI_FUNC_CTRL[18]` by the chipset parser.
+`rtl_btc_init_hw_config()` passes its inverse as `wifi_only`
+to the one-antenna algorithm; two-antenna INIT_HW ignores that argument.
+
+This review exposed **two actual early-return deviations** in the
+owning NetBSD driver, independent of the still-open full driver scope:
+
+- `9fb6ee4` removes the incorrect `if (!sc->sc_btcoexist) return 0`
+  from the real native BTC HW_INIT callback, supplies the exact
+  `event.value = sc->sc_btcoexist ? 0 : 1` and makes HALT owner
+  admission independent of physical Bluetooth presence.
+- `cf79663` removes the same incorrect BT-absent bypass from the
+  frozen `_rtl8723be_init_mac()` BTC power-on register sequence.
+  Before touching MMIO, it requires a mapped BAR, real prepared native
+  BTC context, and valid EEPROM antenna identity. With no such owner,
+  it fails with ENXIO rather than performing unsafe unowned hardware
+  writes or reporting a false successful MAC initialization.
+- `ea8be10`, `48ab9f1`, `ac951b4` update static regression
+  guards for the exact phase ordering, non-constant wifi_only value,
+  BTC HALT and MAC power-on preflight. `8ab5284` corrects a misleading
+  earlier function comment.
+
+Spinnennet Git fast-forwarded to `ac951b4c108fa6a6db18ea3364e65cfb4211ab64`.
+`git diff --check daddae3 HEAD` and the source-only callback inventory
+both succeeded, with **53 declared, 49 bound, four missing and 42
+native-manifest objects**; no C compiler or hardware exercised.
+This does NOT bind bt_prepare, PHY dm_init, net80211 registration/rfkill,
+or supply full ownership, native NetBSD compilation or HP WLAN
+authentication. Previous recovery F77 remains last observed 2026-10-06.
