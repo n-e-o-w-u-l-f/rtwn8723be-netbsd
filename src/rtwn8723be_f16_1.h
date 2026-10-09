@@ -14,6 +14,22 @@
 #define RTWN8723BE_RING_ALIGN          256
 #define RTWN8723BE_RX_BUFFER_SIZE      9100
 
+/*
+ * RTL8723BE old-TRX descriptor fields carry only 32-bit bus addresses.
+ * A valid start address alone is insufficient: the entire DMA transfer
+ * must fit in the 0x00000000..0xffffffff physical address aperture.
+ * The subtraction order deliberately avoids address+length overflow.
+ * The NetBSD DMA subregion tag is also mandatory; this is an additional
+ * verification at the exact point a segment is published to hardware.
+ */
+static inline bool
+rtwn8723be_dma32_range_valid(bus_addr_t addr, bus_size_t bytes)
+{
+    return bytes != 0 &&
+        (uint64_t)addr <= UINT32_MAX &&
+        (uint64_t)(bytes - 1) <= UINT32_MAX - (uint64_t)addr;
+}
+
 #define RTWN8723BE_RX_MPDU_QUEUE       0
 #define RTWN8723BE_RX_CMD_QUEUE        1
 #define RTWN8723BE_RX_QUEUE_COUNT      2
