@@ -77,9 +77,9 @@ rtwn8723be_rx_native_drain(struct rtwn8723be_softc *sc,
                 slot->map->dm_mapsize < RTWN8723BE_RX_BUFFER_SIZE ||
                 slot->map->dm_segs[0].ds_len <
                     RTWN8723BE_RX_BUFFER_SIZE ||
-                slot->map->dm_segs[0].ds_addr >
-                    (bus_addr_t)RTWN8723BE_DMA_MAXADDR -
-                    (RTWN8723BE_RX_BUFFER_SIZE - 1U))
+                !rtwn8723be_dma32_range_valid(
+                    slot->map->dm_segs[0].ds_addr,
+                    RTWN8723BE_RX_BUFFER_SIZE))
                 return EIO; /* Do not rearm a corrupt DMA slot. */
 
             bus_dmamap_sync(sc->sc_dmat, slot->map, 0,
