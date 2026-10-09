@@ -107,6 +107,68 @@ rtwn8723be_netbsd_rf_change_end(struct rtwn8723be_softc *sc)
     mutex_exit(&sc->sc_rf_ps_lock);
 }
 
+/*
+ * Frozen rtl8723be_gpio_radio_on_off_checking() hardware sampler:
+ * REG_GPIO_IO_SEL_2[1] is cleared before reading GPIO_PIN_CTRL_2[1].
+ * rtl8723be never assigns rtlphy.polarity_ctl, so its zero-initialized
+ * polarity selects GPIO bit1 == 1 as ERFON, bit1 == 0 as ERFOFF.
+ *
+ * This is NOT rtl_init_rfkill: that separate registered owner must publish
+ * the first valid reading, schedule/revoke polling and synchronize net80211
+ * stop/detach.  Never call with an RF-PS lock held, from IRQ/softint or while
+ * hardware can be unmapped; the external lifecycle owns that exclusion.
+ * Invalid/busy samples do not modify the caller's radio_on output.
+ */
+int
+rtwn8723be_netbsd_rfkill_gpio_sample(struct rtwn8723be_softc *sc,
+    bool *radio_on, bool *valid)
+{
+    uint8_t select, pins;
+    bool on;
+
+    if (radio_on == NULL || valid == NULL)
+        return EINVAL;
+    *valid = false;
+    if (sc == NULL)
+        return EINVAL;
+    if (cpu_intr_p() || cpu_softintr_p())
+        return EWOULDBLOCK;
+    if (!sc->sc_rf_ps_lock_initialized || !sc->sc_mapped ||
+        !sc->sc_core_initialized || sc->sc_linux.being_init_adapter)
+        return EAGAIN;
+    /* Probe initialization follows registration; polling requires RUNNING. */
+    if (sc->sc_linux.stage != R23BE_STAGE_RFKILL &&
+        sc->sc_linux.stage != R23BE_STAGE_PROBED &&
+        sc->sc_linux.stage != R23BE_STAGE_RUNNING)
+        return EAGAIN;
+    if (sc->sc_linux.stage == R23BE_STAGE_RUNNING &&
+        !sc->sc_linux.started)
+        return EAGAIN;
+
+    mutex_enter(&sc->sc_rf_ps_lock);
+    if (sc->sc_rfchange_inprogress) {
+        mutex_exit(&sc->sc_rf_ps_lock);
+        return EBUSY; /* Frozen Linux returns valid=0 when RF owner busy. */
+    }
+    sc->sc_rfchange_inprogress = true;
+    mutex_exit(&sc->sc_rf_ps_lock);
+
+    select = rtwn8723be_read_1(sc, R23BE_REG_GPIO_IO_SEL_2);
+    rtwn8723be_write_1(sc, R23BE_REG_GPIO_IO_SEL_2,
+        select & ~(uint8_t)(1U << 1));
+    pins = rtwn8723be_read_1(sc, R23BE_REG_GPIO_PIN_CTRL_2);
+    on = (pins & (1U << 1)) != 0;
+
+    mutex_enter(&sc->sc_rf_ps_lock);
+    sc->sc_hwradiooff = !on;
+    sc->sc_rfkill_sample_valid = true;
+    sc->sc_rfchange_inprogress = false;
+    mutex_exit(&sc->sc_rf_ps_lock);
+    *radio_on = on;
+    *valid = true;
+    return 0;
+}
+
 int
 rtwn8723be_netbsd_wait_rf_change_idle(void *arg)
 {
