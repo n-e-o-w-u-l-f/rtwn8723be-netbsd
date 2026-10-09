@@ -48,6 +48,18 @@ CONTROLS = (
         "unsafe IDLE or post-registration probe cleanup",
     ),
     (
+        "src/rtwn8723be_security_native.c",
+        "    if (sc->sc_sw_crypto || sc->sc_use_sw_sec) {\n"
+        "        sc->sc_security_configured = true;\n"
+        "        return 0;\n"
+        "    }",
+        "    if (sc->sc_sw_crypto || sc->sc_use_sw_sec) {\n"
+        "        sc->sc_security_configured = true;\n"
+        "        return EIO; /* deliberately breaks software crypto */\n"
+        "    }",
+        "software WPA2 branch must not program HW cipher",
+    ),
+    (
         "src/rtwn8723be_native.c",
         "        rtwn8723be_netbsd_context_fini(sc);\n"
         "        return;\n"
