@@ -40,7 +40,11 @@ prologue = r"""
 #include <errno.h>
 #include <string.h>
 #include "rtwn8723be_c2h.h"
-struct rtwn8723be_softc { bool sc_btcoexist; };
+struct rtwn8723be_softc {
+    bool sc_btcoexist;
+    struct { bool initialized; } sc_btc;
+    struct { bool initialized, active; } sc_btc_mp;
+};
 struct rtwn8723be_net80211 {
     struct rtwn8723be_softc *sc;
     bool registered;
@@ -107,6 +111,14 @@ int main(void)
     assert(rtwn8723be_rx_binding_init(&b, &n, &h) == ENOSYS);
     h.bt_info = on_event;
     h.bt_mp = on_event;
+    /* A function pointer is not equivalent to an initialized BT owner. */
+    assert(rtwn8723be_rx_binding_init(&b, &n, &h) == EAGAIN);
+    assert(b.net == NULL && b.dispatch.arg == NULL);
+    sc.sc_btc.initialized = true;
+    assert(rtwn8723be_rx_binding_init(&b, &n, &h) == EAGAIN);
+    sc.sc_btc_mp.initialized = true;
+    assert(rtwn8723be_rx_binding_init(&b, &n, &h) == EAGAIN);
+    sc.sc_btc_mp.active = true;
     assert(rtwn8723be_rx_binding_init(&b, &n, &h) == 0);
     assert(rtwn8723be_rx_binding_init(NULL, &n, &h) == EINVAL);
     puts("RTL_RX_FRAME_C2H_SHARED_CONTEXT_C11_UBSAN_OK");
