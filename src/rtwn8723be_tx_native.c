@@ -63,6 +63,7 @@ rtwn8723be_tx_native_enqueue(struct rtwn8723be_softc *sc,
     struct rtwn8723be_dma_slot *slot;
     struct rtwn8723be_tx_desc *desc;
     struct rtwn8723be_tx_params p;
+    struct rtwn8723be_tx_desc saved_desc;
     bus_addr_t next;
     bus_size_t offset;
     unsigned int idx;
@@ -115,29 +116,33 @@ rtwn8723be_tx_native_enqueue(struct rtwn8723be_softc *sc,
         return EBUSY;
     }
 
+    /* Any subsequent failure must undo partial encoder writes, re-sync
+     * the descriptor for DMA, and leave the caller's mbuf untouched.
+     */
+    saved_desc = *desc;
     error = bus_dmamap_load_mbuf(sc->sc_dmat, slot->map, m,
         BUS_DMA_NOWAIT | BUS_DMA_WRITE);
     if (error != 0)
-        return error; /* Original mbuf still belongs to caller. */
+        goto restore_desc; /* Original mbuf still belongs to caller. */
     if (slot->map->dm_nsegs != 1 ||
         slot->map->dm_segs[0].ds_len <
             (bus_size_t)input->buffer_len ||
         !rtwn8723be_dma32_range_valid(
             slot->map->dm_segs[0].ds_addr,
             (bus_size_t)input->buffer_len)) {
-        bus_dmamap_unload(sc->sc_dmat, slot->map);
-        return EFBIG; /* Reject a packet straddling the 4-GiB limit. */
+        error = EFBIG; /* Reject a packet straddling the 4-GiB limit. */
+        goto unload_map;
     }
     if (slot->map->dm_mapsize != (bus_size_t)input->buffer_len) {
-        bus_dmamap_unload(sc->sc_dmat, slot->map);
-        return EIO;
+        error = EIO;
+        goto unload_map;
     }
 
     next = ring->desc_dma.paddr +
         (bus_addr_t)(((idx + 1U) % ring->count) * sizeof(*desc));
     if (!rtwn8723be_dma32_range_valid(next, sizeof(*desc))) {
-        bus_dmamap_unload(sc->sc_dmat, slot->map);
-        return EFBIG;
+        error = EFBIG;
+        goto unload_map;
     }
 
     p = *input;
@@ -150,10 +155,8 @@ rtwn8723be_tx_native_enqueue(struct rtwn8723be_softc *sc,
     else
         error = rtwn8723be_tx_encode(&p,
             (uint8_t *)desc, sizeof(*desc));
-    if (error != 0) {
-        bus_dmamap_unload(sc->sc_dmat, slot->map);
-        return error;
-    }
+    if (error != 0)
+        goto unload_map;
 
     /* Ownership changes only after the packet's DMA mapping is valid. */
     bus_dmamap_sync(sc->sc_dmat, slot->map, 0,
@@ -169,6 +172,16 @@ rtwn8723be_tx_native_enqueue(struct rtwn8723be_softc *sc,
     rtwn8723be_write_2(sc, R23BE_REG_PCIE_CTRL_REG,
         (uint16_t)(1U << qid));
     return 0;
+
+unload_map:
+    /* The mbuf has never been transferred to slot ownership. */
+    bus_dmamap_unload(sc->sc_dmat, slot->map);
+restore_desc:
+    /* Restoring the complete 64-byte slot also restores NEXT_DESC. */
+    *desc = saved_desc;
+    rtwn8723be_f16_1_dma_sync_for_device(sc->sc_dmat,
+        &ring->desc_dma, offset, sizeof(*desc));
+    return error;
 }
 
 int
