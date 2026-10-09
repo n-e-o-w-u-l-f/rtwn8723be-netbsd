@@ -20,6 +20,21 @@ ROOT = Path(__file__).resolve().parents[1]
 # path, unique source excerpt, mutation, expected diagnostic substring
 CONTROLS = (
     (
+        "src/rtwn8723be_rx_native.c",
+        "            *delivered = seen; /* Earlier queue may already have delivered. */",
+        "            *delivered = 0; /* regression: loses earlier RX packets */",
+        "RX delivery count lost after partial queue drain",
+    ),
+    (
+        "src/rtwn8723be_rx_native.c",
+        "                rtwn8723be_f16_1_dma_sync_for_device(sc->sc_dmat,\n"
+        "                    &ring->desc_dma, off, sizeof(*desc));\n"
+        "                *delivered = seen;",
+        "                /* regression: descriptor still in CPU postread state */\n"
+        "                *delivered = seen;",
+        "invalid RX slot returns before DMA re-sync",
+    ),
+    (
         "src/rtwn8723be_btc_providers_native.c",
         "        path >= sc->sc_rf_path_count ||\n"
         "        path > RTWN8723BE_RF_PATH_B || mask == 0 ||\n"
