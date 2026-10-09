@@ -332,11 +332,12 @@ rtwn8723be_btc_native_fini(struct rtwn8723be_softc *sc)
 }
 
 /*
- * Frozen Linux rtl8723be_bt_hw_init() calls rtl_btc_init_hw_config()
- * only when get_btc_status() is true.  rtl_btc_init_hw_config() runs
- * exhalbtc_init_hw_config(btcoexist, !bt_exist) followed by
- * exhalbtc_init_coex_dm(), in this order.  On this path BT is present,
- * so the one-antenna wifi_only argument must be false.
+ * Frozen RTL8723BE rtl8723be_get_btc_status() returns true regardless of
+ * physical Bluetooth presence: rtl_pci_start() creates BTC context and
+ * rtl8723be_bt_hw_init() calls rtl_btc_init_hw_config() on BOTH branches.
+ * rtl_btc_init_hw_config() passes !rtl_get_hwpg_bt_exist() as the
+ * one-antenna wifi_only flag, and then runs exhalbtc_init_coex_dm().
+ * The hardware-presence flag comes from the separate EEPROM/MMIO identity.
  *
  * The native engine owns the exact frozen 1/2-antenna algorithm bodies
  * and 27 provider contract; native_execute acquires real resource owner,
