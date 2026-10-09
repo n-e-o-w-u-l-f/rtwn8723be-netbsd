@@ -60,5 +60,9 @@ void rtwn8723be_btc_native_provider_error(struct rtwn8723be_softc *, int);
  */
 int rtwn8723be_btc_native_stop(struct rtwn8723be_softc *);
 int rtwn8723be_btc_native_fini(struct rtwn8723be_softc *);
+/* Real RTL8723BE BTC init_hw_config -> init_coex_dm phase, fail-closed.
+ * Requires the complete owner/context established by bt_prepare.
+ */
+int rtwn8723be_netbsd_bt_hw_init(void *);
 int rtwn8723be_netbsd_bt_halt_deinit(void *);
 #endif
