@@ -74,6 +74,14 @@ def check(root, require_closure=False):
     offsets = [hw_init.find(token) for token in ordered]
     if any(i < 0 for i in offsets) or offsets != sorted(offsets):
         raise ValueError("BTC native HW/DM source order or preflight changed")
+    # Frozen RTL8723BE get_btc_status() is always true even when the
+    # physical rtl_get_hwpg_bt_exist() result is false.  Disallow both
+    # the old success/no-op shortcut and a constant wifi_only flag.
+    if (re.search(
+            r"if\s*\(\s*!sc->sc_btcoexist\s*\)\s*return\s+0",
+            hw_init) or
+            hw_init.count("event.value = sc->sc_btcoexist ? 0 : 1;") != 1):
+        raise ValueError("RTL8723BE physical BT presence masked BTC support")
     if ("if (error == 0 && event->kind == R23BE_BTC_INIT_DM)" not in
             btc_native or
             "n->engine.btc.initialized = true;" not in btc_native):
