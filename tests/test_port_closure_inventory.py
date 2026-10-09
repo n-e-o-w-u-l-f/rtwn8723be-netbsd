@@ -138,12 +138,16 @@ def check(root, require_closure=False):
     if len(fail_cleanup) != 2:
         raise ValueError("probe failure cleanup missing")
     fail_cleanup = fail_cleanup[1].split("native RTL8723BE probe failed:", 1)[0]
-    if (not re.search(
-            r"rtwn8723be_native_probe_cleanup\\(sc\\);.*"
-            r"if \\(sc->sc_linux.stage == R23BE_STAGE_IDLE &&"
-            r".*!sc->sc_initial_pci_saved\\).*"
-            r"rtwn8723be_netbsd_context_fini\\(sc\\);",
-            fail_cleanup, re.S)):
+    expected_cleanup_sequence = (
+        "rtwn8723be_native_probe_cleanup(sc);",
+        "if (sc->sc_linux.stage == R23BE_STAGE_IDLE &&",
+        "!sc->sc_initial_pci_saved)",
+        "rtwn8723be_netbsd_context_fini(sc);",
+    )
+    cleanup_offsets = [fail_cleanup.find(token)
+                       for token in expected_cleanup_sequence]
+    if (any(i < 0 for i in cleanup_offsets) or
+            cleanup_offsets != sorted(cleanup_offsets)):
         raise ValueError("pre-registration probe failure leaves RF owner active")
 
     # NetBSD/src if.c requires if_register() before if_detach(); it is
