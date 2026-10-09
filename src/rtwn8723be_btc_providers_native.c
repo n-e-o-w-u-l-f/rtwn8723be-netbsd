@@ -235,7 +235,12 @@ btc_rf_ready(void *arg)
     return btc_provider_ready(sc) && sc->sc_core_initialized &&
         sc->sc_bb_valid && sc->sc_linux.fw_ready &&
         sc->sc_rf_path_count_valid &&
-        (sc->sc_rf_path_count == 1 || sc->sc_rf_path_count == 2);
+        /*
+         * rtl8723be/hw.c:_rtl8723be_read_chip_version() always
+         * selects RF_1T1R.  The 1/2 Bluetooth antenna setting does
+         * not create a second WLAN RF serial chain.
+         */
+        sc->sc_rf_path_count == 1;
 }
 
 static int
