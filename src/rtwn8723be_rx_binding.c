@@ -61,6 +61,19 @@ rtwn8723be_rx_binding_init(struct rtwn8723be_rx_binding *binding,
          (firmware->bt_info == NULL || firmware->bt_mp == NULL)))
         return ENOSYS;
 
+    /*
+     * A non-NULL handler pointer is not a live Bluetooth consumer.
+     * Initialization and real MCU-ready/old-RX-drain MP activation must
+     * precede publishing the shared RX callbacks on coexistence boards.
+     * The external lifecycle owner serializes this admission against
+     * STOPPING, MP/BTC fini and IRQ/softint quiescence.
+     */
+    if (net->sc->sc_btcoexist &&
+        (!net->sc->sc_btc.initialized ||
+         !net->sc->sc_btc_mp.initialized ||
+         !net->sc->sc_btc_mp.active))
+        return EAGAIN;
+
     /* The caller must provide zero-initialized, IRQ-quiesced storage. */
     memset(binding, 0, sizeof(*binding));
     binding->net = net;
