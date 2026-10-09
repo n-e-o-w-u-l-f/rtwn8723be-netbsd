@@ -1309,9 +1309,18 @@ rtwn8723be_netbsd_bt_power_on_setting(struct rtwn8723be_softc *sc)
     uint16_t value16;
     uint8_t local = 0;
 
-    if (!sc->sc_btcoexist)
-        return 0;
-    if (!sc->sc_bt_ant_valid)
+    if (sc == NULL)
+        return EINVAL;
+    /*
+     * rtl8723be_get_btc_status() returns true even if the physical
+     * btcoexist/BT-present bit is clear.  Frozen _rtl8723be_init_mac()
+     * therefore always reaches btc_power_on_setting() after the
+     * rtl_pci_start() BTC-context preparation.  Do not suppress the
+     * 8723B antenna-specific PCI/BB power-on sequence for Wi-Fi-only
+     * boards or touch MMIO before bt_prepare has real ownership.
+     */
+    if (!sc->sc_mapped || !sc->sc_btc.initialized ||
+        !sc->sc_bt_ant_valid)
         return ENXIO;
     if (sc->sc_btdm_ant_num != RTWN8723BE_ANT_X1 &&
         sc->sc_btdm_ant_num != RTWN8723BE_ANT_X2)
