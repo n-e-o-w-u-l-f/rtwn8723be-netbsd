@@ -49,6 +49,12 @@ rtwn8723be_btc_engine_init(struct rtwn8723be_btc_state *s,
     memset(s, 0, sizeof(*s));
     s->btc = copy;
     s->btc.r23be_state = s;
+    /*
+     * Frozen rtl_btc_init_variables() kzallocs btc_coexist.  A copied
+     * caller context must not claim exhalbtc_init_coex_dm() has already
+     * completed before the native hardware/DM initialization callbacks.
+     */
+    s->btc.initialized = false;
     s->prepared = true;
     return 0;
 }
