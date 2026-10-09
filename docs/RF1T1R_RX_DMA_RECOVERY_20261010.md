@@ -72,13 +72,26 @@ Read-only inspection verified: one-chain condition present; two
 provider path-count guards present; three RX delivery-count publication
 sites; complete RX DMA descriptor ring span guard; RX invalid-slot
 descriptor resync before EIO; fourteen declared negative-control
-source entries. This is NOT an executed test or native compile.
+source entries at 968fe43; the later DMA-tag control brings the total to fifteen. This is NOT an executed test or native compile.
 
 Earlier Remote Desktop Commander start_process invocation of the
 source-only Python tests was explicitly denied by platform safety.
 This continuation did not repeat or reroute that denied execution.
 Earlier GitHub write denial for netbsd.h channel-plan publication
 also remains intact. No changed HP runtime/boot/KMS/WLAN state.
+
+## Additional independent hardware-contract correction
+
+- def93c1896b4e6086f055be02ae4c794a1aa3a5c:
+  RX drain now requires sc_dma_32bit, proving that NetBSD's real
+  bus_dmatag_subregion was configured; an in-range descriptor value
+  cannot substitute for a valid constrained DMA tag.
+- 01146adc23528717f172a7624c5e84255ac939fc:
+  source inventory rejects RX drain without the 32-bit tag guard.
+- 7e8df50f85bd8a74f85524562273dbef7b960241:
+  independent fifteenth source mutation deliberately omits the tag.
+  These three additional changes were published/read back, but
+  no source test/native compilation was executed.
 
 ## Remaining acceptance
 
