@@ -172,6 +172,9 @@ struct rtwn8723be_softc {
     kmutex_t sc_rf_ps_lock;
     bool sc_rf_ps_lock_initialized;
     bool sc_rfchange_inprogress;
+    /* Native GPIO RF-kill sample, owned by RF-PS serialization. */
+    bool sc_hwradiooff;
+    bool sc_rfkill_sample_valid;
     uint32_t sc_rfoff_reason;
 };
 
@@ -237,6 +240,11 @@ int rtwn8723be_netbsd_mark_hal_stop(void *);
 int rtwn8723be_netbsd_wait_rf_change_idle(void *);
 bool rtwn8723be_netbsd_rf_change_owned(struct rtwn8723be_softc *);
 void rtwn8723be_netbsd_rf_change_end(struct rtwn8723be_softc *);
+/* GPIO sample only: does NOT register rfkill polling or a net80211 owner.
+ * Called without any RF/IRQ lock; external lifecycle excludes detach.
+ */
+int rtwn8723be_netbsd_rfkill_gpio_sample(struct rtwn8723be_softc *,
+    bool *, bool *);
 
 void rtwn8723be_netbsd_irq_set_dispatch(struct rtwn8723be_softc *,
     const struct rtwn8723be_irq_dispatch *, void *);
