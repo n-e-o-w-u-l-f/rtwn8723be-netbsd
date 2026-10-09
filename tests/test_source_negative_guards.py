@@ -20,6 +20,12 @@ ROOT = Path(__file__).resolve().parents[1]
 # path, unique source excerpt, mutation, expected diagnostic substring
 CONTROLS = (
     (
+        "src/rtwn8723be_rx_native.c",
+        "        !sc->sc_dma_32bit || sc->sc_dmat == NULL)",
+        "        sc->sc_dmat == NULL) /* incorrect: DMA tag not verified */",
+        "RX drain accepts non-32-bit DMA tag",
+    ),
+    (
         "src/rtwn8723be_btc_providers_native.c",
         "        sc->sc_rf_path_count == 1;",
         "        sc->sc_rf_path_count == 2; /* phantom RF_B */",
