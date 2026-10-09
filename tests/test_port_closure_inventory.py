@@ -63,9 +63,9 @@ def check(root, require_closure=False):
     hw_init = hw_init_match.group(0)
     ordered = (
         "R23BE_STAGE_BT_HW",
-        "sc->sc_btcoexist",
         "!sc->sc_btc.initialized",
         "event.kind = R23BE_BTC_INIT_HW;",
+        "event.value = sc->sc_btcoexist ? 0 : 1;",
         "rtwn8723be_btc_native_execute(sc, &event);",
         "if (error != 0)",
         "event.kind = R23BE_BTC_INIT_DM;",
@@ -89,8 +89,14 @@ def check(root, require_closure=False):
             engine_init.index("s->btc.initialized = false;")):
         raise ValueError("BTC copied context published pre-initialized")
     if ("rtwn8723be_btc_native_fini(sc)" not in btc_native or
-            "sc->sc_btcoexist && !sc->sc_btc.initialized" not in btc_native):
+            "if (!sc->sc_btc.initialized)" not in btc_native):
         raise ValueError("BTC halt/deinit lifetime incomplete")
+    stop_part = btc_native.split("rtwn8723be_netbsd_bt_halt_deinit(void *arg)", 1)
+    if len(stop_part) != 2 or (
+            "if (!sc->sc_btc.initialized)" not in stop_part[1] or
+            "if (sc->sc_btcoexist && !sc->sc_btc.initialized)" in
+            stop_part[1]):
+        raise ValueError("BTC HALT must follow Linux always-true get_btc_status")
     netbsd = (src / "rtwn8723be_netbsd.c").read_text()
     shutdown_native = (src / "rtwn8723be_hw_disable_native.c").read_text()
     if ("sc_rfchange_inprogress = true" not in netbsd or
