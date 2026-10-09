@@ -116,6 +116,46 @@ def check(root, require_closure=False):
             btc_power.find("!sc->sc_btc.initialized") >
             btc_power.find("rtwn8723be_write_1(sc, 0x0067")):
         raise ValueError("BTC power-on context/order mismatches RTL8723BE")
+    # Native GPIO RF switch sample (NOT the full polling/registration path):
+    # match frozen rtl8723be GPIO offsets, non-inverted default polarity,
+    # invalid-sample ownership and RF-change lock order before any MMIO.
+    regs = (src / "rtwn8723be_f16_1.h").read_text()
+    softc_h = (src / "rtwn8723be_netbsd.h").read_text()
+    if (not re.search(r"R23BE_REG_GPIO_PIN_CTRL_2\\s+0x0060\\b", regs)
+            or not re.search(r"R23BE_REG_GPIO_IO_SEL_2\\s+0x0062\\b", regs)
+            or "sc_hwradiooff;" not in softc_h
+            or "sc_rfkill_sample_valid;" not in softc_h):
+        raise ValueError("pinned RTL8723BE GPIO register/state ABI missing")
+    sample_part = netbsd.split(
+        "rtwn8723be_netbsd_rfkill_gpio_sample(", 1)
+    if len(sample_part) != 2:
+        raise ValueError("native RTL8723BE GPIO RF sampler missing")
+    sample = sample_part[1].split(
+        "rtwn8723be_netbsd_wait_rf_change_idle(", 1)[0]
+    ordered_sample = (
+        "*valid = false;",
+        "cpu_intr_p() || cpu_softintr_p()",
+        "sc->sc_linux.being_init_adapter",
+        "mutex_enter(&sc->sc_rf_ps_lock);",
+        "if (sc->sc_rfchange_inprogress)",
+        "sc->sc_rfchange_inprogress = true;",
+        "mutex_exit(&sc->sc_rf_ps_lock);",
+        "rtwn8723be_read_1(sc, R23BE_REG_GPIO_IO_SEL_2);",
+        "rtwn8723be_write_1(sc, R23BE_REG_GPIO_IO_SEL_2,",
+        "rtwn8723be_read_1(sc, R23BE_REG_GPIO_PIN_CTRL_2);",
+        "on = (pins & (1U << 1)) != 0;",
+        "sc->sc_hwradiooff = !on;",
+        "sc->sc_rfchange_inprogress = false;",
+        "*radio_on = on;",
+        "*valid = true;",
+    )
+    offsets = [sample.find(t) for t in ordered_sample]
+    if (any(i < 0 for i in offsets) or offsets != sorted(offsets)):
+        raise ValueError("GPIO RF sample violated frozen ordering/validity")
+    if "if (sc->sc_linux.stage == R23BE_STAGE_RUNNING &&" not in sample:
+        raise ValueError("GPIO sample must not report unstarted hardware")
+    if ".init_rfkill = " in initializer.group(1):
+        raise ValueError("rfkill probe callback bound before poll/teardown owner")
     shutdown_native = (src / "rtwn8723be_hw_disable_native.c").read_text()
     if ("sc_rfchange_inprogress = true" not in netbsd or
             "ETIMEDOUT" not in netbsd or
