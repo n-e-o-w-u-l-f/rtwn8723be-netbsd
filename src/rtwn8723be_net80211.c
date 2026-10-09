@@ -203,8 +203,15 @@ rtwn8723be_net80211_register(struct rtwn8723be_net80211 *n,
     ic->ic_phytype = IEEE80211_T_OFDM;
     ic->ic_opmode = IEEE80211_M_STA;
     ic->ic_state = IEEE80211_S_INIT;
-    /* Claim only currently implemented station-mode 2.4-GHz capabilities. */
-    ic->ic_caps = IEEE80211_C_SHPREAMBLE | IEEE80211_C_SHSLOT;
+    /*
+     * Station-mode 2.4-GHz software crypto: the frozen NetBSD if_rtwn
+     * reference advertises WPA/RSN and ieee80211_ifattach initializes
+     * the software crypto methods.  Restrict this bridge to WPA2/RSN;
+     * legacy WPA1 and hardware CAM offload are not claimed here.
+     * Successful key installation and actual TX/RX remain separate gates.
+     */
+    ic->ic_caps = IEEE80211_C_SHPREAMBLE | IEEE80211_C_SHSLOT |
+        IEEE80211_C_WPA2;
     ic->ic_sup_rates[IEEE80211_MODE_11B] = ieee80211_std_rateset_11b;
     ic->ic_sup_rates[IEEE80211_MODE_11G] = ieee80211_std_rateset_11g;
     for (ch = 1; ch <= 14; ch++) {
@@ -225,14 +232,16 @@ rtwn8723be_net80211_register(struct rtwn8723be_net80211 *n,
     if_initialize(ifp);
     IEEE80211_ADDR_COPY(ic->ic_myaddr, sc->sc_macaddr);
     ieee80211_ifattach(ic);
+    /*
+     * Frozen NetBSD if_percpuq_create() uses kmem_zalloc(KM_SLEEP)
+     * and returns its allocated queue, not an ENOMEM status.
+     * In particular, if_detach() may not be used to unwind an
+     * interface that has not yet completed if_register(): doing so
+     * removes a nonexistent ifnet_list entry.  Match if_rtwn.c order.
+     * The driver owner must quiesce and detach after registration.
+     */
     ifp->if_percpuq = if_percpuq_create(ifp);
-    if (ifp->if_percpuq == NULL) {
-        ieee80211_ifdetach(ic);
-        if_detach(ifp);
-        n->sc = NULL;
-        memset(&n->methods, 0, sizeof(n->methods));
-        return ENOMEM;
-    }
+    KASSERT(ifp->if_percpuq != NULL);
     if_register(ifp);
     ieee80211_media_init(ic, rtwn8723be_n80211_media_change,
         ieee80211_media_status);
