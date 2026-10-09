@@ -437,6 +437,14 @@ def check(root, require_closure=False):
     # does NOT change the count of available RF serial bus paths.
     # Both the write and read providers must validate that physical
     # count before doing any RF register IO.
+    rf_ready = providers.split("btc_rf_ready(void *arg)", 1)
+    if len(rf_ready) != 2:
+        raise ValueError("BTC RF_1T1R readiness gate missing")
+    rf_ready = rf_ready[1].split("btc_rf_read_bb(", 1)[0]
+    if ("sc->sc_rf_path_count_valid &&" not in rf_ready or
+            "sc->sc_rf_path_count == 1;" not in rf_ready or
+            "sc->sc_rf_path_count == 2" in rf_ready):
+        raise ValueError("BTC RF_1T1R readiness accepts phantom path B")
     for rf_provider, successor in (
             ("btc_set_rf(", "btc_get_rf("),
             ("btc_get_rf(", "btc_fill_h2c(")):
