@@ -139,7 +139,6 @@ def check(root, require_closure=False):
         "mutex_enter(&sc->sc_rf_ps_lock);",
         "if (sc->sc_rfchange_inprogress)",
         "sc->sc_rfchange_inprogress = true;",
-        "mutex_exit(&sc->sc_rf_ps_lock);",
         "rtwn8723be_read_1(sc, R23BE_REG_GPIO_IO_SEL_2);",
         "rtwn8723be_write_1(sc, R23BE_REG_GPIO_IO_SEL_2,",
         "rtwn8723be_read_1(sc, R23BE_REG_GPIO_PIN_CTRL_2);",
@@ -152,6 +151,13 @@ def check(root, require_closure=False):
     offsets = [sample.find(t) for t in ordered_sample]
     if (any(i < 0 for i in offsets) or offsets != sorted(offsets)):
         raise ValueError("GPIO RF sample violated frozen ordering/validity")
+    # The busy branch unlocks earlier than successful admission; check
+    # the second unlock next to the successful ownership claim explicitly.
+    if ("sc->sc_rfchange_inprogress = true;\\n    mutex_exit(&sc->sc_rf_ps_lock);" not in
+            sample or
+            "if (sc->sc_rfchange_inprogress) {\\n        mutex_exit(&sc->sc_rf_ps_lock);"
+            not in sample):
+        raise ValueError("GPIO RF owner is not released on both paths")
     if "if (sc->sc_linux.stage == R23BE_STAGE_RUNNING &&" not in sample:
         raise ValueError("GPIO sample must not report unstarted hardware")
     if ".init_rfkill = " in initializer.group(1):
