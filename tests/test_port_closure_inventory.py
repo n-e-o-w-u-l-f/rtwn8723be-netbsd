@@ -121,6 +121,32 @@ def check(root, require_closure=False):
     if ("!rtwn8723be_dma32_range_valid(" not in rx_native or
             "slot->map->dm_segs[0].ds_len <" not in rx_native):
         raise ValueError("native RX rearm lacks complete DMA segment guard")
+    # A later corrupt RX queue must not erase the accepted frame count from
+    # earlier queues.  The per-slot failure runs AFTER POSTREAD sync, and
+    # must restore DMA descriptor direction while refusing to set OWN.
+    rx_check = rx_native.split("rtwn8723be_rx_native_drain(", 1)
+    if len(rx_check) != 2:
+        raise ValueError("native RX drain owner missing")
+    rx_check = rx_check[1]
+    if ("ring->desc_dma.paddr, ring->desc_dma.size)" not in rx_check or
+            "!rtwn8723be_dma32_range_valid(" not in rx_check):
+        raise ValueError("RX ring lacks complete DMA address-span guard")
+    if rx_check.count("*delivered = seen;") != 3:
+        raise ValueError("RX delivery count lost after partial queue drain")
+    invalid_slot = rx_check.split(
+        "return EIO; /* Do not rearm a corrupt DMA slot. */", 1)
+    if len(invalid_slot) != 1:
+        raise ValueError("RX invalid DMA slot bypasses descriptor re-sync")
+    invalid_slot = rx_check.split("slot->map->dm_segs[0].ds_addr,", 1)
+    if len(invalid_slot) != 2:
+        raise ValueError("RX DMA slot address validation missing")
+    invalid_slot = invalid_slot[1].split(
+        "bus_dmamap_sync(sc->sc_dmat, slot->map,", 1)[0]
+    if (invalid_slot.find("rtwn8723be_f16_1_dma_sync_for_device(") < 0
+            or invalid_slot.find("*delivered = seen;") < 0
+            or invalid_slot.find("return EIO;") < 0
+            or invalid_slot.find("R23BE_RXD0_OWN") >= 0):
+        raise ValueError("invalid RX slot returns before DMA re-sync")
     struct = re.search(r"struct rtwn8723be_linux_ops\s*\{(.*?)\n\};", header, re.S)
     initializer = re.search(
         r"const struct rtwn8723be_linux_ops\s+rtwn8723be_netbsd_ops\s*=\s*\{(.*?)\n\};",
