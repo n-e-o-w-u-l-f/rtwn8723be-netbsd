@@ -407,6 +407,21 @@ def check(root, require_closure=False):
             raise ValueError("native BTC low-level provider missing: " + token)
     if "This does NOT make the coexistence" not in provider_header:
         raise ValueError("BTC provider partial-closure guard missing")
+    # The 8723BE physical RF is RF_1T1R; BT 1/2-antenna coexistence
+    # does NOT change the count of available RF serial bus paths.
+    # Both the write and read providers must validate that physical
+    # count before doing any RF register IO.
+    for rf_provider, successor in (
+            ("btc_set_rf(", "btc_get_rf("),
+            ("btc_get_rf(", "btc_fill_h2c(")):
+        block = providers.split(rf_provider, 1)
+        if len(block) != 2:
+            raise ValueError("native coexistence RF provider missing")
+        block = block[1].split(successor, 1)[0]
+        if ("!sc->sc_rf_path_count_valid ||" not in block or
+                "path >= sc->sc_rf_path_count ||" not in block or
+                "btc_provider_fail(sc, EINVAL);" not in block):
+            raise ValueError("BTC RF provider permits nonexistent PHY path")
     # Complete typed receive ABI is necessary but not sufficient: the
     # external lifecycle owner must prove a fresh MCU/RX lifetime first.
     mp_source = (src / "rtwn8723be_btc_mp_native.c").read_text()
