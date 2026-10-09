@@ -358,14 +358,20 @@ rtwn8723be_netbsd_bt_hw_init(void *arg)
         !sc->sc_mapped)
         return EAGAIN;
 
-    if (!sc->sc_btcoexist)
-        return 0; /* Linux get_btc_status(): no coexistence callback. */
+    /*
+     * Frozen rtl8723be_get_btc_status() always returns true: it enables
+     * the BTC framework independently of physical BT presence.
+     * rtl_get_hwpg_bt_exist() returns the EFUSE/MMIO-derived btcoexist
+     * bit.  Never skip the whole BTC hardware+DM path just because
+     * that physical bit is clear; it selects the one-antenna
+     * wifi_only argument instead.
+     */
     if (!sc->sc_btc.initialized)
-        return ENXIO; /* Never treat a missing bt_prepare as success. */
+        return ENXIO; /* An incomplete bt_prepare cannot look successful. */
 
     memset(&event, 0, sizeof(event));
     event.kind = R23BE_BTC_INIT_HW;
-    event.value = 0; /* Frozen rtl_btc_init_hw_config(): !bt_exist. */
+    event.value = sc->sc_btcoexist ? 0 : 1; /* !rtl_get_hwpg_bt_exist */
     error = rtwn8723be_btc_native_execute(sc, &event);
     if (error != 0)
         return error;
@@ -392,11 +398,12 @@ rtwn8723be_netbsd_bt_halt_deinit(void *arg)
         return EAGAIN;
 
     /*
-     * A coexistence-capable board must have been prepared by bt_prepare.
-     * Returning success here would otherwise hide a missing provider/owner.
-     * Wi-Fi-only operation legitimately has no full coexistence context.
+     * Frozen RTL8723BE get_btc_status() is unconditional, independent
+     * of the physical BT-present flag.  The Linux stop path therefore
+     * always performs BTC HALT and deinit after a successful start.
+     * Keep a missing bt_prepare/algorithm owner visible as an error.
      */
-    if (sc->sc_btcoexist && !sc->sc_btc.initialized)
+    if (!sc->sc_btc.initialized)
         return ENXIO;
 
     return rtwn8723be_btc_native_fini(sc);
