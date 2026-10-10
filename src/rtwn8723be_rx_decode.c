@@ -49,6 +49,12 @@ rtwn8723be_rx_decode(const uint8_t *desc, size_t desc_size,
     packet->software_decryption = (d0 & (1U << 27)) != 0;
     packet->mac_id = (uint8_t)(d1 & 0x7fU);
     packet->rate = (uint8_t)(d3 & 0x7fU);
+    /* Packet offset was validated against buffer_size above. These
+     * descriptor-derived slices sum exactly to that validated offset. */
+    packet->phy_present = (d0 & (1U << 26)) != 0;
+    packet->phy_offset = (size_t)((d0 >> 24) & 0x03U);
+    packet->phy_length = (size_t)((d0 >> 16) & 0x0fU) *
+        RTWN8723BE_RX_DRVINFO_UNIT;
 
     if (packet->kind == RTWN8723BE_RX_C2H) {
         /* Linux wifi.h GET_C2H_CMD_ID/SEQ and C2H_DATA_OFFSET=2. */
