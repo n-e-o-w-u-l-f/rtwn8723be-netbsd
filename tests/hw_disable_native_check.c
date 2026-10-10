@@ -60,6 +60,20 @@ int rtwn8723be_netbsd_poweroff_adapter(void *arg)
     sc->sc_linux.mac_func_enable = sc->sc_linux.fw_ready = false;
     return poweroff(&actual);
 }
+/* Native RF-PS ownership is modeled independently from the
+ * poweroff IO callbacks, matching netbsd.c's guarded lifetime. */
+bool
+rtwn8723be_netbsd_rf_change_owned(struct rtwn8723be_softc *sc)
+{
+    return sc != NULL && sc->sc_rfchange_inprogress;
+}
+void
+rtwn8723be_netbsd_rf_change_end(struct rtwn8723be_softc *sc)
+{
+    if (sc != NULL)
+        sc->sc_rfchange_inprogress = false;
+}
+
 static void native_reset(struct rtwn8723be_softc *sc)
 {
     struct rtwn8723be_hw_disable_inputs input;
@@ -68,6 +82,7 @@ static void native_reset(struct rtwn8723be_softc *sc)
     stop_owner.valid = stop_owner.idle = true;
     reset(&sc->sc_hw_disable, &input);
     sc->sc_mapped = sc->sc_core_initialized = sc->sc_linux.started = true;
+    sc->sc_rfchange_inprogress = true;
     sc->sc_linux.fw_ready = sc->sc_linux.mac_func_enable = true;
     sc->sc_linux.stage = R23BE_STAGE_STOPPING;
     sc->sc_mapsize = 4096U;
