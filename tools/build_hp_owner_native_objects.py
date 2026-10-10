@@ -28,6 +28,15 @@ MAKE = STAGE / "native-tools/bin/nbmake-amd64"
 COMPILER = str(STAGE / "native-tools/bin/x86_64--netbsd-gcc")
 MANIFEST = ROOT / "config/files.rtwn8723be_native"
 RULE = re.compile(r"^file\s+dev/pci/(rtwn8723be_\w+\.c)\s+rtwn8723be_native\s*$", re.M)
+# Exact seven older HP runtime-owner sources recovered from the frozen
+# 48-unit NetBSD files.pci. These are NOT yet selected in WIP's manifest.
+# No other unselected file may be compiled by this ABI-only exception.
+RECOVERED_UNSELECTED = frozenset((
+    "rtwn8723be_runtime.c", "rtwn8723be_dm_native.c",
+    "rtwn8723be_channel_native.c", "rtwn8723be_media_native.c",
+    "rtwn8723be_btc_provider_native.c", "rtwn8723be_net80211_tx.c",
+    "rtwn8723be_reserved_native.c",
+))
 
 def sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -52,9 +61,13 @@ def main():
     # Do not silently ignore or misrepresent selected source units.
     if len(all_units) != 43 or len(set(all_units)) != 43:
         parser.error("unexpected native source closure; verify current manifest")
+    manifest_unselected = []
     if args.only is not None:
         if args.only not in all_units:
-            parser.error("--only must name exactly one selected manifest source")
+            if not args.abi_only or args.only not in RECOVERED_UNSELECTED:
+                parser.error("--only must select a manifest unit or a known "
+                             "frozen HP owner in ABI-only mode")
+            manifest_unselected = [args.only]
         all_units = [args.only]
     destination = args.output.resolve()
     if destination.exists() or destination.parent != ROOT.parent.resolve() or not destination.name.startswith("rtl-native-"):
@@ -67,6 +80,7 @@ def main():
         "selection_count": len(all_units),
         "compiler": COMPILER,
         "abi_only": bool(args.abi_only),
+        "manifest_unselected": manifest_unselected,
         "generated_rules_missing": [], "base_kernel_stage": str(STAGE),
         "started": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "units": []
@@ -149,8 +163,9 @@ def main():
             if compiled_process.returncode != 0 or not entry["source_unchanged"] or not entry["object_size"]:
                 # Preserve durable evidence, no blind retry or partial success claim.
                 raise RuntimeError("native object compile/verification failed: " + filename)
-        result["state"] = ("ABI_ONLY_PASSED" if result["generated_rules_missing"]
-                           else "PASSED")
+        result["state"] = ("ABI_ONLY_PASSED"
+                           if args.abi_only or result["generated_rules_missing"]
+                           or manifest_unselected else "PASSED")
         result["limitation"] = (
             "Native NetBSD kernel-C ABI objects ONLY. Missing generated "
             "Makefile rules remain open and are listed explicitly; no full "
@@ -165,7 +180,7 @@ def main():
         result["finished"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
         save()
     print(("HP_RTL_NATIVE_ABI_ONLY_OBJECTS_PASS__KCONFIG_OPEN"
-           if result["generated_rules_missing"]
+           if result["state"] == "ABI_ONLY_PASSED"
            else "HP_RTL_NATIVE_OBJECT_CLOSURE_PASS"),
           len(all_units), "missing_generated_rules",
           len(result["generated_rules_missing"]), destination)
