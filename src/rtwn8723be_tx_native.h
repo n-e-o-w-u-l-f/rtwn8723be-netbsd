@@ -21,6 +21,13 @@
 int rtwn8723be_tx_native_enqueue(struct rtwn8723be_softc *,
     unsigned int qid, struct mbuf *,
     const struct rtwn8723be_tx_params *, bool command);
+/* Additional net80211 owner is held by this TX slot until POSTWRITE
+ * and DMAMAP unload; release callback receives the mbuf and whether DMA
+ * completed. The caller retains both ownerships on enqueue failure. */
+int rtwn8723be_tx_native_enqueue_owned(struct rtwn8723be_softc *,
+    unsigned int qid, struct mbuf *,
+    const struct rtwn8723be_tx_params *, bool command,
+    void *, void (*)(void *, struct mbuf *, bool));
 
 /*
  * Reclaim completed OWN-cleared descriptors, release bus_dmamaps/mbufs,
