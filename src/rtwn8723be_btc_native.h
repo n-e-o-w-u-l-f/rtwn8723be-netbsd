@@ -60,6 +60,8 @@ void rtwn8723be_btc_native_provider_error(struct rtwn8723be_softc *, int);
  */
 int rtwn8723be_btc_native_stop(struct rtwn8723be_softc *);
 int rtwn8723be_btc_native_fini(struct rtwn8723be_softc *);
+/* WIP runtime owner: may retire only after verified poweroff and IRQ drain. */
+int rtwn8723be_btc_native_retire(struct rtwn8723be_softc *);
 /* Real RTL8723BE BTC init_hw_config -> init_coex_dm phase, fail-closed.
  * Requires the complete owner/context established by bt_prepare.
  */
