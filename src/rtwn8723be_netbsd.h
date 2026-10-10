@@ -53,6 +53,8 @@ struct rtwn8723be_irq_dispatch {
     void (*power_event)(void *);
 };
 
+struct rtwn8723be_runtime; /* owner of net80211/DM/BT lifecycle */
+
 struct rtwn8723be_softc {
     device_t sc_dev;
     struct ethercom sc_ec;
@@ -108,11 +110,15 @@ struct rtwn8723be_softc {
     bool sc_irq_requested;
     bool sc_irq_enabled;
     bool sc_irq_dispatch_ready;
+    bool sc_irq_wanted; /* IRQ masked does not mean stop requested */
+    bool sc_irq_lock_initialized;
+    kmutex_t sc_irq_lock; /* PCI interrupt mask + owner intent */
 
     struct rtwn8723be_irq_dispatch sc_irq_dispatch;
     void *sc_irq_arg;
 
     struct rtwn8723be_linux_state sc_linux;
+    struct rtwn8723be_runtime *sc_runtime;
     struct rtwn8723be_h2c_native sc_h2c;
     struct rtwn8723be_rfkill_native sc_rfkill_native;
     struct rtwn8723be_btc_mp_native sc_btc_mp;
@@ -177,6 +183,7 @@ struct rtwn8723be_softc {
     uint8_t sc_sw_led0;
     uint8_t sc_sw_led1;
     bool sc_core_initialized;
+    bool sc_pmf_registered;
     bool sc_hal_started; /* pinned Linux rtl_hal.state START/STOP */
 
     /* Linux rtl_ps_ctl.rfchange_inprogress under locks.rf_ps_lock. */
