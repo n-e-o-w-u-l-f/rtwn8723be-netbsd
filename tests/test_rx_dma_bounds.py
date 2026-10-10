@@ -13,7 +13,16 @@ src = (ROOT / "src/rtwn8723be_rx_native.c").read_text()
 slot_anchor = "if (slot->map == NULL ||"
 if src.count(slot_anchor) != 1:
     raise AssertionError("RX slot preflight is missing or ambiguous")
-guard = slot_anchor + src.split(slot_anchor, 1)[1].split("return EIO;", 1)[0] + "return EIO;"
+# Extract exactly the if CONDITION; the native failure body now has a
+# descriptor DMA resync and delivered-accounting side effects that cannot
+# be compiled inside this isolated validity-only host model.
+slot_begin = src.index(slot_anchor)
+slot_end_marker = "RTWN8723BE_RX_BUFFER_SIZE)) {"
+slot_end = src.find(slot_end_marker, slot_begin)
+if slot_end < 0 or slot_end > src.find("return EIO;", slot_begin):
+    raise AssertionError("native RX slot preflight structure changed")
+guard = src[slot_begin:slot_end + len(slot_end_marker)] + (
+    "\n        return EIO;\n    }")
 for required in (
     "slot->map->dm_nsegs != 1",
     "slot->m == NULL",
