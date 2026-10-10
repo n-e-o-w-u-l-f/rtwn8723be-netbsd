@@ -25,6 +25,7 @@
 #include "rtwn8723be_phy_exec.h"
 #include "rtwn8723be_txpwr_pg.h"
 #include "rtwn8723be_h2c_native.h"
+#include "rtwn8723be_rfkill_native.h"
 #include "rtwn8723be_btc_mp_native.h"
 #include "rtwn8723be_btc_native.h"
 #include "rtwn8723be_calibration_native.h"
@@ -113,6 +114,7 @@ struct rtwn8723be_softc {
 
     struct rtwn8723be_linux_state sc_linux;
     struct rtwn8723be_h2c_native sc_h2c;
+    struct rtwn8723be_rfkill_native sc_rfkill_native;
     struct rtwn8723be_btc_mp_native sc_btc_mp;
     struct rtwn8723be_btc_native sc_btc;
     struct rtwn8723be_calibration_state sc_calibration;
