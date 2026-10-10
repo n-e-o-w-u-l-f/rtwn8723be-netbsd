@@ -10,6 +10,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <sys/proc.h>
 #include "rtwn8723be_netbsd.h"
 #include "rtwn8723be_btc_native.h"
+#include "rtwn8723be_runtime.h"
 
 static bool
 btc_thread(void)
@@ -329,6 +330,30 @@ rtwn8723be_btc_native_fini(struct rtwn8723be_softc *sc)
     mutex_destroy(&n->queue_lock);
     memset(n, 0, sizeof(*n));
     return 0;
+}
+
+/* Source-derived historical runtime retires BTC only AFTER verified
+ * firmware poweroff, IRQ quiescence and transport shutdown. Retain the
+ * newer stop/fault-aware fini implementation rather than copying the
+ * older callback/workqueue teardown body. */
+int
+rtwn8723be_btc_native_retire(struct rtwn8723be_softc *sc)
+{
+    if (sc == NULL)
+        return EINVAL;
+    if (!btc_thread())
+        return EWOULDBLOCK;
+    if (!sc->sc_btc.initialized)
+        return 0;
+    if (!rtwn8723be_runtime_poweroff_verified(sc) ||
+        sc->sc_linux.fw_ready ||
+        sc->sc_h2c.state.firmware_ready ||
+        sc->sc_ih != NULL ||
+        sc->sc_soft_ih != NULL ||
+        sc->sc_irq_enabled ||
+        sc->sc_linux.started)
+        return EBUSY;
+    return rtwn8723be_btc_native_fini(sc);
 }
 
 /*
