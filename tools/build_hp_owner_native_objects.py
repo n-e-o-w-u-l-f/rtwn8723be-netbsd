@@ -48,7 +48,9 @@ def main():
     if not (OBJDIR / "machine/cdefs.h").is_file() or not MAKE.is_file():
         parser.error("original generated native build tree is unavailable")
     all_units = RULE.findall(MANIFEST.read_text())
-    if len(all_units) != 42 or len(set(all_units)) != 42:
+    # Manifest advanced from 42 to 43 with the real RF-kill native C owner.
+    # Do not silently ignore or misrepresent selected source units.
+    if len(all_units) != 43 or len(set(all_units)) != 43:
         parser.error("unexpected native source closure; verify current manifest")
     if args.only is not None:
         if args.only not in all_units:
