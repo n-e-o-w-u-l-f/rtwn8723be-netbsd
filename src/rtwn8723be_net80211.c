@@ -76,9 +76,19 @@ rtwn8723be_n80211_ifstop(struct rtwn8723be_net80211 *n)
     /* Stop further net80211 dequeue BEFORE stopping hardware/interrupts. */
     ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
     ifp->if_timer = 0;
-    /* Detach may stop an interface that was registered but never started. */
+    /*
+     * Linux probe publishes net80211 registration before RF-kill and IRQ.
+     * A failed probe can therefore have a registered but NEVER started
+     * interface while stage is IEEE80211_REGISTER, RFKILL or IRQ_ESTABLISH.
+     * No hardware stop is necessary in those states: accepting this path
+     * allows the owner to unregister the ifnet BEFORE releasing PCI DMA.
+     * Do not apply this shortcut to a partially started device.
+     */
     if (!n->sc->sc_linux.started &&
-        (n->sc->sc_linux.stage == R23BE_STAGE_PROBED ||
+        (n->sc->sc_linux.stage == R23BE_STAGE_IEEE80211_REGISTER ||
+         n->sc->sc_linux.stage == R23BE_STAGE_RFKILL ||
+         n->sc->sc_linux.stage == R23BE_STAGE_IRQ_ESTABLISH ||
+         n->sc->sc_linux.stage == R23BE_STAGE_PROBED ||
          n->sc->sc_linux.stage == R23BE_STAGE_STOPPED))
         return 0;
     if (!n->sc->sc_linux.started ||
