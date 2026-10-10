@@ -20,8 +20,8 @@ for required in (
     "slot->m->m_len < RTWN8723BE_RX_BUFFER_SIZE",
     "slot->map->dm_mapsize < RTWN8723BE_RX_BUFFER_SIZE",
     "slot->map->dm_segs[0].ds_len <",
-    "slot->map->dm_segs[0].ds_addr >",
-    "(RTWN8723BE_RX_BUFFER_SIZE - 1U)",
+    "!rtwn8723be_dma32_range_valid(",
+    "slot->map->dm_segs[0].ds_addr,",
 ):
     if required not in guard:
         raise AssertionError("missing RX DMA bound: " + required)
@@ -36,16 +36,30 @@ if "sizeof(*descs)" not in src[
 ]:
     raise AssertionError("descriptor capacity must use actual stride")
 
+# Test the actual production DMA32 span helper, not the obsolete
+# hand-written address comparison removed when the common guard landed.
+# This also makes boundary assertions use the same code as native RX/TX.
+dma_header = (ROOT / "src/rtwn8723be_f16_1.h").read_text()
+helper_start = "static inline bool\nrtwn8723be_dma32_range_valid("
+assert dma_header.count(helper_start) == 1
+helper = helper_start + dma_header.split(helper_start, 1)[1].split(
+    "\n}", 1)[0] + "\n}"
+for token in ("bytes != 0", "(uint64_t)addr <= UINT32_MAX",
+              "(uint64_t)(bytes - 1) <= UINT32_MAX - (uint64_t)addr"):
+    assert token in helper, "DMA32 production span helper changed: " + token
+
 prefix = r"""
 #include <assert.h>
 #include <errno.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <stdio.h>
 #define RTWN8723BE_RX_BUFFER_SIZE 9100U
 #define RTWN8723BE_DMA_MAXADDR UINT32_MAX
 /* Host model of NetBSD bus_addr_t; native ABI is not tested here. */
 typedef uint64_t bus_addr_t;
+typedef size_t bus_size_t;
 struct segment { uint64_t ds_addr; size_t ds_len; };
 struct dma_map { unsigned dm_nsegs; size_t dm_mapsize;
                  struct segment dm_segs[1]; };
@@ -100,7 +114,8 @@ with tempfile.TemporaryDirectory(prefix="rtl-rx-dma-") as tmp:
     base = Path(tmp)
     source = base / "guard.c"
     output = base / "guard"
-    source.write_text(prefix + guard + suffix)
+    source.write_text(prefix.replace("struct segment {",
+        helper + "\nstruct segment {") + guard + suffix)
     subprocess.run([
         "cc", "-std=c11", "-Wall", "-Wextra", "-Werror",
         "-pedantic", "-fsanitize=undefined",
