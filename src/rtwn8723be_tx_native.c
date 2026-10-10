@@ -59,6 +59,16 @@ rtwn8723be_tx_native_enqueue(struct rtwn8723be_softc *sc,
     unsigned int qid, struct mbuf *m,
     const struct rtwn8723be_tx_params *input, bool command)
 {
+    return rtwn8723be_tx_native_enqueue_owned(sc, qid, m, input,
+        command, NULL, NULL);
+}
+
+int
+rtwn8723be_tx_native_enqueue_owned(struct rtwn8723be_softc *sc,
+    unsigned int qid, struct mbuf *m,
+    const struct rtwn8723be_tx_params *input, bool command,
+    void *owner, void (*release)(void *, struct mbuf *, bool))
+{
     struct rtwn8723be_tx_ring *ring;
     struct rtwn8723be_dma_slot *slot;
     struct rtwn8723be_tx_desc *desc;
@@ -70,7 +80,8 @@ rtwn8723be_tx_native_enqueue(struct rtwn8723be_softc *sc,
     int error;
 
     if (sc == NULL || m == NULL || input == NULL ||
-        qid >= RTWN8723BE_TX_QUEUE_COUNT)
+        qid >= RTWN8723BE_TX_QUEUE_COUNT ||
+        ((owner == NULL) != (release == NULL)))
         return EINVAL;
     if (!sc->sc_mapped || !sc->sc_rings_allocated ||
         !sc->sc_dma_32bit || sc->sc_dmat == NULL)
@@ -161,6 +172,10 @@ rtwn8723be_tx_native_enqueue(struct rtwn8723be_softc *sc,
     /* Ownership changes only after the packet's DMA mapping is valid. */
     bus_dmamap_sync(sc->sc_dmat, slot->map, 0,
         slot->map->dm_mapsize, BUS_DMASYNC_PREWRITE);
+    /* Publish the node/report owner with its packet DMA map and never
+     * before the strict 32-bit range and map-size guards succeed. */
+    slot->tx_owner = owner;
+    slot->tx_release = release;
     slot->m = m;
     membar_producer();
     desc->d[0] = htole32(le32toh(desc->d[0]) | R23BE_TXD0_OWN);
@@ -248,8 +263,7 @@ rtwn8723be_tx_native_reclaim(struct rtwn8723be_softc *sc,
         bus_dmamap_sync(sc->sc_dmat, slot->map, 0,
             slot->map->dm_mapsize, BUS_DMASYNC_POSTWRITE);
         bus_dmamap_unload(sc->sc_dmat, slot->map);
-        m_freem(slot->m);
-        slot->m = NULL;
+        rtwn8723be_f16_1_tx_slot_release(slot, true);
 
         /* Keep the linked 64-byte PCI descriptor ring intact. */
         next = (uint32_t)(ring->desc_dma.paddr +
