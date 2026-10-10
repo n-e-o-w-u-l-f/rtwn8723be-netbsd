@@ -54,6 +54,8 @@ rtwn8723be_netbsd_context_init(struct rtwn8723be_softc *sc,
     sc->sc_tag = pa->pa_tag;
     sc->sc_dmat_parent = pa->pa_dmat;
     sc->sc_dmat = pa->pa_dmat;
+    mutex_init(&sc->sc_irq_lock, MUTEX_DEFAULT, IPL_NET);
+    sc->sc_irq_lock_initialized = true;
     mutex_init(&sc->sc_rf_ps_lock, MUTEX_DEFAULT, IPL_NET);
     sc->sc_rf_ps_lock_initialized = true;
 
@@ -75,7 +77,22 @@ rtwn8723be_netbsd_context_init(struct rtwn8723be_softc *sc,
 void
 rtwn8723be_netbsd_context_fini(struct rtwn8723be_softc *sc)
 {
-    if (sc == NULL || !sc->sc_rf_ps_lock_initialized)
+    if (sc == NULL)
+        return;
+    /*
+     * Native detach has already quiesced and disestablished both hard
+     * and soft IRQ before either spin mutex or MMIO may be released.
+     */
+    if (sc->sc_irq_lock_initialized) {
+        mutex_enter(&sc->sc_irq_lock);
+        KASSERT(!sc->sc_irq_requested);
+        KASSERT(!sc->sc_irq_enabled);
+        KASSERT(sc->sc_ih == NULL && sc->sc_soft_ih == NULL);
+        mutex_exit(&sc->sc_irq_lock);
+        mutex_destroy(&sc->sc_irq_lock);
+        sc->sc_irq_lock_initialized = false;
+    }
+    if (!sc->sc_rf_ps_lock_initialized)
         return;
     mutex_enter(&sc->sc_rf_ps_lock);
     KASSERT(!sc->sc_rfchange_inprogress);
@@ -1087,22 +1104,67 @@ rtwn8723be_netbsd_disestablish_irq(struct rtwn8723be_softc *sc)
     }
 }
 
-int
-rtwn8723be_netbsd_enable_interrupt(void *arg)
+/*
+ * Every write to HIMR/HIMRE and every modification of desired IRQ state
+ * happens under the NetBSD IPL_NET spin lock.  A hard interrupt merely
+ * masks the device; only the owner-requested stop clears 'requested'.
+ * This removes the hard-IRQ -> softint -> disable/stop rearm race.
+ */
+static void
+rtwn8723be_netbsd_irq_mask_locked(struct rtwn8723be_softc *sc)
 {
-    struct rtwn8723be_softc *sc = arg;
+    if (sc->sc_mapped) {
+        rtwn8723be_write_4(sc, R23BE_REG_HIMR, 0);
+        rtwn8723be_write_4(sc, R23BE_REG_HIMRE, 0);
+    }
+    sc->sc_irq_enabled = false;
+}
 
-    if (!sc->sc_mapped || sc->sc_ih == NULL)
-        return ENXIO;
-    if (!sc->sc_irq_dispatch_ready)
-        return EAGAIN;
-
+static void
+rtwn8723be_netbsd_irq_arm_locked(struct rtwn8723be_softc *sc)
+{
     /* Exact RTL8723BE Linux ordering: HIMR, HIMRE, then HSIMR. */
     rtwn8723be_write_4(sc, R23BE_REG_HIMR, sc->sc_irq_mask[0]);
     rtwn8723be_write_4(sc, R23BE_REG_HIMRE, sc->sc_irq_mask[1]);
     sc->sc_irq_enabled = true;
     rtwn8723be_write_4(sc, R23BE_REG_HSIMR, sc->sc_sys_irq_mask);
-    return 0;
+}
+
+/* SOFTINT_NET may rearm only if the owner has not begun shutdown. */
+static void
+rtwn8723be_netbsd_irq_rearm_if_requested(struct rtwn8723be_softc *sc)
+{
+    if (!sc->sc_irq_lock_initialized)
+        return;
+    mutex_enter(&sc->sc_irq_lock);
+    if (sc->sc_irq_requested && sc->sc_mapped &&
+        sc->sc_ih != NULL && sc->sc_soft_ih != NULL &&
+        sc->sc_irq_dispatch_ready)
+        rtwn8723be_netbsd_irq_arm_locked(sc);
+    mutex_exit(&sc->sc_irq_lock);
+}
+
+int
+rtwn8723be_netbsd_enable_interrupt(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+    int error = 0;
+
+    if (sc == NULL || !sc->sc_irq_lock_initialized)
+        return ENXIO;
+
+    mutex_enter(&sc->sc_irq_lock);
+    if (!sc->sc_mapped || sc->sc_ih == NULL ||
+        sc->sc_soft_ih == NULL)
+        error = ENXIO;
+    else if (!sc->sc_irq_dispatch_ready)
+        error = EAGAIN;
+    else {
+        sc->sc_irq_requested = true;
+        rtwn8723be_netbsd_irq_arm_locked(sc);
+    }
+    mutex_exit(&sc->sc_irq_lock);
+    return error;
 }
 
 int
@@ -1110,15 +1172,13 @@ rtwn8723be_netbsd_disable_interrupt(void *arg)
 {
     struct rtwn8723be_softc *sc = arg;
 
-    if (!sc->sc_mapped) {
-        sc->sc_irq_enabled = false;
-        return 0;
-    }
-
-    /* Linux rtl8723be_disable_interrupt() masks HIMR and HIMRE only. */
-    rtwn8723be_write_4(sc, R23BE_REG_HIMR, 0);
-    rtwn8723be_write_4(sc, R23BE_REG_HIMRE, 0);
-    sc->sc_irq_enabled = false;
+    if (sc == NULL || !sc->sc_irq_lock_initialized)
+        return ENXIO;
+    mutex_enter(&sc->sc_irq_lock);
+    /* Disable is permanent until the owner explicitly enables it again. */
+    sc->sc_irq_requested = false;
+    rtwn8723be_netbsd_irq_mask_locked(sc);
+    mutex_exit(&sc->sc_irq_lock);
     return 0;
 }
 
@@ -1128,20 +1188,26 @@ rtwn8723be_netbsd_intr(void *arg)
     struct rtwn8723be_softc *sc = arg;
     uint32_t rawa, rawb, inta, intb;
 
-    if (!sc->sc_irq_enabled)
+    if (!sc->sc_irq_lock_initialized)
         return 0;
-
+    mutex_enter(&sc->sc_irq_lock);
+    if (!sc->sc_irq_requested || !sc->sc_irq_enabled) {
+        mutex_exit(&sc->sc_irq_lock);
+        return 0;
+    }
     /*
-     * Linux _rtl_pci_interrupt(): mask first, then recognize/ACK.
-     * Keep the hardware quiet until SOFTINT_NET finishes processing.
+     * The hard interrupt temporarily masks HIMR/HIMRE while the owner
+     * still wants IRQs. STOP may clear sc_irq_requested in the meantime.
+     * SOFTINT_NET must never override that explicit shutdown.
      */
-    (void)rtwn8723be_netbsd_disable_interrupt(sc);
+    rtwn8723be_netbsd_irq_mask_locked(sc);
+    mutex_exit(&sc->sc_irq_lock);
 
     rawa = rtwn8723be_read_4(sc, R23BE_REG_HISR);
     rawb = rtwn8723be_read_4(sc, R23BE_REG_HISRE);
 
     if (rawa == 0xffffffffU || rawb == 0xffffffffU) {
-        (void)rtwn8723be_netbsd_enable_interrupt(sc);
+        rtwn8723be_netbsd_irq_rearm_if_requested(sc);
         return 0;
     }
 
@@ -1155,7 +1221,7 @@ rtwn8723be_netbsd_intr(void *arg)
 
     /* Linux treats an empty INTA as a shared/non-device IRQ. */
     if (inta == 0 || inta == 0xffffU) {
-        (void)rtwn8723be_netbsd_enable_interrupt(sc);
+        rtwn8723be_netbsd_irq_rearm_if_requested(sc);
         return 0;
     }
 
@@ -1222,7 +1288,7 @@ rtwn8723be_netbsd_softintr(void *arg)
      * a 8723BE C2H callback here.
      */
 
-    (void)rtwn8723be_netbsd_enable_interrupt(sc);
+    rtwn8723be_netbsd_irq_rearm_if_requested(sc);
 }
 
 static int
