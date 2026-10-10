@@ -52,8 +52,8 @@ try:
     manifest = (ROOT / "config/files.rtwn8723be_native").read_text(encoding="utf-8")
     units = re.findall(r"^file\s+dev/pci/(rtwn8723be_\w+\.c)\s+rtwn8723be_native$",
                        manifest, re.M)
-    # The selected native manifest now includes the RF-kill C owner (43 units).
-    if len(units) != 43 or len(set(units)) != len(units):
+    # The WIP selected manifest now includes 43 foundation and seven runtime C owners.
+    if len(units) != 50 or len(set(units)) != len(units):
         raise RuntimeError("unexpected native C manifest; re-inventory first")
     dest = tree / "sys/dev/pci"
     sources = [ROOT / "src" / name for name in units]
