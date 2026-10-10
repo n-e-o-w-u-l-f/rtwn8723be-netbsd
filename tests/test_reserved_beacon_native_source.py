@@ -10,12 +10,15 @@ from pathlib import Path
 S = Path(__file__).resolve().parents[1] / "src"
 reg = (S / "rtwn8723be_f16_1.h").read_text()
 dma = (S / "rtwn8723be_f16_1_dma.c").read_text()
+netbsd = (S / "rtwn8723be_netbsd.c").read_text()
 tx = (S / "rtwn8723be_tx_native.c").read_text()
 txh = (S / "rtwn8723be_tx_native.h").read_text()
 reserved = (S / "rtwn8723be_reserved_native.c").read_text()
 assert "#define R23BE_REG_BCN_PSR_RPT          0x06a8" in reg
 assert "#define RTWN8723BE_TX_RING_BCN_COUNT   2" in reg
-assert "RTWN8723BE_BEACON_QUEUE" in dma and "ring->count" in dma
+assert "ring->count" in dma
+assert "if (qid == RTWN8723BE_BEACON_QUEUE)" in netbsd
+assert "return RTWN8723BE_TX_RING_BCN_COUNT;" in netbsd
 for owner in ("rtwn8723be_tx_native_enqueue_reserved",
               "rtwn8723be_tx_native_reclaim_reserved"):
     assert tx.count(owner + "(") == 1, owner
