@@ -55,3 +55,13 @@ file    dev/pci/rtwn8723be_calibration_native.c rtwn8723be_native
 file    dev/pci/rtwn8723be_thermal.c rtwn8723be_native
 file    dev/pci/rtwn8723be_hw_disable.c rtwn8723be_native
 file    dev/pci/rtwn8723be_hw_disable_native.c rtwn8723be_native
+
+# Seven reviewed HP runtime/lifecycle units (ABI-compiled on HP 2026-10-11).
+# This is a build dependency closure only; callbacks remain safety-fenced.
+file dev/pci/rtwn8723be_runtime.c rtwn8723be_native
+file dev/pci/rtwn8723be_dm_native.c rtwn8723be_native
+file dev/pci/rtwn8723be_channel_native.c rtwn8723be_native
+file dev/pci/rtwn8723be_media_native.c rtwn8723be_native
+file dev/pci/rtwn8723be_btc_provider_native.c rtwn8723be_native
+file dev/pci/rtwn8723be_net80211_tx.c rtwn8723be_native
+file dev/pci/rtwn8723be_reserved_native.c rtwn8723be_native
