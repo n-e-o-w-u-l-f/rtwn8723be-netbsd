@@ -29,6 +29,7 @@ rtwn8723be_tx_encode(const struct rtwn8723be_tx_params *p,
         (p->next_desc_dma & (RTWN8723BE_TX_RING_STRIDE - 1U)) != 0)
         return EINVAL;
     if (p->seq > 4095U || p->fw_queue > 31U ||
+        (p->special_report && (p->report_sequence & 3U) != 0) ||
         p->macid > 127U || p->rateid > 31U ||
         p->hw_rate > 127U || p->rts_rate > 31U ||
         p->rts_sc > 15U || p->ampdu_density > 7U ||
@@ -91,6 +92,12 @@ rtwn8723be_tx_encode(const struct rtwn8723be_tx_params *p,
         if (p->qos_data && p->rdg) {
             d[2] |= 1U << 13;
             d[0] |= 1U << 25;
+        }
+        /* Frozen Linux rtlwifi/base.h: SPE_RPT DW2 bit19,
+         * SW_DEFINE DW6 low six bits encode the ack ticket. */
+        if (p->special_report) {
+            d[2] |= 1U << 19;
+            d[6] |= p->report_sequence;
         }
     }
 
