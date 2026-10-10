@@ -108,7 +108,8 @@ for count, (mutated, h_src) in enumerate(negative, 1):
     assert mutated != source, ("mutation did not target actual source", count)
     try:
         contract(mutated, h_src)
-    except AssertionError:
+    except (AssertionError, ValueError):
+        # A removed required source token fails via index(), not assert.
         continue
     raise AssertionError("IRQ stop/rearm unsafe mutation accepted: " + str(count))
 
