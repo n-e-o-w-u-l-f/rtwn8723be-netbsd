@@ -110,9 +110,7 @@ struct rtwn8723be_softc {
     bool sc_irq_requested;
     bool sc_irq_enabled;
     bool sc_irq_dispatch_ready;
-    bool sc_irq_wanted; /* IRQ masked does not mean stop requested */
-    bool sc_irq_lock_initialized;
-    kmutex_t sc_irq_lock; /* PCI interrupt mask + owner intent */
+    bool sc_irq_wanted; /* historical runtime stop intent; reconcile with sc_irq_requested */
 
     struct rtwn8723be_irq_dispatch sc_irq_dispatch;
     void *sc_irq_arg;
@@ -255,6 +253,7 @@ int rtwn8723be_netbsd_init_rx_config(void *);
 int rtwn8723be_netbsd_hw_configure(void *);
 int rtwn8723be_netbsd_mark_hal_start(void *);
 int rtwn8723be_netbsd_mark_hal_stop(void *);
+int rtwn8723be_netbsd_led_control(void *, unsigned int);
 int rtwn8723be_netbsd_wait_rf_change_idle(void *);
 bool rtwn8723be_netbsd_rf_change_owned(struct rtwn8723be_softc *);
 void rtwn8723be_netbsd_rf_change_end(struct rtwn8723be_softc *);
