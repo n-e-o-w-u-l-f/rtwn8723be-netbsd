@@ -803,9 +803,24 @@ rtwn8723be_netbsd_init_sw_vars(void *arg)
     if (error != 0)
         return error;
     error = rtwn8723be_btc_mp_native_init(sc);
-    if (error != 0)
+    if (error != 0) {
         rtwn8723be_h2c_native_fini(sc);
-    return error;
+        return error;
+    }
+
+    /*
+     * Runtime must be initialized only after the EFUSE identity and both
+     * firmware mailbox owners exist. It owns WORKQUEUE/SCAN/IO/DM software
+     * lifetime but NOT the PCI IRQ mutex owned by context_init/fini.
+     * Native probe_cleanup must retire it before H2C/MP/DMA resources.
+     */
+    error = rtwn8723be_runtime_init(sc);
+    if (error != 0) {
+        int cleanup_error = rtwn8723be_btc_mp_native_fini(sc);
+        rtwn8723be_h2c_native_fini(sc);
+        return cleanup_error != 0 ? cleanup_error : error;
+    }
+    return 0;
 }
 
 int
