@@ -20,7 +20,8 @@ import time
 if platform.system() != "NetBSD" or not socket.gethostname().startswith("hp-tpnw121"):
     sys.exit("REFUSED: compiler-invoking firmware checks are HP/NetBSD only")
 ROOT = Path(__file__).resolve().parents[1]
-WORK = Path("/root/hp-driver-port-20261005")
+WORK = Path(os.environ.get("RTWN8723BE_HP_WORKDIR",
+                           "/root/hp-driver-port-20261005"))
 LINUX = Path(os.environ.get("RTWN8723BE_LINUX_TREE", "/root/linux-rtl8723be-ref-fresh"))
 PIN = "fd179f8a05be3ccae366b9b96e176b51fbe54aab"
 PREFIX = "drivers/net/wireless/realtek/rtlwifi/"
