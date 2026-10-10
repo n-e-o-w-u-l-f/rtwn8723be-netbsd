@@ -7,6 +7,7 @@
 #define R23BE_STAGE_STOPPING 50U
 struct rtwn8723be_softc {
     bool sc_mapped, sc_core_initialized, sc_hal_started, sc_irq_enabled;
+    bool sc_rfchange_inprogress; /* modeled RF-PS owner, not a HW shortcut */
     size_t sc_mapsize;
     struct { bool started, fw_ready, mac_func_enable; unsigned int stage; } sc_linux;
     struct { bool iqk_initialized; uint32_t cache[8]; } sc_calibration;
@@ -19,4 +20,6 @@ struct rtwn8723be_softc {
 uint8_t rtwn8723be_read_1(struct rtwn8723be_softc *, size_t);
 void rtwn8723be_write_1(struct rtwn8723be_softc *, size_t, uint8_t);
 int rtwn8723be_netbsd_poweroff_adapter(void *);
+bool rtwn8723be_netbsd_rf_change_owned(struct rtwn8723be_softc *);
+void rtwn8723be_netbsd_rf_change_end(struct rtwn8723be_softc *);
 #endif
