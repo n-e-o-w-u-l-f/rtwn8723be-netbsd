@@ -848,7 +848,6 @@ rtwn8723be_runtime_rfkill_init(void *arg)
     struct rtwn8723be_runtime *r = sc->sc_runtime;
     if (r == NULL || !r->initialized || !r->net.registered) return ENXIO;
     /* Linux starts wiphy RF-kill polling at probe; GPIO reads are gated
-
      * by RTL_STATUS_INTERFACE_START. NetBSD has no wiphy, so the actual
      * two-second native watchdog supplies the same GPIO producer. */
     r->rfkill_polling = true;
