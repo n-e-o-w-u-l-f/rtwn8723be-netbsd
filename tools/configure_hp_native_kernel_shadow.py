@@ -60,8 +60,8 @@ def main() -> None:
     if not (STAGE / "dev/pci/files.pci").is_file():
         parser.error("pinned native PCI manifest absent")
     selected = SELECTED.findall(MANIFEST.read_text())
-    if len(selected) != 42 or len(set(selected)) != 42:
-        parser.error("expected exactly 42 unique native C units")
+    if len(selected) != 50 or len(set(selected)) != 50:
+        parser.error("expected exactly 50 unique native C units")
     expected_c = {p.name for p in (ROOT / "src").glob("rtwn8723be_*.c")}
     if not set(selected).issubset(expected_c):
         parser.error("native manifest references unknown repository sources")
@@ -119,7 +119,7 @@ def main() -> None:
             raise RuntimeError("native attachment definition nonunique")
         filtered.extend([
             "",
-            "# HP owner-only source-derived RTL candidate: exactly 42 C units",
+            "# HP owner-only source-derived RTL candidate: exactly 50 C units",
             "# No native device installed/started; this changes no root files.",
         ])
         filtered.extend(f"file dev/pci/{name} rtwn8723be_native" for name in selected)
@@ -167,14 +167,14 @@ def main() -> None:
                 raise RuntimeError("missing native compile rule after regenerate: " + name)
         if sha(old_pci) != old_hash:
             raise RuntimeError("root native PCI source was unexpectedly modified")
-        evidence["state"] = "CONFIGURED_42_RULES_DRYRUN_PASS"
+        evidence["state"] = "CONFIGURED_50_RULES_DRYRUN_PASS"
         evidence["limit"] = (
             "Candidate-only NetBSD kernel config & Makefile; source selection "
             "checked, 6 previously missing native compilation rules resolved. "
-            "NO 42-object full native compile from this new shadow, kernel "
+            "NO 50-object full native compile from this new shadow, kernel "
             "final link, runtime/WPA2 or actual hardware acceptance."
         )
-        print("HP_RTL_ISOLATED_CONFIG_42_SELECTED_SIX_RULES_PASS",
+        print("HP_RTL_ISOLATED_CONFIG_50_SELECTED_SIX_RULES_PASS",
               out_obj, flush=True)
     except Exception as e:
         evidence["state"] = "FAILED"
