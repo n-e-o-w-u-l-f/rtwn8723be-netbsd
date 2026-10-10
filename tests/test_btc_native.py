@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """HP-only actual BTC native broker, pthread workqueue model and copy control."""
 from pathlib import Path
-import datetime, hashlib, json, platform, resource, socket
+import datetime, hashlib, json, os, platform, resource, socket
 import subprocess, tempfile, time
 
 ROOT=Path(__file__).resolve().parents[1]
-WORK=Path('/root/hp-driver-port-20261005')
+WORK=Path(os.environ.get('RTWN8723BE_HP_WORKDIR', '/root/hp-driver-port-20261005'))
 if platform.system()!='NetBSD' or not socket.gethostname().startswith('hp-tpnw121'):
     raise SystemExit('REFUSED: compilation/tests are authorized only on HP/NetBSD')
 resource.setrlimit(resource.RLIMIT_CORE,(0,0))
