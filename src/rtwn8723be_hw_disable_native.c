@@ -14,12 +14,12 @@ struct disable_native_session {
     bool acquired;
 };
 static bool
-disable_native_phase(const struct rtwn8723be_softc *sc)
+disable_native_phase(struct rtwn8723be_softc *sc)
 {
     return sc != NULL && sc->sc_mapped && sc->sc_core_initialized &&
         sc->sc_linux.stage == R23BE_STAGE_STOPPING && sc->sc_linux.started &&
         !sc->sc_hal_started && !sc->sc_irq_enabled &&
-        rtwn8723be_netbsd_rf_change_owned((struct rtwn8723be_softc *)sc) &&
+        rtwn8723be_netbsd_rf_change_owned(sc) &&
         sc->sc_mapsize >= 0x1000U;
 }
 static bool
