@@ -142,12 +142,19 @@ def main() -> None:
         if not makefile.is_file():
             raise RuntimeError("native config did not create a Makefile")
         checks = []
-        # Test all newly selected native BTC rules, not only the first one.
+        # Exact pending closure: six native BTC rules plus seven recovered
+        # HP runtime-owner rules. A successful config without these would
+        # still fail the intended selected kernel graph.
         for name in (
             "rtwn8723be_btc_mp_native.c", "rtwn8723be_btc1.c",
             "rtwn8723be_btc2.c", "rtwn8723be_btc_engine.c",
             "rtwn8723be_btc_native.c",
             "rtwn8723be_btc_providers_native.c",
+            "rtwn8723be_runtime.c", "rtwn8723be_dm_native.c",
+            "rtwn8723be_channel_native.c", "rtwn8723be_media_native.c",
+            "rtwn8723be_btc_provider_native.c",
+            "rtwn8723be_net80211_tx.c",
+            "rtwn8723be_reserved_native.c",
         ):
             objname = name[:-2] + ".o"
             dry = subprocess.run([str(MAKE), "-C", str(out_obj),
@@ -170,11 +177,11 @@ def main() -> None:
         evidence["state"] = "CONFIGURED_50_RULES_DRYRUN_PASS"
         evidence["limit"] = (
             "Candidate-only NetBSD kernel config & Makefile; source selection "
-            "checked, 6 previously missing native compilation rules resolved. "
+            "checked, 13 native BTC/runtime compile rules verified. "
             "NO 50-object full native compile from this new shadow, kernel "
             "final link, runtime/WPA2 or actual hardware acceptance."
         )
-        print("HP_RTL_ISOLATED_CONFIG_50_SELECTED_SIX_RULES_PASS",
+        print("HP_RTL_ISOLATED_CONFIG_50_SELECTED_THIRTEEN_RULES_PASS",
               out_obj, flush=True)
     except Exception as e:
         evidence["state"] = "FAILED"
