@@ -36,6 +36,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--only", help="Single exact native source filename")
+    parser.add_argument("--abi-only", action="store_true",
+                        help="For missing generated Makefile rules, compile with exact "
+                             "native TX unit kernel-C flags; result is ABI source-only "
+                             "and does NOT satisfy kernel configuration/link")
     args = parser.parse_args()
     if platform.system() != "NetBSD" or not socket.gethostname().startswith("hp-tpnw121"):
         parser.error("REFUSED: only actual HP/NetBSD may run this compiler gate")
@@ -59,7 +63,9 @@ def main():
         "state": "RUNNING", "host": socket.gethostname(),
         "source_repo": str(ROOT), "manifest_sha256": sha(MANIFEST),
         "selection_count": len(all_units),
-        "compiler": COMPILER, "base_kernel_stage": str(STAGE),
+        "compiler": COMPILER,
+        "abi_only": bool(args.abi_only),
+        "generated_rules_missing": [], "base_kernel_stage": str(STAGE),
         "started": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "units": []
     }
@@ -72,27 +78,47 @@ def main():
         for filename in all_units:
             source = ROOT / "src" / filename
             frozen = NATIVE_SRC / filename
-            if not source.is_file() or not frozen.is_file():
-                raise RuntimeError("missing native source or frozen staged counterpart: " + filename)
+            if not source.is_file():
+                raise RuntimeError("missing current native source: " + filename)
+            if not frozen.is_file() and not args.abi_only:
+                raise RuntimeError("missing source from generated kernel tree: " + filename)
             objname = source.stem + ".o"
             dryrun = subprocess.run(
                 [str(MAKE), "-C", str(OBJDIR), "-n", "-B", objname],
                 cwd=ROOT, text=True, stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT, timeout=90)
+            rule_mode = "GENERATED_MAKE_RULE"
+            compiler_src = frozen
+            compiler_obj = objname
             if dryrun.returncode != 0:
-                raise RuntimeError("NetBSD make dry-run failed for " + filename + ": " + dryrun.stdout[-500:])
+                missing_rule = "don't know how to make " + objname
+                if not args.abi_only or missing_rule not in dryrun.stdout:
+                    raise RuntimeError("NetBSD make dry-run failed for " + filename + ": " + dryrun.stdout[-500:])
+                # This proves the ABI/compiler against already-generated kernel
+                # headers, but is NOT evidence that the owning kernel config
+                # selected the added source file. Keep the missing rule explicit.
+                rule_mode = "ABI_ONLY_MISSING_GENERATED_MAKE_RULE"
+                compiler_src = NATIVE_SRC / "rtwn8723be_tx_native.c"
+                compiler_obj = "rtwn8723be_tx_native.o"
+                dryrun = subprocess.run(
+                    [str(MAKE), "-C", str(OBJDIR), "-n", "-B", compiler_obj],
+                    cwd=ROOT, text=True, stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT, timeout=90)
+                if dryrun.returncode != 0:
+                    raise RuntimeError("native generic kernel compile flags unavailable")
+                result["generated_rules_missing"].append(filename)
             compiled = []
             for line in dryrun.stdout.splitlines():
                 for part in re.split(r"\s+&&\s+", line):
                     cmd = part.strip()
                     if cmd.startswith(COMPILER + " ") and " -c " in cmd and " -o " in cmd:
                         parts = shlex.split(cmd)
-                        if "-c" in parts and parts[parts.index("-c") + 1] == str(frozen):
+                        if "-c" in parts and parts[parts.index("-c") + 1] == str(compiler_src):
                             compiled.append(parts)
             if len(compiled) != 1:
                 raise RuntimeError("native compiler command missing/ambiguous for " + filename)
             command = compiled[0]
-            if command[0] != COMPILER or command[command.index("-o") + 1] != objname:
+            if command[0] != COMPILER or command[command.index("-o") + 1] != compiler_obj:
                 raise RuntimeError("compiler/output mismatch")
             objout = destination / objname
             command[command.index("-c") + 1] = str(source)
@@ -106,6 +132,8 @@ def main():
             logfile.write_text(compiled_process.stdout)
             entry = {
                 "source": filename, "exit": compiled_process.returncode,
+                "rule_mode": rule_mode,
+                "frozen_staging_source_present": frozen.is_file(),
                 "source_sha256": old_sha,
                 "source_unchanged": sha(source) == old_sha,
                 "object_size": objout.stat().st_size if objout.is_file() else 0,
@@ -119,10 +147,13 @@ def main():
             if compiled_process.returncode != 0 or not entry["source_unchanged"] or not entry["object_size"]:
                 # Preserve durable evidence, no blind retry or partial success claim.
                 raise RuntimeError("native object compile/verification failed: " + filename)
-        result["state"] = "PASSED"
+        result["state"] = ("ABI_ONLY_PASSED" if result["generated_rules_missing"]
+                           else "PASSED")
         result["limitation"] = (
-            "Native NetBSD compiler objects ONLY. No full kernel link, "
-            "attach, registration, Wi-Fi/WPA2, DMA/IRQ hardware, PM or reboot."
+            "Native NetBSD kernel-C ABI objects ONLY. Missing generated "
+            "Makefile rules remain open and are listed explicitly; no full "
+            "kernel configuration/link, attach, Wi-Fi/WPA2, DMA/IRQ hardware, "
+            "PM or reboot accepted."
         )
     except Exception as exc:
         result["state"] = "FAILED"
@@ -131,7 +162,11 @@ def main():
     finally:
         result["finished"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
         save()
-    print("HP_RTL_NATIVE_OBJECT_CLOSURE_PASS",len(all_units),destination)
+    print(("HP_RTL_NATIVE_ABI_ONLY_OBJECTS_PASS__KCONFIG_OPEN"
+           if result["generated_rules_missing"]
+           else "HP_RTL_NATIVE_OBJECT_CLOSURE_PASS"),
+          len(all_units), "missing_generated_rules",
+          len(result["generated_rules_missing"]), destination)
 
 if __name__ == "__main__":
     main()
