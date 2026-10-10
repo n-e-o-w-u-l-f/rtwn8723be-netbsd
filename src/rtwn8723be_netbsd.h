@@ -96,6 +96,15 @@ struct rtwn8723be_softc {
     uint32_t sc_irq_mask[2];
     uint32_t sc_sys_irq_mask;
     volatile uint32_t sc_irq_pending[2];
+    /*
+     * A hard IRQ temporarily masks HIMR/HIMRE until SOFTINT_NET drains.
+     * Distinguish that temporary mask from an owner-requested shutdown.
+     * Both desired and enabled state are serialized at IPL_NET, so a
+     * racing softint can never re-enable IRQ after driver stop.
+     */
+    kmutex_t sc_irq_lock;
+    bool sc_irq_lock_initialized;
+    bool sc_irq_requested;
     bool sc_irq_enabled;
     bool sc_irq_dispatch_ready;
 
