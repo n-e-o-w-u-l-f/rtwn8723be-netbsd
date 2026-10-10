@@ -317,6 +317,9 @@ struct rtwn8723be_dma_mem {
 struct rtwn8723be_dma_slot {
     bus_dmamap_t map;
     struct mbuf *m;
+    /* TX-only: reference lives until DMA POSTWRITE/unload or safe abort. */
+    void *tx_owner;
+    void (*tx_release)(void *, struct mbuf *, bool completed);
 };
 
 struct rtwn8723be_tx_ring {
@@ -346,6 +349,8 @@ int rtwn8723be_f16_1_tx_ring_alloc(bus_dma_tag_t,
     struct rtwn8723be_tx_ring *, uint32_t);
 void rtwn8723be_f16_1_tx_ring_free(bus_dma_tag_t,
     struct rtwn8723be_tx_ring *);
+/* Sole post-DMA handoff: detaches owner once, then invokes release. */
+void rtwn8723be_f16_1_tx_slot_release(struct rtwn8723be_dma_slot *, bool);
 int rtwn8723be_f16_1_rx_ring_alloc(bus_dma_tag_t,
     struct rtwn8723be_rx_ring *, uint32_t);
 void rtwn8723be_f16_1_rx_ring_free(bus_dma_tag_t,
