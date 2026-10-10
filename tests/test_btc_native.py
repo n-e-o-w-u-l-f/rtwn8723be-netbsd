@@ -26,6 +26,10 @@ struct test_env;
 struct rtwn8723be_softc {
     struct rtwn8723be_btc_native sc_btc;
     struct rtwn8723be_linux_state sc_linux;
+    /* Mirror only the fields now read by the real native BT callback. */
+    struct { bool initialized; } sc_h2c;
+    bool sc_mapped;
+    bool sc_btcoexist;
     bool sc_irq_enabled;
     struct test_env *env;
 };
