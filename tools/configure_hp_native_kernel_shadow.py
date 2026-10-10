@@ -68,7 +68,15 @@ def main() -> None:
     out = args.output.resolve()
     if out.exists() or out.parent != ROOT.parent.resolve() or not out.name.startswith("rtl-kconfig-"):
         parser.error("must use a NEW rtl-kconfig-* directory alongside HP checkouts")
+    # NetBSD kernel Makefiles use "-I$S/../common/include". Mirroring
+    # only sys/ breaks that relative include, e.g. prop/proplib.h. Link
+    # the original read-only common/ tree beside the private sys/ overlay;
+    # never modify or copy the root-owned NetBSD reference.
+    common = STAGE.parent / "common"
+    if not (common / "include/prop/proplib.h").is_file():
+        parser.error("frozen NetBSD common/include reference missing")
     out.mkdir(mode=0o700)
+    (out / "common").symlink_to(common, target_is_directory=True)
     shadow = out / "sys"
     out_obj = out / "obj"
     old_pci = STAGE / "dev/pci/files.pci"
@@ -81,6 +89,7 @@ def main() -> None:
             ["git", "-C", str(ROOT), "rev-parse", "HEAD"], text=True).strip(),
         "selected_sources": selected,
         "owner_shadow": str(shadow),
+        "owner_common": str((out / "common").resolve()),
         "owner_objdir": str(out_obj),
         "baseline_stage_sha256": old_hash,
         "manifest_sha256": sha(MANIFEST),
