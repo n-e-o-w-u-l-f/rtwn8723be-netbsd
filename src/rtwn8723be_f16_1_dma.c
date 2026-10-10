@@ -199,6 +199,30 @@ fail:
 }
 
 void
+rtwn8723be_f16_1_tx_slot_release(struct rtwn8723be_dma_slot *slot,
+    bool completed)
+{
+    struct mbuf *m;
+    void *owner;
+    void (*release)(void *, struct mbuf *, bool);
+
+    if (slot == NULL)
+        return;
+    m = slot->m;
+    owner = slot->tx_owner;
+    release = slot->tx_release;
+    /* Clear before callback to prevent double release if stop repeats.
+     * DMA POSTWRITE and bus_dmamap_unload must already be complete. */
+    slot->m = NULL;
+    slot->tx_owner = NULL;
+    slot->tx_release = NULL;
+    if (release != NULL)
+        release(owner, m, completed);
+    else if (m != NULL)
+        m_freem(m);
+}
+
+void
 rtwn8723be_f16_1_tx_ring_free(bus_dma_tag_t dmat,
     struct rtwn8723be_tx_ring *ring)
 {
@@ -214,9 +238,9 @@ rtwn8723be_f16_1_tx_ring_free(bus_dma_tag_t dmat,
                         BUS_DMASYNC_POSTWRITE);
                     bus_dmamap_unload(dmat, ring->slot[i].map);
                 }
-                m_freem(ring->slot[i].m);
-                ring->slot[i].m = NULL;
             }
+            /* Release owner only AFTER sync/unload; abort has no air ack. */
+            rtwn8723be_f16_1_tx_slot_release(&ring->slot[i], false);
             if (ring->slot[i].map != NULL) {
                 bus_dmamap_destroy(dmat, ring->slot[i].map);
                 ring->slot[i].map = NULL;
