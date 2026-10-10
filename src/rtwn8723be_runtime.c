@@ -1547,8 +1547,10 @@ rtwn8723be_runtime_init(struct rtwn8723be_softc *sc)
     mutex_init(&r->io_lock, MUTEX_DEFAULT, IPL_NONE);
     mutex_init(&r->queue_lock, MUTEX_DEFAULT, IPL_SOFTNET);
     mutex_init(&r->stats_lock, MUTEX_DEFAULT, IPL_SOFTNET);
-    mutex_init(&sc->sc_irq_lock, MUTEX_DEFAULT, IPL_NET);
-    sc->sc_irq_lock_initialized = true;
+    /* sc_irq_lock belongs to netbsd_context_init/fini, not runtime.
+     * Initializing it twice would corrupt IRQ owner state and make
+     * probe-failure / detach destroy the same mutex twice. */
+    KASSERT(sc->sc_irq_lock_initialized);
     callout_init(&r->watchdog, CALLOUT_MPSAFE);
     callout_init(&r->scan, CALLOUT_MPSAFE);
     callout_setfunc(&r->watchdog, runtime_watchdog_timer, sc);
@@ -1563,7 +1565,7 @@ rtwn8723be_runtime_init(struct rtwn8723be_softc *sc)
         runtime_worker, sc, PRI_NONE, IPL_SOFTNET, WQ_MPSAFE);
     if (error != 0) {
         callout_destroy(&r->scan); callout_destroy(&r->watchdog);
-        mutex_destroy(&sc->sc_irq_lock); sc->sc_irq_lock_initialized = false;
+        /* The PCI context retains its IRQ lock after runtime failure. */
         mutex_destroy(&r->stats_lock); mutex_destroy(&r->queue_lock);
         mutex_destroy(&r->io_lock); mutex_destroy(&r->lifecycle_lock);
         kmem_free(r, sizeof(*r));
@@ -1625,7 +1627,7 @@ rtwn8723be_runtime_fini(struct rtwn8723be_softc *sc)
     r->scan_count = 0;
     r->initialized = false;
     sc->sc_runtime = NULL;
-    mutex_destroy(&sc->sc_irq_lock); sc->sc_irq_lock_initialized = false;
+    /* PCI context_fini owns final IRQ-lock destruction. */
     mutex_destroy(&r->stats_lock); mutex_destroy(&r->queue_lock);
     mutex_destroy(&r->io_lock); mutex_destroy(&r->lifecycle_lock);
     kmem_free(r, sizeof(*r));
