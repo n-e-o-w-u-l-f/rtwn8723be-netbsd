@@ -15,6 +15,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <dev/firmload.h>
 
 #include "rtwn8723be_netbsd.h"
+#include "rtwn8723be_runtime.h"
 #include "rtwn8723be_aspm_native.h"
 #include "rtwn8723be_security_native.h"
 #include "rtwn8723be_bb_native.h"
@@ -1429,6 +1430,26 @@ rtwn8723be_netbsd_refresh_led_state(struct rtwn8723be_softc *sc)
         rtwn8723be_netbsd_led0_on(sc);
     else
         rtwn8723be_netbsd_led0_off(sc);
+}
+
+/* Exact frozen rtlwifi link/no-link LED decision, gated by the
+ * recovered runtime I/O lifetime before any MMIO access. This is WIP
+ * source: callback attach remains disabled until teardown is merged. */
+int
+rtwn8723be_netbsd_led_control(void *arg, unsigned int action)
+{
+    struct rtwn8723be_softc *sc = arg;
+
+    if (sc == NULL || !rtwn8723be_runtime_io_ready(sc))
+        return ENXIO;
+    if (sc->sc_sw_led0 != RTWN8723BE_LED_PIN_LED0)
+        return EOPNOTSUPP;
+    if (action == 2U || action == 3U) {
+        if (sc->sc_rfoff_reason <= (1U << 29))
+            rtwn8723be_netbsd_led0_on(sc);
+        return 0;
+    }
+    return EOPNOTSUPP;
 }
 
 int
