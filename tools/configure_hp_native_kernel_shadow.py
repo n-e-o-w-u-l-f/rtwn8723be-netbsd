@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 import os
+import platform
 from pathlib import Path
 import re
 import socket
@@ -50,7 +51,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    if sys.platform != "netbsd" or not socket.gethostname().startswith("hp-tpnw121"):
+    if platform.system() != "NetBSD" or not socket.gethostname().startswith("hp-tpnw121"):
         parser.error("REFUSED: NetBSD kernel configure is HP-only")
     if os.geteuid() == 0:
         parser.error("REFUSED: owner workspace only, no root/privilege escalation")
