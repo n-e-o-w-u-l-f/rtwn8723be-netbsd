@@ -30,7 +30,9 @@ r23be_tx_queue_check(unsigned int qid, unsigned int fwq, bool command)
      * RTL8723BE H2C uses separate firmware mailboxes; keep this descriptor
      * path closed until a proven RTL8723BE command-frame lifetime exists.
      */
-    if (command)
+    /* H2C uses mailboxes. Only the pinned reserved-page beacon packet
+     * has a command-descriptor TX path on this PCIe hardware. */
+    if (command && qid != RTWN8723BE_BEACON_QUEUE)
         return EOPNOTSUPP;
 
     switch (qid) {
@@ -43,8 +45,9 @@ r23be_tx_queue_check(unsigned int qid, unsigned int fwq, bool command)
     case RTWN8723BE_VO_QUEUE:
         return fwq == RTWN8723BE_TX_FW_VO ? 0 : EINVAL;
     case RTWN8723BE_BEACON_QUEUE:
-        /* The current IRQ bridge does not reclaim the beacon ring yet. */
-        return EOPNOTSUPP;
+        /* Linux old-TRX beacon delivery uses TX command descriptor slot0;
+         * the reserved-page thread itself polls this ring for completion. */
+        return command && fwq == RTWN8723BE_TX_FW_BEACON ? 0 : EINVAL;
     case RTWN8723BE_MGNT_QUEUE:
         return fwq == RTWN8723BE_TX_FW_MGNT ? 0 : EINVAL;
     case RTWN8723BE_HIGH_QUEUE:
@@ -86,6 +89,9 @@ rtwn8723be_tx_native_enqueue_owned(struct rtwn8723be_softc *sc,
     if (!sc->sc_mapped || !sc->sc_rings_allocated ||
         !sc->sc_dma_32bit || sc->sc_dmat == NULL)
         return ENXIO;
+    if (qid == RTWN8723BE_BEACON_QUEUE &&
+        (owner == NULL || release == NULL || !command))
+        return EINVAL;
     error = r23be_tx_queue_check(qid, input->fw_queue, command);
     if (error != 0)
         return error;
@@ -109,7 +115,9 @@ rtwn8723be_tx_native_enqueue_owned(struct rtwn8723be_softc *sc,
             ring->desc_dma.paddr, ring->desc_dma.size))
         return EIO;
 
-    idx = ring->producer;
+    /* Linux rtl_pci_tx() and prepare_bcn_tasklet always address beacon
+     * descriptor zero. Descriptor one is allocated but never submitted. */
+    idx = qid == RTWN8723BE_BEACON_QUEUE ? 0U : ring->producer;
     slot = &ring->slot[idx];
     desc = &((struct rtwn8723be_tx_desc *)ring->desc_dma.kva)[idx];
     if (slot->m != NULL)
@@ -181,7 +189,8 @@ rtwn8723be_tx_native_enqueue_owned(struct rtwn8723be_softc *sc,
     desc->d[0] = htole32(le32toh(desc->d[0]) | R23BE_TXD0_OWN);
     rtwn8723be_f16_1_dma_sync_for_device(sc->sc_dmat,
         &ring->desc_dma, offset, sizeof(*desc));
-    ring->producer = (idx + 1U) % ring->count;
+    ring->producer = qid == RTWN8723BE_BEACON_QUEUE ?
+        0U : (idx + 1U) % ring->count;
 
     /* rtl8723be_tx_polling(): one PCIe control bit per HW queue. */
     rtwn8723be_write_2(sc, R23BE_REG_PCIE_CTRL_REG,
@@ -272,8 +281,36 @@ rtwn8723be_tx_native_reclaim(struct rtwn8723be_softc *sc,
         desc->d[12] = htole32(next);
         rtwn8723be_f16_1_dma_sync_for_device(sc->sc_dmat,
             &ring->desc_dma, offset, sizeof(*desc));
-        ring->consumer = (idx + 1U) % ring->count;
+        /* Reserved-page beacon completion is polled from slot zero.
+         * Never advance its consumer to unused descriptor one. */
+        ring->consumer = qid == RTWN8723BE_BEACON_QUEUE ?
+            0U : (idx + 1U) % ring->count;
         (*reclaimed)++;
     }
     return 0;
+}
+
+/*
+ * Reserved-page firmware join report: Linux RTL8723BE uses the beacon
+ * queue, descriptor slot zero, command descriptor and explicit polling.
+ * Caller holds the datapath TX lock and keeps the node/mbuf on failure.
+ */
+int
+rtwn8723be_tx_native_enqueue_reserved(struct rtwn8723be_softc *sc,
+    struct mbuf *m, const struct rtwn8723be_tx_params *p,
+    void *owner, void (*release)(void *, struct mbuf *, bool))
+{
+    if (p == NULL || p->fw_queue != RTWN8723BE_TX_FW_BEACON ||
+        owner == NULL || release == NULL)
+        return EINVAL;
+    return rtwn8723be_tx_native_enqueue_owned(sc,
+        RTWN8723BE_BEACON_QUEUE, m, p, true, owner, release);
+}
+
+int
+rtwn8723be_tx_native_reclaim_reserved(struct rtwn8723be_softc *sc,
+    size_t *reclaimed)
+{
+    return rtwn8723be_tx_native_reclaim(sc,
+        RTWN8723BE_BEACON_QUEUE, reclaimed);
 }
