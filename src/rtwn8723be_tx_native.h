@@ -36,4 +36,16 @@ int rtwn8723be_tx_native_enqueue_owned(struct rtwn8723be_softc *,
 int rtwn8723be_tx_native_reclaim(struct rtwn8723be_softc *,
     unsigned int qid, size_t *);
 
+/*
+ * Linux reserved-page (H2C join-report) uses beacon descriptor slot zero;
+ * no IRQ reclaim is assumed. These functions require caller TX locking.
+ * On enqueue failure caller retains mbuf and node; successful completion
+ * releases them once after DMA POSTWRITE/unload through the callback.
+ */
+int rtwn8723be_tx_native_enqueue_reserved(struct rtwn8723be_softc *,
+    struct mbuf *, const struct rtwn8723be_tx_params *,
+    void *, void (*)(void *, struct mbuf *, bool));
+int rtwn8723be_tx_native_reclaim_reserved(struct rtwn8723be_softc *,
+    size_t *);
+
 #endif
