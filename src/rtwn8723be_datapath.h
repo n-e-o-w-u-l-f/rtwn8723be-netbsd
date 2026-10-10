@@ -52,5 +52,15 @@ int rtwn8723be_datapath_unprepare(struct rtwn8723be_datapath *);
 int rtwn8723be_datapath_enqueue(struct rtwn8723be_datapath *,
     unsigned int, struct mbuf *, const struct rtwn8723be_tx_params *,
     bool command);
+/* Transfers owner only after successful DMA publication; report callback
+ * is invoked once under dp->tx_lock with a borrowed mbuf. */
+int rtwn8723be_datapath_enqueue_owned(struct rtwn8723be_datapath *,
+    unsigned int, struct mbuf *, const struct rtwn8723be_tx_params *, bool,
+    void *, void (*)(void *, struct mbuf *, bool));
+int rtwn8723be_datapath_enqueue_owned_notify(struct rtwn8723be_datapath *,
+    unsigned int, struct mbuf *, const struct rtwn8723be_tx_params *, bool,
+    void *, void (*)(void *, struct mbuf *, bool),
+    void (*)(void *, const struct mbuf *), void *);
+int rtwn8723be_datapath_tx_check(struct rtwn8723be_datapath *, unsigned int);
 
 #endif
