@@ -192,6 +192,8 @@ rtwn8723be_dma32_range_valid(bus_addr_t addr, bus_size_t bytes)
 #define R23BE_REG_MACID                0x0610
 #define R23BE_REG_CAMCMD               0x0670
 #define R23BE_REG_RXFLTMAP2            0x06a4
+/* Pinned Linux rtl8723be/reg.h: REG_BCN_PSR_RPT 0x06A8. */
+#define R23BE_REG_BCN_PSR_RPT          0x06a8
 #define R23BE_REG_MCUTST_1             0x01c0
 #define R23BE_REG_SECONDARY_CCA_CTRL   0x0577
 
