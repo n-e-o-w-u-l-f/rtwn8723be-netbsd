@@ -957,6 +957,15 @@ rtwn8723be_netbsd_reset_trx_ring(void *arg)
 
     if (!sc->sc_rings_allocated)
         return ENXIO;
+    /*
+     * A reset is valid only after the real hard IRQ/softint has drained
+     * and device DMA has been stopped. Never recycle a live descriptor.
+     * Probe's first start and runtime's later restart both disestablish
+     * the IRQ before entering this callback.
+     */
+    if (sc->sc_irq_enabled || sc->sc_ih != NULL ||
+        sc->sc_soft_ih != NULL || sc->sc_pihp != NULL)
+        return EBUSY;
 
     /*
      * Pinned Linux rtl_pci_reset_trx_ring(): rebuild both RX rings with
@@ -1008,18 +1017,23 @@ rtwn8723be_netbsd_reset_trx_ring(void *arg)
             bus_addr_t next;
 
             if (ring->slot[i].m != NULL) {
-                if (ring->slot[i].map != NULL &&
-                    ring->slot[i].map->dm_nsegs != 0) {
-                    bus_dmamap_sync(sc->sc_dmat,
-                        ring->slot[i].map, 0,
-                        ring->slot[i].map->dm_mapsize,
-                        BUS_DMASYNC_POSTWRITE);
-                    bus_dmamap_unload(sc->sc_dmat,
-                        ring->slot[i].map);
-                }
-                m_freem(ring->slot[i].m);
-                ring->slot[i].m = NULL;
+                if (ring->slot[i].map == NULL ||
+                    ring->slot[i].map->dm_nsegs != 1 ||
+                    ring->slot[i].map->dm_mapsize == 0)
+                    return EIO;
+                bus_dmamap_sync(sc->sc_dmat,
+                    ring->slot[i].map, 0,
+                    ring->slot[i].map->dm_mapsize,
+                    BUS_DMASYNC_POSTWRITE);
+                bus_dmamap_unload(sc->sc_dmat,
+                    ring->slot[i].map);
             }
+            /*
+             * The slot may own a net80211 node/C2H report ticket in
+             * addition to its DMA mbuf. Freeing only m would leak it or
+             * permit a later double release. Abort is not an air ACK.
+             */
+            rtwn8723be_f16_1_tx_slot_release(&ring->slot[i], false);
 
             memset(&desc[i], 0, sizeof(desc[i]));
             next = ring->desc_dma.paddr +
@@ -1036,6 +1050,14 @@ rtwn8723be_netbsd_reset_trx_ring(void *arg)
             &ring->desc_dma, 0, ring->desc_dma.size);
     }
 
+    /*
+     * A new MCU generation is safe only AFTER all RX/TX queues have
+     * completed their real DMA synchronization/rebuild with IRQ quiesced.
+     * Runtime start resets this proof before requesting ring reset;
+     * bt_prepare consumes the proof immediately afterward.
+     */
+    if (sc->sc_runtime != NULL && sc->sc_runtime->initialized)
+        sc->sc_runtime->mcu_rx_drained = true;
     return 0;
 }
 
