@@ -3,7 +3,7 @@
 from pathlib import Path
 import hashlib,json,os,platform,re,shutil,socket,subprocess,tempfile,time
 assert platform.system()=='NetBSD' and socket.gethostname().startswith('hp-tpnw121')
-ROOT=Path(__file__).resolve().parents[1];WORK=Path('/root/hp-driver-port-20261005')
+ROOT=Path(__file__).resolve().parents[1];WORK=Path(os.environ.get('RTWN8723BE_HP_WORKDIR', '/root/hp-driver-port-20261005'))
 LINUX=Path(os.environ.get('RTWN8723BE_LINUX_TREE','/root/linux-rtl8723be-ref-fresh'))
 PIN='fd179f8a05be3ccae366b9b96e176b51fbe54aab'
 assert subprocess.check_output(['git','-C',str(LINUX),'rev-parse','HEAD'],text=True).strip()==PIN
