@@ -40,7 +40,13 @@ assert all(s in native for s in need), "Missing required rollback stage"
 # context_fini happens in the caller only after native_probe_cleanup
 for first, second in zip(need[1:-1], need[2:-1]):
     assert cleanup.index(first) < cleanup.index(second), (first, second)
-assert cleanup.index(need[0]) < cleanup.index(need[1])
+# A missing runtime owner is rejected before IRQ shutdown. For a valid
+# owner, IRQ must drain before the registered net80211 unwind executes.
+assert cleanup.index("sc->sc_runtime == NULL") < cleanup.index(need[1])
+assert cleanup.index(need[1]) < cleanup.index(
+    "rtwn8723be_runtime_unregister(sc)")
+assert cleanup.index("rtwn8723be_runtime_unregister(sc)") < cleanup.index(
+    "rtwn8723be_runtime_fini(sc)")
 assert "if (sc->sc_runtime != NULL && rtwn8723be_runtime_fini(sc) != 0)" in cleanup
 assert "if (sc->sc_linux.stage == R23BE_STAGE_IDLE" in native
 
