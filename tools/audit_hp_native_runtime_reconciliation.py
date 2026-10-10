@@ -25,7 +25,7 @@ OWNER = ROOT.parent.resolve()
 FROZEN = ROOT / "reference/hp-native-20261006"
 MANIFEST = ROOT / "config/files.rtwn8723be_native"
 ROOT_FILES = ORIGINAL / "files.pci"
-FROZEN_18 = (
+FROZEN_REFERENCE_FILES = (
     "rtwn8723be_runtime.c", "rtwn8723be_runtime.h",
     "rtwn8723be_dm_native.c", "rtwn8723be_dm_native.h",
     "rtwn8723be_dm_linux.inc",
@@ -62,7 +62,7 @@ def main() -> None:
     if output.exists() or output.parent != OWNER or not output.name.startswith("rtl-runtime-audit-"):
         parser.error("Require a fresh rtl-runtime-audit-* owner-owned JSON output")
     checked = {}
-    for name in FROZEN_18:
+    for name in FROZEN_REFERENCE_FILES:
         actual = ORIGINAL / name
         saved = FROZEN / name
         if not saved.is_file() or not actual.is_file():
@@ -128,7 +128,7 @@ def main() -> None:
         "scope": "HP-only immutable 2026-10-06 runtime recovery vs 2026-10-10 source",
         "current_git_commit": subprocess.check_output(
             ["git", "-C", str(ROOT), "rev-parse", "HEAD"], text=True).strip(),
-        "frozen_reference_files": len(FROZEN_18),
+        "frozen_reference_files": len(FROZEN_REFERENCE_FILES),
         "frozen_references_byte_exact": all(v["byte_exact"] for v in checked.values()),
         "current_selected_c": len(current_files),
         "older_hp_selected_c": len(frozen_files),
@@ -148,7 +148,7 @@ def main() -> None:
     }
     output.write_text(json.dumps(state, indent=2) + "\n")
     os.chmod(output, 0o600)
-    print("HP_RUNTIME_REFERENCE_SOURCE_AUDIT_PASS", len(FROZEN_18),
+    print("HP_RUNTIME_REFERENCE_SOURCE_AUDIT_PASS", len(FROZEN_REFERENCE_FILES),
           "snapshots", len(current_files), "current", len(frozen_files),
           "older", len(modified_common), "differing common",
           len(only_hp), "missing current", "NO_ACTIVE_CALLBACK_BINDINGS")
