@@ -29,6 +29,10 @@ struct rtwn8723be_rx_packet {
     bool software_decryption;
     uint8_t rate;
     uint8_t mac_id;
+    /* Frozen rtl8723be TRX descriptor: bounded PHY drvinfo region. */
+    bool phy_present;
+    size_t phy_offset;
+    size_t phy_length;
     /* Filled by native PHY decoding after the descriptor is validated. */
     bool rssi_valid;
     int rssi_dbm;
