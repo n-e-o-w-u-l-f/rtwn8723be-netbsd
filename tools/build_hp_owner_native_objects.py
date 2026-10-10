@@ -28,9 +28,8 @@ MAKE = STAGE / "native-tools/bin/nbmake-amd64"
 COMPILER = str(STAGE / "native-tools/bin/x86_64--netbsd-gcc")
 MANIFEST = ROOT / "config/files.rtwn8723be_native"
 RULE = re.compile(r"^file\s+dev/pci/(rtwn8723be_\w+\.c)\s+rtwn8723be_native\s*$", re.M)
-# Exact seven older HP runtime-owner sources recovered from the frozen
-# 48-unit NetBSD files.pci. These are NOT yet selected in WIP's manifest.
-# No other unselected file may be compiled by this ABI-only exception.
+# Exact seven frozen HP runtime-owner sources; these are now explicitly
+# selected by the WIP 50-unit manifest. Retain scoped ABI diagnostic mode.
 RECOVERED_UNSELECTED = frozenset((
     "rtwn8723be_runtime.c", "rtwn8723be_dm_native.c",
     "rtwn8723be_channel_native.c", "rtwn8723be_media_native.c",
@@ -57,9 +56,9 @@ def main():
     if not (OBJDIR / "machine/cdefs.h").is_file() or not MAKE.is_file():
         parser.error("original generated native build tree is unavailable")
     all_units = RULE.findall(MANIFEST.read_text())
-    # Manifest advanced from 42 to 43 with the real RF-kill native C owner.
+    # Full WIP selection: 43 native foundation + 7 recovered runtime owners.
     # Do not silently ignore or misrepresent selected source units.
-    if len(all_units) != 43 or len(set(all_units)) != 43:
+    if len(all_units) != 50 or len(set(all_units)) != 50:
         parser.error("unexpected native source closure; verify current manifest")
     manifest_unselected = []
     if args.only is not None:
