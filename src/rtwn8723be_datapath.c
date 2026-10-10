@@ -148,18 +148,68 @@ rtwn8723be_datapath_enqueue(struct rtwn8723be_datapath *dp,
     unsigned int qid, struct mbuf *m,
     const struct rtwn8723be_tx_params *p, bool command)
 {
+    return rtwn8723be_datapath_enqueue_owned(dp, qid, m, p, command,
+        NULL, NULL);
+}
+
+int
+rtwn8723be_datapath_enqueue_owned(struct rtwn8723be_datapath *dp,
+    unsigned int qid, struct mbuf *m,
+    const struct rtwn8723be_tx_params *p, bool command,
+    void *owner, void (*release)(void *, struct mbuf *, bool))
+{
+    return rtwn8723be_datapath_enqueue_owned_notify(dp, qid, m, p,
+        command, owner, release, NULL, NULL);
+}
+
+int
+rtwn8723be_datapath_enqueue_owned_notify(struct rtwn8723be_datapath *dp,
+    unsigned int qid, struct mbuf *m,
+    const struct rtwn8723be_tx_params *p, bool command,
+    void *owner, void (*release)(void *, struct mbuf *, bool),
+    void (*accepted)(void *, const struct mbuf *), void *accepted_arg)
+{
     int error;
 
     if (dp == NULL || !dp->prepared || dp->sc == NULL ||
-        m == NULL || p == NULL)
+        m == NULL || p == NULL ||
+        ((owner == NULL) != (release == NULL)))
         return EINVAL;
     mutex_enter(&dp->tx_lock);
     if (!dp->tx_enabled || !dp->sc->sc_linux.started ||
         !dp->sc->sc_linux.fw_ready)
         error = EAGAIN;
     else
-        error = rtwn8723be_tx_native_enqueue(dp->sc,
-            qid, m, p, command);
+        error = rtwn8723be_tx_native_enqueue_owned(dp->sc,
+            qid, m, p, command, owner, release);
+    /* The callback only borrows the packet AFTER DMA publication.
+     * It must not touch TX locking or transfer mbuf ownership. */
+    if (error == 0 && accepted != NULL)
+        accepted(accepted_arg, m);
+    mutex_exit(&dp->tx_lock);
+    return error;
+}
+
+int
+rtwn8723be_datapath_tx_check(struct rtwn8723be_datapath *dp,
+    unsigned int qid)
+{
+    struct rtwn8723be_tx_ring *ring;
+    int error = 0;
+
+    if (dp == NULL || !dp->prepared || dp->sc == NULL ||
+        qid >= RTWN8723BE_TX_QUEUE_COUNT)
+        return EINVAL;
+    mutex_enter(&dp->tx_lock);
+    ring = &dp->sc->sc_tx_ring[qid];
+    if (!dp->tx_enabled || !dp->sc->sc_linux.started ||
+        !dp->sc->sc_linux.fw_ready)
+        error = EAGAIN;
+    else if (ring->count == 0 || ring->slot == NULL ||
+        ring->producer >= ring->count || ring->consumer >= ring->count)
+        error = EIO;
+    else if (ring->slot[ring->producer].m != NULL)
+        error = EBUSY;
     mutex_exit(&dp->tx_lock);
     return error;
 }
