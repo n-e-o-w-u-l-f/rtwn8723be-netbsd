@@ -80,19 +80,31 @@ rtwn8723be_native_probe_cleanup(struct rtwn8723be_softc *sc)
     }
 
     /*
-     * A registered net80211 interface cannot be freed using the present
-     * pre-registration rollback. Never quietly release resources under it.
+     * If registration completed, net80211 must be unregistered before its
+     * backing DMA rings, PCI BAR and runtime can be released. The runtime
+     * source now supports an unstarted IEEE80211_REGISTER/RFKILL/IRQ stage.
+     * IRQ and softint entrants are stopped first. Any failed unregister
+     * deliberately retains all resources; never unwind beneath a live ifnet.
      */
-    if (stage >= R23BE_STAGE_IEEE80211_REGISTER) {
+    if (stage >= R23BE_STAGE_IEEE80211_REGISTER &&
+        sc->sc_runtime == NULL) {
         aprint_error_dev(sc->sc_dev,
-            "refusing incomplete post-registration teardown; "
-            "native driver must remain disabled\n");
+            "registered probe has no teardown owner; resources retained\n");
         return;
     }
-
     if (sc->sc_irq_enabled || sc->sc_ih != NULL ||
         sc->sc_soft_ih != NULL || sc->sc_pihp != NULL)
         rtwn8723be_netbsd_disestablish_irq(sc);
+
+    if (stage >= R23BE_STAGE_IEEE80211_REGISTER) {
+        int unregister_error = rtwn8723be_runtime_unregister(sc);
+        if (unregister_error != 0 || sc->sc_runtime->net.registered) {
+            aprint_error_dev(sc->sc_dev,
+                "net80211 unregister incomplete (%d); PCI/DMA retained\n",
+                unregister_error);
+            return;
+        }
+    }
 
     /*
      * The native runtime is acquired by init_sw_vars after H2C/MP.
