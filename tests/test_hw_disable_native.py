@@ -27,7 +27,7 @@ with tempfile.TemporaryDirectory(prefix='hp-hw-disable-native-', dir=ROOT) as tm
     check = tmp / 'check.c'
     check.write_text((ROOT / 'tests/hw_disable_native_check.c').read_text())
     exe = tmp / 'check'
-    subprocess.run(['cc', '-std=c11', '-Wall', '-Wextra', '-Werror', '-pedantic',
+    subprocess.run(['cc', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wcast-qual', '-pedantic',
         '-fsanitize=undefined', '-fno-sanitize-recover=all',
         '-Wno-unused-parameter', '-Wno-unused-variable',
         '-I', str(tmp), '-I', str(ROOT / 'src'), '-I', str(CORE / 'src'),
