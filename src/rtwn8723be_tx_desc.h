@@ -33,6 +33,7 @@ struct rtwn8723be_tx_params {
     uint32_t buffer_dma;
     uint32_t next_desc_dma;
     uint16_t seq;             /* 0..4095 from IEEE80211_SCTL_SEQ >> 4 */
+    uint8_t report_sequence;  /* Linux SW_DEFINE: six-bit index << 2 */
     uint8_t fw_queue;         /* validated caller selection (QSLT_*) */
     uint8_t macid;
     uint8_t rateid;
