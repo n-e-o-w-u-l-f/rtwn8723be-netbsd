@@ -57,6 +57,7 @@ struct rtwn8723be_tx_params {
     bool rdg;
     bool data_bw_40;
     bool multicast;
+    bool special_report;     /* hardware SPE_RPT; requires C2H lifetime */
 };
 
 /* Both encoders return zero or EINVAL/EFBIG without publishing OWN. */
