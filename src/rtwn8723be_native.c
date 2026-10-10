@@ -20,6 +20,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <dev/pci/pcidevs.h>
 
 #include "rtwn8723be_netbsd.h"
+#include "rtwn8723be_runtime.h"
 
 static int
 rtwn8723be_native_match(device_t parent, cfdata_t cf, void *aux)
@@ -92,6 +93,20 @@ rtwn8723be_native_probe_cleanup(struct rtwn8723be_softc *sc)
     if (sc->sc_irq_enabled || sc->sc_ih != NULL ||
         sc->sc_soft_ih != NULL || sc->sc_pihp != NULL)
         rtwn8723be_netbsd_disestablish_irq(sc);
+
+    /*
+     * The native runtime is acquired by init_sw_vars after H2C/MP.
+     * Retire software jobs/callouts/IO and its OWN locks before H2C/MP,
+     * descriptor DMA and BAR. sc_irq_lock belongs to the PCI context
+     * and remains alive until context_fini, never runtime_fini.
+     * Registered net80211 paths are still fenced above until a tested
+     * post-registration rollback is implemented.
+     */
+    if (sc->sc_runtime != NULL && rtwn8723be_runtime_fini(sc) != 0) {
+        aprint_error_dev(sc->sc_dev,
+            "cannot drain RTL runtime; retaining resources\n");
+        return;
+    }
 
     /* Probe has no external entrants; IRQ callbacks are already quiesced. */
     if (rtwn8723be_btc_mp_native_fini(sc) != 0) {
