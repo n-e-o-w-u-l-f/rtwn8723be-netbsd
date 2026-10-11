@@ -20,27 +20,35 @@ Version **0.1.0** remains experimental. F77 is the verified HP recovery
 kernel; it is not evidence that the current source tree is a working WLAN
 driver.
 
-The current private manifest selects 47 C units. The conservative
+The current private manifest selects 48 C units. The conservative
 world-regdomain unit represents Linux's safe baseline: channels 1–11 are
 active CCK/OFDM, 12–13 are passive CCK/OFDM, and channel 14 is passive
 CCK-only. EFUSE channel-plan mapping and the country-IE notifier are still
 open. The 46th unit is an unbound, resource-journaled pre-`RUNNING` recovery
 owner. The 47th is a unit-tested, unbound port of the Linux BTC high-level
 `get`/`set` policy; it does not supply the missing whole-driver lifecycle
-owner or activate PCI, DMA, IRQ, RFKill, or net80211 hardware.
+owner or activate PCI, DMA, IRQ, RFKill, or net80211 hardware. The 48th is a
+pure, atomic BTC context-preparation boundary: it accepts a fully parsed board
+identity, maps the raw RTL8723BE antenna encoding, applies the Linux-shaped
+BTC defaults, invokes low-level then policy callback binders in a temporary
+context, and publishes only after the existing callback gate and invariants
+succeed. It does not bind `bt_prepare`, PCI, DMA, IRQ, RFKill, net80211,
+workqueues, or native hardware state.
 
-The current 47-unit private Shadow H build passed the complete object and
-kernel-link gate at source checkout `66fed5c6e732a373e4faa16f96b5742725c99d3b`.
-Its private configuration explicitly contains `no i915drmkms*`; the private
-PCI manifest and rendered Makefile contain no i915 input. All 47 selected
-objects are nonempty, the original PCI source manifest stayed intact, and the
-separate kernel identifies as `RTWN8723BE-NATIVE-SHADOW`. Its SHA-256 is
+Shadow H is the exact historical 47-unit private build at source checkout
+`66fed5c6e732a373e4faa16f96b5742725c99d3b`; it does **not** cover the current
+48th context unit. Its private configuration explicitly contains
+`no i915drmkms*`; the private PCI manifest and rendered Makefile contain no
+i915 input. All 47 selected objects are nonempty, the original PCI source
+manifest stayed intact, and the separate kernel identifies as
+`RTWN8723BE-NATIVE-SHADOW`. Its SHA-256 is
 `390a3905b41463dee6b0395138ed406dee37051d6506a696c8f764fb0024ac38`.
-This was an isolated build only: no candidate was installed or booted, and it
-does not establish a working WLAN driver. See [STATUS.md](STATUS.md), the
-[native object checkpoint](docs/HP_NATIVE_OBJECT_CHECKPOINT_20261011.md), and
-the [Shadow H record](docs/HP_NATIVE_SHADOW_H_20261011.md). Shadow G remains
-the retained historical 46-unit build record.
+The 48-unit source selection requires its own isolated private object and
+kernel-link gate before any later runtime work. No candidate from this state
+was installed or booted, and no i915 action occurred. See [STATUS.md](STATUS.md),
+the [native object checkpoint](docs/HP_NATIVE_OBJECT_CHECKPOINT_20261011.md),
+and the [Shadow H record](docs/HP_NATIVE_SHADOW_H_20261011.md). Shadow G
+remains the retained historical 46-unit build record.
 
 Complete native lifecycle ownership, callback binding, PCI/IRQ admission and
 physical WLAN acceptance remain open. An object build or portable C test is

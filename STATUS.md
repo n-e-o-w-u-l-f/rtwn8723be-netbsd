@@ -14,18 +14,24 @@ Target hardware is HP TPN-W121 on NetBSD 11.0 amd64:
 - F16.0 must never be booted. F83 and F84 reached a black screen with
   backlight after early text; the root cause is unconfirmed.
 
-The current private manifest contains 47 C units. It remains intentionally
+The current private manifest contains 48 C units. It remains intentionally
 unbound: `register_ieee80211`, `init_rfkill`, `bt_prepare`, and `dm_init` are
 not live lifecycle owners, so the current source does not activate PCI, DMA,
 IRQ, RFKill or a net80211 device on the HP. The added BTC policy unit ports
 Linux high-level `halbtc_get()`/`halbtc_set()` decisions only; it remains
 unbound until a real whole-driver owner supplies coherent state and callbacks.
-The current driver-source revision is
-`6b37ae2ccb65505f331fb678fe110b5921da4b83`; it only restores the generator's proof for the already-built BTC
-policy type extension. Shadow H remains the exact build record for
+The 48th unit prepares a Linux-shaped BTC coexistence context atomically from
+a parsed identity and separate low-level/policy binders. It maps the raw
+RTL8723BE antenna encoding, validates the binder effects and publishes no
+partial output. It neither discovers nor starts hardware and has no
+`bt_prepare`, PCI, DMA, IRQ, RFKill, net80211 or workqueue binding. The
+recorded generator-source revision is
+`6b37ae2ccb65505f331fb678fe110b5921da4b83`; the local 48-unit source state
+extends that recorded revision pending its matching build gate. Shadow H
+remains the exact historical 47-unit build record for
 `66fed5c6e732a373e4faa16f96b5742725c99d3b`.
 
-The isolated current-source Shadow H checkout at
+The isolated historical Shadow H checkout at
 `66fed5c6e732a373e4faa16f96b5742725c99d3b` completed the full private
 47-unit object and kernel-link gate without changing `/netbsd`, the boot menu,
 or the F77 recovery environment:
@@ -46,7 +52,10 @@ or the F77 recovery environment:
   nor booted.
 
 This is build evidence only; it does not make the unbound lifecycle callbacks,
-PCI attach, WLAN, or i915 functional.
+PCI attach, WLAN, or i915 functional. It is not build evidence for the current
+48-unit source selection. That selection needs a new isolated private object
+and full kernel-link gate; no kernel candidate from it has been installed or
+booted, and no i915 action occurred.
 
 Historical Shadow D evidence at commit
 `409d1b739ea96dcebe697d73c7d4b6c83ae4d00c` is limited but positive:
@@ -142,6 +151,13 @@ hardware result.
 - Corrected the BTC generator and generated source-proof hash so that the
   policy-context extension is reproducible from the pinned Linux source. This
   changes no driver runtime code or H build input.
+- Added the 48th, pure BTC context-preparation translation unit. It builds a
+  temporary Linux-shaped coexistence context from a validated parsed identity,
+  composes the low-level and policy binders in order, rejects partial or
+  lifecycle-mutating results, and publishes only after the existing callback
+  gate succeeds. Its C11/UBSan contract covers both antenna encodings and
+  atomic failure paths. It does not bind `bt_prepare`, PCI, DMA, IRQ, RFKill,
+  net80211, workqueues, native hardware state, or i915.
 - The HP-only regression runner completed all 56 `test_*.py` checks at
   `6b37ae2ccb65505f331fb678fe110b5921da4b83`, using a fresh temporary work
   directory that was removed after success. This is source-test evidence only,
@@ -163,17 +179,19 @@ hardware result.
 1. Preserve the completed H result (and historical G record) as build-only
    evidence; do not install or boot either. The superseded, confirmed E/F
    private build shadows are removed.
-2. Build and test the pure BTC-context preparation boundary, then implement
-   the real `bt_prepare` owner with genuine MCU/RX-drain,
+2. Run a matching isolated 48-object and full private-kernel link gate for the
+   current BTC-context source state. Treat it as build-only evidence; do not
+   install or boot a candidate.
+3. Implement the real `bt_prepare` owner with genuine MCU/RX-drain,
    serialization and reverse-release semantics; do not reuse the historical
    runtime model as a shortcut.
-3. Close `dm_init`, net80211/RFKill ownership and the matching start/stop
+4. Close `dm_init`, net80211/RFKill ownership and the matching start/stop
    paths with real NetBSD API integrations before PCI/IRQ binding.
-4. Bind the recovery journal only when each real NetBSD lifecycle owner has
+5. Bind the recovery journal only when each real NetBSD lifecycle owner has
    recorded its own acquired resources and provides compatible compensators;
    keep the normal `RUNNING` stop path separate.
-5. Keep i915 trace-only until a physical early serial capture exists. Never
+6. Keep i915 trace-only until a physical early serial capture exists. Never
    use F16.0, F83 or F84 as a test kernel.
-6. Test scan with received BSS entries, authentication, association, traffic,
+7. Test scan with received BSS entries, authentication, association, traffic,
    recovery, suspend/resume and detach only after full runtime closure.
    Package work follows that hardware acceptance.

@@ -3,7 +3,7 @@
 
 This protects against a stale source tree that has zero or partial native
 declarations.  The generated shadow must contain exactly the canonical
- device, attach and 47 selected C declarations while retaining unrelated PCI
+ device, attach and 48 selected C declarations while retaining unrelated PCI
 entries.
 """
 from importlib.util import module_from_spec, spec_from_file_location
@@ -40,8 +40,8 @@ assert "device  rtwn8723be_native: obsolete" not in lines
 assert "file dev/pci/rtwn8723be_old.c rtwn8723be_native" not in lines
 assert sum(line.startswith("device  rtwn8723be_native:") for line in lines) == 1
 assert sum(line.startswith("attach  rtwn8723be_native at pci") for line in lines) == 1
-assert len(files) == 47
-assert len(set(files)) == 47
+assert len(files) == 48
+assert len(set(files)) == 48
 
 inputs = MODULE.default_hp_shadow_inputs()
 assert inputs["sys"] == Path("/usr/src/sys")

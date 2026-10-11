@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audit frozen HP 48-unit runtime vs current GitHub 47-unit native RTL port.
+"""Audit frozen HP 48-unit runtime vs current GitHub 48-unit native RTL port.
 
 This is a SOURCE RECONCILIATION GATE, not a native link/driver acceptance.
 It cannot write the old root stage, modify firmware, change the kernel,
@@ -43,6 +43,7 @@ EXPECTED_SOURCE_ONLY_CALLBACKS = (
 EXPECTED_GITHUB_ONLY = {
     "rtwn8723be_btc_providers_native.c",
     "rtwn8723be_btc_policy.c",
+    "rtwn8723be_btc_context.c",
     "rtwn8723be_pre_running_recovery.c",
     "rtwn8723be_rfkill_native.c",
     "rtwn8723be_runtime_owner.c",
@@ -86,7 +87,7 @@ def main() -> None:
             parser.error("HP reference drift: " + name)
     current_files = FILE_RULE.findall(MANIFEST.read_text())
     frozen_files = FILE_RULE.findall(ROOT_FILES.read_text())
-    if len(current_files) != 47 or len(frozen_files) != 48:
+    if len(current_files) != 48 or len(frozen_files) != 48:
         parser.error(f"unexpected manifest selection: github={len(current_files)}, HP={len(frozen_files)}")
     if len(set(current_files)) != len(current_files) or len(set(frozen_files)) != len(frozen_files):
         parser.error("duplicate source selection in native files")

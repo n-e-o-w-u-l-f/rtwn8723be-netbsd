@@ -54,7 +54,7 @@
   manifest and rendered Makefile have zero i915 lines, the original PCI
   manifest hash is unchanged, and `/netbsd` is a distinct live F77 file.
 - Shadow H at source checkout `66fed5c6e732a373e4faa16f96b5742725c99d3b`
-  is the current 47-object result. All 47 selected objects are nonempty; their
+  is the exact historical 47-object result. All 47 selected objects are nonempty; their
   ordered SHA-256 aggregate is
   `d5835976634e14bdbb456f6d235d6b009f2a5e6f924fccca597d7be9a1b43847`.
   `rtwn8723be_btc_policy.o` is 72,376 bytes and hashes to
@@ -70,6 +70,15 @@
   Makefile have zero i915 lines, the original PCI manifest hash is unchanged,
   and it differs from the live F77 `/netbsd`. No candidate was installed or
   booted.
+- The current source selection has 48 C units. Its new
+  `rtwn8723be_btc_context.c` is a pure atomic preparation boundary: it maps a
+  validated parsed identity into Linux-shaped BTC defaults, invokes abstract
+  low-level and policy binders in order, validates the completed callbacks,
+  and publishes only a complete context. It has no `bt_prepare`, PCI, DMA,
+  IRQ, RFKill, net80211, workqueue, or native hardware binding. Shadow H does
+  not cover this 48th unit; a matching private build gate is still required.
+  No 48-unit kernel candidate was installed or booted, and no i915 action
+  occurred.
 - A fresh checkout at `84f1b9704e7fa1628b729a8da5ae6cb819155d38` passed all
   53 HP-only regression scripts. The runner's result directory is now passed
   to tests as their artifact work directory, replacing a stale hard-coded
@@ -78,7 +87,7 @@
 
 ## ÄNDERUNGEN
 
-- The current source selection is 47 C units. The
+- The current source selection is 48 C units. The
   `rtwn8723be_regdomain.c` supplies only the conservative Linux-world
   regulatory baseline. `rtwn8723be_pre_running_recovery.c` adds an unbound
   recovery journal for a failed adapter start before HAL START: its C11/UBSan
@@ -86,9 +95,12 @@
   start-local IRQ work first, uses reverse cleanup, and quarantines an error.
   The journal does not release probe-owned allocations or invoke normal stop
   callbacks. `rtwn8723be_btc_policy.c` is the 47th, unbound high-level Linux
-  BTC get/set policy port. It requires a future genuine whole-driver context
-  and neither creates that owner nor changes live hardware behavior. The
-  completed Shadow H build covers all three current-source additions.
+  BTC get/set policy port. `rtwn8723be_btc_context.c` is the 48th, pure and
+  atomic context-preparation boundary. It composes abstract low-level and
+  policy callbacks only after identity validation, never publishes a partial
+  context, and does not create a lifecycle owner or change live hardware
+  behavior. The completed Shadow H build covers the 45th through 47th
+  additions only; it does not cover the current 48th unit.
 - Net80211 registration now avoids publishing partial owner state before the
   fallible world-regdomain setup succeeds.
 - A small header-only policy permits unstarted rollback only after successful
@@ -101,10 +113,12 @@
 
 1. Keep Shadow H (and the historical Shadow G record) as build-only evidence;
    do not install or boot either.
-2. Build and test the pure BTC context-preparation boundary before implementing
-   the real `bt_prepare` lifecycle owner, including actual MCU/RX
+2. Run the matching isolated 48-object and full private-kernel link gate for
+   the BTC-context source state; keep it build-only and do not install or boot
+   a candidate.
+3. Implement the real `bt_prepare` lifecycle owner, including actual MCU/RX
    drain and its reverse ownership, without a synthetic success path.
-3. Implement the remaining real lifecycle owners and their reverse cleanup
+4. Implement the remaining real lifecycle owners and their reverse cleanup
    before any PCI probe binding or hardware test.
-4. Keep i915 trace-only pending physical early serial evidence; never boot
+5. Keep i915 trace-only pending physical early serial evidence; never boot
    F16.0, F83 or F84.

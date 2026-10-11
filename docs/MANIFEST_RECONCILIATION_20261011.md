@@ -2,7 +2,7 @@
 
 ## Current source selection
 
-`config/files.rtwn8723be_native` now selects **47 unique native C translation
+`config/files.rtwn8723be_native` now selects **48 unique native C translation
 units**. The 45th unit is `rtwn8723be_regdomain.c`, which applies only the
 safe Linux-world 2.4 GHz channel baseline. The 46th is
 `rtwn8723be_pre_running_recovery.c`, an unbound recovery journal for a
@@ -13,7 +13,13 @@ maps EFUSE, installs a country notifier, attaches hardware, or binds a
 pending lifecycle callback. The 47th is `rtwn8723be_btc_policy.c`, an
 unbound port of the Linux high-level BTC `get`/`set` decision policy. It
 requires a future whole-driver context for its callbacks and does not bind a
-PCI, DMA, IRQ, net80211, or lifecycle path.
+PCI, DMA, IRQ, net80211, or lifecycle path. The 48th is
+`rtwn8723be_btc_context.c`, a pure atomic context-preparation boundary. It
+accepts only a fully parsed identity, maps the raw antenna encoding, applies
+the Linux-shaped BTC defaults, composes abstract low-level then policy
+callbacks in a temporary context, and publishes only after the existing
+callback gate succeeds. It has no `bt_prepare`, PCI, DMA, IRQ, net80211,
+workqueue, or native hardware binding.
 
 The source inventory still deliberately reports four unbound lifecycle
 owners:
@@ -57,7 +63,7 @@ manifest hash remains
 The candidate is a separate file from the live F77 `/netbsd`, was not
 installed, and was not booted.
 
-The current 47-unit Shadow H checkout at
+The historical 47-unit Shadow H checkout at
 `66fed5c6e732a373e4faa16f96b5742725c99d3b` closes the matching private build
 gate: 47/47 objects are nonempty, the ordered object record hashes to
 `d5835976634e14bdbb456f6d235d6b009f2a5e6f924fccca597d7be9a1b43847`, and
@@ -68,12 +74,20 @@ rendered Makefile contain zero i915 lines, and the original PCI manifest hash
 is unchanged. The candidate is separate from the live F77 `/netbsd`, was not
 installed, and was not booted.
 
+Shadow H is exact 47-unit build evidence and does not cover the current
+48-unit selection. The new context boundary has source-level contract tests,
+but it still requires a matching isolated 48-object and full private-kernel
+link gate. No candidate from the 48-unit state was installed or booted, and no
+i915 action occurred.
+
 ## Required next evidence
 
 1. Retain the completed H result (and historical G record) only as private
    build evidence; do not promote either to an installed or bootable candidate.
-2. Build and test a pure BTC context-preparation boundary, then close the four
-   lifecycle owners with real NetBSD API integrations and
+2. Run the matching isolated 48-object and full private-kernel link gate for
+   the current BTC-context source state; retain it as build-only evidence and
+   do not install or boot a candidate.
+3. Close the four lifecycle owners with real NetBSD API integrations and
    reverse teardown before enabling PCI attach or IRQ binding.
-3. Test scan with received BSS entries, association, traffic, recovery,
+4. Test scan with received BSS entries, association, traffic, recovery,
    suspend/resume and detach before packaging.

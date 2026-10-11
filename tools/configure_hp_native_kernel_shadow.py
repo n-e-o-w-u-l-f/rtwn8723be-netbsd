@@ -29,7 +29,7 @@ OLD_DECLARATION = re.compile(
     r"attach\s+rtwn8723be_native\s+at\s+pci|"
     r"file\s+dev/pci/rtwn8723be_\w+\.c\s+rtwn8723be_native\s*$)")
 PRIVATE_CONFIG_NAME = "RTWN8723BE-NATIVE-SHADOW"
-NATIVE_C_UNIT_COUNT = 47
+NATIVE_C_UNIT_COUNT = 48
 # Generated kernel compiler rules use these paths relative to sys/.. .  Keep
 # this list explicit so a dry-run cannot hide a missing immutable sibling.
 COMMON_REQUIRED_RELATIVE_PATHS = (
