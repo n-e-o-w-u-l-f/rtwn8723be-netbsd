@@ -67,6 +67,24 @@ Pinned Linux reference:
 - https://raw.githubusercontent.com/torvalds/linux/fd179f8a05be3ccae366b9b96e176b51fbe54aab/drivers/net/wireless/realtek/rtlwifi/rtl8723be/hw.c
 - https://raw.githubusercontent.com/torvalds/linux/fd179f8a05be3ccae366b9b96e176b51fbe54aab/drivers/net/wireless/realtek/rtlwifi/rtl8723be/dm.c
 
+## Source and branch reconciliation – follow-up while 2e5a2cc builds
+
+**Last actual HP status presented by requester:** `RUNNING source=2e5a2cc97b9bbae3e55aa984e1477e7c29858bce`; log approx 3.0 MiB at 2026-10-11 12:12 CEST; `nbmkdep` still writing dependency targets. The kernel's final `LINKED` identity has **not** been shown. Do not infer completion from elapsed time and do not update the HP source checkout while this specific build is accessing it.
+
+**Two active histories (GitHub compare, 2026-10-11):** canonical `main` and this experimental 50-unit WIP have **diverged**, not fast-forwardable. From main to WIP: WIP ahead 89 commits, behind 12; merge base `08dcf79a83e9e6a7e4ee1196d4a41845dca4e341`. Main includes independent `rtwn8723be_regdomain.c/.h`, fail-start `linux_adapter_abort`, `net80211_state.h`, runtime owner foundation and tests, while this branch has the 50-unit Linux runtime, BT callbacks, RX filter and kernel link. **Do not blindly merge conflicting PCI, net80211, RFkill or abort paths.** The current WIP channel loop marks 1–14 uniformly active while main's independently validated world baseline treats channels 12–13 as passive and 14 as passive CCK only; the parity discrepancy is **open**, not declared resolved.
+
+**New source-graph safety improvement, not in SHA 2e5a2cc:**
+- `rtwn8723be_runtime_start` previously returned the *initial* startup error even if reverse hardware shutdown then failed. Because a secondary failed DMA ring reset/BTC retire/ASPM restoration can leave the device unsafe, the returned error now prioritizes the actual shutdown fault while `r->first_error` retains the original fault and `r->shutdown_error` the rollback fault.
+- `tests/test_runtime_start_shutdown_error_source.py` is included in the next HP preflight and guards two-error reporting, stop-on-failed-unregister and real post-poweroff error accounting. GitHub source-readback assertions passed; there is no HP production C or kernel build of this fix yet.
+
+**Private immutable source build fix, not in SHA 2e5a2cc:**
+- Previously `tools/configure_hp_live_native_50.py` symlinked every RTL C/H/INC directly to the mutable Git checkout. A `git pull` or checkout replacement during `nbmake` could silently mix source revisions under one ELF-ident label.
+- New generator **copies** all matching RTL C/H/INC files into the owner-only Kconfig overlay, hashes each source before copying, validates copied bytes immediately and after Kconfig/toolchain preflight, and records full `source_snapshot_sha256` and Git SHA in `status.json`. Baseline NetBSD system source is unchanged and remains read-only.
+- The new read-only `tools/verify_hp_rtl50_source_snapshot.py` checks the 50-source selection, all regular-file digests, full Git SHA and kernel-ident relationship. The safe no-install build runner calls it **both before and after** `dependall`. A new source regression `tests/test_hp_rtl50_source_snapshot_contract.py` checks the absence of mutable per-file Git symlinks and requires the two integrity gates.
+- These changes were committed and GitHub-readback source-gate checks passed. The generated snapshot, additional tests and next candidate are **not yet HP-executed/compiled**. Do not change the running 2e5a2cc overlay to retrofit this after its build started.
+
+**i915 scope remains separate:** F83/F84 both physically black-screened; F84 async fbdev scheduling was disproven as an adequate fix. The i915 trace transport record requires a proven independent early console/trace before another physical display takeover; no new i915 hardware experiment, install or boot was performed in this pass.
+
 ## Next exact acceptance
 
 1. On the HP, synchronize clean WIP HEAD and compile the **new** SHA-labeled kernel with `tools/build_hp_rtl50_next_candidate.sh`; verify its actual native output and SHA256. Do not overwrite the previously linked prepatch `obj/netbsd` or F77.
