@@ -50,5 +50,6 @@ assert inputs["make"] == Path("/usr/tools/bin/nbmake-amd64")
 paths = MODULE.hp_shadow_paths(inputs)
 assert paths["pci_manifest"] == Path("/usr/src/sys/dev/pci/files.pci")
 assert paths["baseline_config"] == Path("/usr/src/sys/arch/amd64/conf/GENERIC")
+assert paths["common"] == Path("/usr/src/common")
 
 print("RTL_PRIVATE_SHADOW_MANIFEST_MERGE_OK")

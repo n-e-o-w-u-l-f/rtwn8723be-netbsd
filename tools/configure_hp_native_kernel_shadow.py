@@ -50,6 +50,10 @@ def hp_shadow_paths(inputs: dict[str, Path]) -> dict[str, Path]:
     return {
         "pci_manifest": source_sys / "dev/pci/files.pci",
         "baseline_config": source_sys / "arch/amd64/conf/GENERIC",
+        # Generated kernel compiler flags use sys/../common/include for
+        # <prop/proplib.h>.  The private sys overlay therefore needs this
+        # immutable sibling, too; it is never copied or made writable.
+        "common": source_sys.parent / "common",
     }
 
 
@@ -94,11 +98,14 @@ def main() -> None:
     paths = hp_shadow_paths(inputs)
     old_pci = paths["pci_manifest"]
     baseline_config = paths["baseline_config"]
+    source_common = paths["common"]
     if (not baseline_config.is_file() or not nbconfig.is_file() or
             not make.is_file()):
         parser.error("immutable NetBSD 11 source/config/tools unavailable")
     if not old_pci.is_file():
         parser.error("NetBSD PCI manifest unavailable")
+    if not (source_common / "include/prop/proplib.h").is_file():
+        parser.error("immutable NetBSD common include tree unavailable")
     selected = SELECTED.findall(MANIFEST.read_text())
     if len(selected) != 43 or len(set(selected)) != 43:
         parser.error("expected exactly 43 unique native C units")
@@ -132,6 +139,10 @@ def main() -> None:
     save()
 
     try:
+        # Keep the relative include location used by generated kernel build
+        # rules (sys/../common/include), while retaining the original tree as
+        # the immutable owner of every non-project file.
+        (out / "common").symlink_to(source_common, target_is_directory=True)
         populate_links(source_sys, shadow, {"dev"})
         populate_links(source_sys / "dev", shadow / "dev", {"pci"})
         # Root source is NEVER a writable symlink path or hardlink target.
