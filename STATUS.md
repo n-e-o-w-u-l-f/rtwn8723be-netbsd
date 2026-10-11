@@ -26,6 +26,11 @@ The repository contains source-level lifecycle, DMA, firmware, RF/PHY, H2C/C2H, 
 
 Open closure areas include the actual ownership and integration of net80211 registration, RF-kill, BT preparation/initialization, dynamic-management initialization, calibration/card-disable paths, Bluetooth coexistence provider, MCU/event lifetime, receive delivery, power management, recovery and teardown. No count-based source manifest closes these runtime obligations without a native NetBSD build and HP test.
 
+The current native manifest has 43 C units; the 43rd is the native RF-kill
+owner. The earlier 42-object HP compile record is retained as historical
+evidence only; it does not validate the current source selection. See
+`docs/MANIFEST_RECONCILIATION_20261011.md`.
+
 ## Release gate
 
 Do not publish an installer as a functional driver until the HP proves scanning with received BSS entries, authentication, association, stable traffic, error recovery, suspend/resume and detach on the final native NetBSD build.

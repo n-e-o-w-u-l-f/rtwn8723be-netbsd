@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audit frozen HP 48-unit runtime vs current GitHub 42-unit native RTL port.
+"""Audit frozen HP 48-unit runtime vs current GitHub 43-unit native RTL port.
 
 This is a SOURCE RECONCILIATION GATE, not a native link/driver acceptance.
 It cannot write the old root stage, modify firmware, change the kernel,
@@ -40,6 +40,10 @@ FROZEN_REFERENCE_FILES = (
 EXPECTED_SOURCE_ONLY_CALLBACKS = (
     "register_ieee80211", "init_rfkill", "bt_prepare", "dm_init",
 )
+EXPECTED_GITHUB_ONLY = {
+    "rtwn8723be_btc_providers_native.c",
+    "rtwn8723be_rfkill_native.c",
+}
 FILE_RULE = re.compile(
     r"^file\s+dev/pci/(rtwn8723be_[A-Za-z0-9_]+\.c)\s+rtwn8723be_native\s*$",
     re.M,
@@ -78,13 +82,13 @@ def main() -> None:
             parser.error("HP reference drift: " + name)
     current_files = FILE_RULE.findall(MANIFEST.read_text())
     frozen_files = FILE_RULE.findall(ROOT_FILES.read_text())
-    if len(current_files) != 42 or len(frozen_files) != 48:
+    if len(current_files) != 43 or len(frozen_files) != 48:
         parser.error(f"unexpected manifest selection: github={len(current_files)}, HP={len(frozen_files)}")
     if len(set(current_files)) != len(current_files) or len(set(frozen_files)) != len(frozen_files):
         parser.error("duplicate source selection in native files")
     only_hp = sorted(set(frozen_files) - set(current_files))
     only_github = sorted(set(current_files) - set(frozen_files))
-    if len(only_hp) != 7 or only_github != ["rtwn8723be_btc_providers_native.c"]:
+    if len(only_hp) != 7 or set(only_github) != EXPECTED_GITHUB_ONLY:
         parser.error("unreviewed manifest delta, cannot reuse old reconcile decision")
     all_current = ROOT / "src"
     modified_common = []

@@ -20,8 +20,10 @@ native = set(re.findall(
     r"^file\s+dev/pci/(rtwn8723be\w+\.c)\s+rtwn8723be_native\s*$",
     manifest, re.M,
 ))
-# Manifest source count must include the newer native TX DMA owner.
-assert len(native) == 42
+# Keep the source-integrity gate tied to the current manifest.  The former
+# 42-object HP proof is historical; the current manifest also selects the
+# later card-disable native owner and therefore has 43 unique C units.
+assert len(native) == 43
 assert {"rtwn8723be_bb_native.c", "rtwn8723be_txpwr_pg.c",
         "rtwn8723be_rf_channel_state.c", "rtwn8723be_calibration.c",
         "rtwn8723be_calibration_native.c", "rtwn8723be_thermal.c",

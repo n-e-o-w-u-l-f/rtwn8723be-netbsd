@@ -60,8 +60,8 @@ def main() -> None:
     if not (STAGE / "dev/pci/files.pci").is_file():
         parser.error("pinned native PCI manifest absent")
     selected = SELECTED.findall(MANIFEST.read_text())
-    if len(selected) != 42 or len(set(selected)) != 42:
-        parser.error("expected exactly 42 unique native C units")
+    if len(selected) != 43 or len(set(selected)) != 43:
+        parser.error("expected exactly 43 unique native C units")
     expected_c = {p.name for p in (ROOT / "src").glob("rtwn8723be_*.c")}
     if not set(selected).issubset(expected_c):
         parser.error("native manifest references unknown repository sources")
@@ -119,7 +119,7 @@ def main() -> None:
             raise RuntimeError("native attachment definition nonunique")
         filtered.extend([
             "",
-            "# HP owner-only source-derived RTL candidate: exactly 42 C units",
+            "# HP owner-only source-derived RTL candidate: exactly 43 C units",
             "# No native device installed/started; this changes no root files.",
         ])
         filtered.extend(f"file dev/pci/{name} rtwn8723be_native" for name in selected)
@@ -142,13 +142,10 @@ def main() -> None:
         if not makefile.is_file():
             raise RuntimeError("native config did not create a Makefile")
         checks = []
-        # Test all newly selected native BTC rules, not only the first one.
-        for name in (
-            "rtwn8723be_btc_mp_native.c", "rtwn8723be_btc1.c",
-            "rtwn8723be_btc2.c", "rtwn8723be_btc_engine.c",
-            "rtwn8723be_btc_native.c",
-            "rtwn8723be_btc_providers_native.c",
-        ):
+        # Every manifest-selected source must have an actual generated rule.
+        # Do not special-case the old six missing BTC rules: that hid later
+        # selection drift and made the 42-object checkpoint look current.
+        for name in selected:
             objname = name[:-2] + ".o"
             dry = subprocess.run([str(MAKE), "-C", str(out_obj),
                                   "-n", "-B", objname],
@@ -167,14 +164,14 @@ def main() -> None:
                 raise RuntimeError("missing native compile rule after regenerate: " + name)
         if sha(old_pci) != old_hash:
             raise RuntimeError("root native PCI source was unexpectedly modified")
-        evidence["state"] = "CONFIGURED_42_RULES_DRYRUN_PASS"
+        evidence["state"] = "CONFIGURED_43_RULES_DRYRUN_PASS"
         evidence["limit"] = (
             "Candidate-only NetBSD kernel config & Makefile; source selection "
-            "checked, 6 previously missing native compilation rules resolved. "
-            "NO 42-object full native compile from this new shadow, kernel "
+            "checked for every selected source. NO 43-object full native "
+            "compile from this new shadow, kernel "
             "final link, runtime/WPA2 or actual hardware acceptance."
         )
-        print("HP_RTL_ISOLATED_CONFIG_42_SELECTED_SIX_RULES_PASS",
+        print("HP_RTL_ISOLATED_CONFIG_43_SELECTED_RULES_PASS",
               out_obj, flush=True)
     except Exception as e:
         evidence["state"] = "FAILED"
