@@ -14,6 +14,7 @@
 #include "rtwn8723be_linux_state.h"
 
 enum rtwn8723be_pre_running_resource {
+    /* Mark only in this Linux forward-start order; recovery reverses it. */
     R23BE_PRE_RUNNING_RINGS_RESET = UINT32_C(1) << 0,
     R23BE_PRE_RUNNING_BTC_PREPARE = UINT32_C(1) << 1,
     R23BE_PRE_RUNNING_LINK_MAC = UINT32_C(1) << 2,

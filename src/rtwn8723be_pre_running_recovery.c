@@ -118,6 +118,9 @@ rtwn8723be_pre_running_recovery_mark(
         return EINVAL;
     if ((recovery->acquired & value) != 0)
         return EALREADY;
+    /* A missing phase is valid; reversing Linux's forward order is not. */
+    if (recovery->acquired != 0 && value < recovery->acquired)
+        return EINVAL;
     recovery->acquired |= value;
     return 0;
 }
@@ -180,15 +183,15 @@ rtwn8723be_pre_running_recovery_run(void *ctx,
         if (error != 0)
             return error;
     }
-    if ((recovery->acquired & R23BE_PRE_RUNNING_POST_HW_CONFIG) != 0) {
-        error = rtwn8723be_pre_running_recovery_call(ctx, recovery,
-            R23BE_PRE_RUNNING_POST_HW_CONFIG, ops->undo_post_hw_config);
-        if (error != 0)
-            return error;
-    }
     if ((recovery->acquired & R23BE_PRE_RUNNING_DMA_DM) != 0) {
         error = rtwn8723be_pre_running_recovery_call(ctx, recovery,
             R23BE_PRE_RUNNING_DMA_DM, ops->undo_dma_dm);
+        if (error != 0)
+            return error;
+    }
+    if ((recovery->acquired & R23BE_PRE_RUNNING_POST_HW_CONFIG) != 0) {
+        error = rtwn8723be_pre_running_recovery_call(ctx, recovery,
+            R23BE_PRE_RUNNING_POST_HW_CONFIG, ops->undo_post_hw_config);
         if (error != 0)
             return error;
     }

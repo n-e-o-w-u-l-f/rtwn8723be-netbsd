@@ -252,7 +252,7 @@ int
 main(void)
 {
     static const unsigned want_trace[] = {
-        TRACE_MASK_IRQ, TRACE_DRAIN_IRQ, TRACE_POST_HW, TRACE_DMA_DM,
+        TRACE_MASK_IRQ, TRACE_DRAIN_IRQ, TRACE_DMA_DM, TRACE_POST_HW,
         TRACE_FW_PHY, TRACE_LINK_MAC, TRACE_BTC, TRACE_RINGS
     };
     struct fixture fx = {0};
@@ -261,10 +261,13 @@ main(void)
     };
     struct rtwn8723be_linux_ops start = start_ops();
     struct rtwn8723be_pre_running_recovery recovery;
+    struct rtwn8723be_pre_running_recovery ordering;
     struct rtwn8723be_pre_running_recovery_ops ops = recovery_ops();
 
     rtwn8723be_pre_running_recovery_init(&recovery);
+    rtwn8723be_pre_running_recovery_init(&ordering);
     assert(rtwn8723be_pre_running_recovery_arm(&recovery, &state) == 0);
+    assert(rtwn8723be_pre_running_recovery_arm(&ordering, &state) == 0);
     assert(rtwn8723be_linux_adapter_start(&fx, &state, &start) == EIO);
     assert(state.stage == R23BE_STAGE_RX_CONFIG && !state.started &&
         !state.being_init_adapter && state.fw_ready &&
@@ -272,6 +275,13 @@ main(void)
     assert(fx.generic_stop_calls == 0);
     assert(fx.irq_requested && fx.irq_enabled && fx.softint_pending &&
         fx.rx_pending);
+
+    /* The resource journal may skip a phase, but never reorder Linux start. */
+    assert(rtwn8723be_pre_running_recovery_mark(&ordering, &state,
+        R23BE_PRE_RUNNING_FW_PHY) == 0);
+    assert(rtwn8723be_pre_running_recovery_mark(&ordering, &state,
+        R23BE_PRE_RUNNING_LINK_MAC) == EINVAL);
+    assert(ordering.acquired == R23BE_PRE_RUNNING_FW_PHY);
 
     mark_all(&recovery, &state);
     assert(rtwn8723be_pre_running_recovery_begin(&recovery, &state, EIO,
