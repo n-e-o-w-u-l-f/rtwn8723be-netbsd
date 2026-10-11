@@ -129,9 +129,6 @@ int rtwn8723be_linux_hw_init(void *, struct rtwn8723be_linux_state *,
     const struct rtwn8723be_linux_ops *);
 int rtwn8723be_linux_adapter_start(void *, struct rtwn8723be_linux_state *,
     const struct rtwn8723be_linux_ops *);
-/* Reverse a failed pre-RUNNING start; never use this for a live adapter. */
-int rtwn8723be_linux_adapter_abort(void *, struct rtwn8723be_linux_state *,
-    const struct rtwn8723be_linux_ops *);
 int rtwn8723be_linux_adapter_stop(void *, struct rtwn8723be_linux_state *,
     const struct rtwn8723be_linux_ops *);
 
