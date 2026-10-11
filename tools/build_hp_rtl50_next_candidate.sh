@@ -52,6 +52,7 @@ for testname in \
     test_irq_mutex_single_owner.py \
     test_hp_rtl50_source_snapshot_contract.py \
     test_runtime_sw_owner_order.py \
+    test_runtime_rf_publication_order.py \
     test_reserved_beacon_native_source.py \
     test_failed_probe_net80211_rollback.py \
     test_runtime_dma_reset_owner.py \
