@@ -196,7 +196,7 @@ def check(root, require_closure=False):
             "rtwn8723be_btc_engine.c", "rtwn8723be_btc_native.c",
             "rtwn8723be_btc_providers_native.c"} <= set(native_units):
         raise ValueError("actual BTC algorithms/native event owner missing from manifest")
-    if len(names) != 53 or len(native_units) != 43:
+    if len(names) != 53 or len(native_units) != 44:
         raise ValueError("source or native build manifest changed; re-inventory required")
     if set(missing) != expected:
         raise ValueError("callback inventory changed: now missing " + repr(missing))

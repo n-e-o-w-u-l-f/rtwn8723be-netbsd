@@ -21,6 +21,7 @@
 
 #include "rtwn8723be_f16_1.h"
 #include "rtwn8723be_linux_state.h"
+#include "rtwn8723be_runtime_owner.h"
 #include "rtwn8723be_fw.h"
 #include "rtwn8723be_phy_exec.h"
 #include "rtwn8723be_txpwr_pg.h"
@@ -113,6 +114,7 @@ struct rtwn8723be_softc {
     void *sc_irq_arg;
 
     struct rtwn8723be_linux_state sc_linux;
+    struct rtwn8723be_runtime_owner sc_runtime_owner;
     struct rtwn8723be_h2c_native sc_h2c;
     struct rtwn8723be_rfkill_native sc_rfkill_native;
     struct rtwn8723be_btc_mp_native sc_btc_mp;

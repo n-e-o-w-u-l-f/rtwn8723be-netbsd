@@ -26,9 +26,11 @@ The repository contains source-level lifecycle, DMA, firmware, RF/PHY, H2C/C2H, 
 
 Open closure areas include the actual ownership and integration of net80211 registration, RF-kill, BT preparation/initialization, dynamic-management initialization, calibration/card-disable paths, Bluetooth coexistence provider, MCU/event lifetime, receive delivery, power management, recovery and teardown. No count-based source manifest closes these runtime obligations without a native NetBSD build and HP test.
 
-The current native manifest has 43 C units; the 43rd is the native RF-kill
-owner. The earlier 42-object HP compile record is retained as historical
-evidence only; it does not validate the current source selection. See
+The current native manifest has 44 C units; the 44th is an inert runtime
+owner foundation. It establishes only per-device lifecycle locking and has no
+PCI, DMA, IRQ, net80211, workqueue, callback or register behavior. The
+preceding 43-object HP compile is retained as a baseline checkpoint only; it
+does not validate the new 44-unit selection or runtime behavior. See
 `docs/MANIFEST_RECONCILIATION_20261011.md`.
 
 ## Release gate

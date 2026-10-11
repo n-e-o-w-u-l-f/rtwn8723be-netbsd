@@ -29,6 +29,19 @@ OLD_DECLARATION = re.compile(
     r"attach\s+rtwn8723be_native\s+at\s+pci|"
     r"file\s+dev/pci/rtwn8723be_\w+\.c\s+rtwn8723be_native\s*$)")
 PRIVATE_CONFIG_NAME = "RTWN8723BE-NATIVE-SHADOW"
+NATIVE_C_UNIT_COUNT = 44
+# Generated kernel compiler rules use these paths relative to sys/.. .  Keep
+# this list explicit so a dry-run cannot hide a missing immutable sibling.
+COMMON_REQUIRED_RELATIVE_PATHS = (
+    "include/prop/proplib.h",
+    "lib/libx86emu",
+    "lib/libc/misc",
+    "lib/libc/quad",
+    "lib/libc/string",
+    "lib/libc/arch/x86_64/string",
+    "lib/libc/arch/x86_64/atomic",
+    "lib/libc/hash/sha3",
+)
 
 
 def sha(path: Path) -> str:
@@ -61,7 +74,8 @@ def render_private_pci_manifest(base: str, native_manifest: str) -> str:
     """Replace only native declarations with the canonical project manifest."""
     selected = SELECTED.findall(native_manifest)
     declarations = native_manifest.splitlines()
-    if (len(selected) != 43 or len(set(selected)) != 43 or
+    if (len(selected) != NATIVE_C_UNIT_COUNT or
+            len(set(selected)) != NATIVE_C_UNIT_COUNT or
             sum(line.startswith("device  rtwn8723be_native:")
                 for line in declarations) != 1 or
             sum(line.startswith("attach  rtwn8723be_native at pci")
@@ -71,6 +85,14 @@ def render_private_pci_manifest(base: str, native_manifest: str) -> str:
                 if not OLD_DECLARATION.match(line)]
     return "\n".join(filtered).rstrip("\n") + "\n\n" + \
         native_manifest.rstrip("\n") + "\n"
+
+
+def private_dryrun_rule_present(output: str, source_name: str,
+    objname: str, shadow: Path) -> bool:
+    """Accept only a compiler rule wholly rooted in the private overlay."""
+    return (" -c " in output and " -o " + objname in output and
+            (shadow / "dev/pci" / source_name).as_posix() in output and
+            "/usr/src/" not in output)
 
 
 def populate_links(base: Path, dest: Path, ignore: set[str]) -> None:
@@ -104,11 +126,13 @@ def main() -> None:
         parser.error("immutable NetBSD 11 source/config/tools unavailable")
     if not old_pci.is_file():
         parser.error("NetBSD PCI manifest unavailable")
-    if not (source_common / "include/prop/proplib.h").is_file():
+    if any(not (source_common / relative).exists()
+           for relative in COMMON_REQUIRED_RELATIVE_PATHS):
         parser.error("immutable NetBSD common include tree unavailable")
     selected = SELECTED.findall(MANIFEST.read_text())
-    if len(selected) != 43 or len(set(selected)) != 43:
-        parser.error("expected exactly 43 unique native C units")
+    if (len(selected) != NATIVE_C_UNIT_COUNT or
+            len(set(selected)) != NATIVE_C_UNIT_COUNT):
+        parser.error("unexpected native C-unit manifest cardinality")
     expected_c = {p.name for p in (ROOT / "src").glob("rtwn8723be_*.c")}
     if not set(selected).issubset(expected_c):
         parser.error("native manifest references unknown repository sources")
@@ -142,8 +166,18 @@ def main() -> None:
         # Keep the relative include location used by generated kernel build
         # rules (sys/../common/include), while retaining the original tree as
         # the immutable owner of every non-project file.
-        (out / "common").symlink_to(source_common, target_is_directory=True)
+        private_common = out / "common"
+        private_common.symlink_to(source_common, target_is_directory=True)
+        if (not private_common.is_symlink() or
+                private_common.resolve() != source_common.resolve()):
+            raise RuntimeError("private common sibling did not resolve to source")
         populate_links(source_sys, shadow, {"dev"})
+        for name in ("arch", "conf", "external", "lib"):
+            private = shadow / name
+            original = source_sys / name
+            if (not private.is_symlink() or
+                    private.resolve() != original.resolve()):
+                raise RuntimeError("private source sibling invalid: " + name)
         populate_links(source_sys / "dev", shadow / "dev", {"pci"})
         # Root source is NEVER a writable symlink path or hardlink target.
         # All owners under the virtual dev/pci dir point to reviewed current
@@ -188,7 +222,7 @@ def main() -> None:
         checks = []
         # Every manifest-selected source must have an actual generated rule.
         # Do not special-case the old six missing BTC rules: that hid later
-        # selection drift and made the 42-object checkpoint look current.
+        # selection drift and made historical smaller checkpoints look current.
         for name in selected:
             objname = name[:-2] + ".o"
             dry = subprocess.run([str(make), "-C", str(out_obj),
@@ -197,9 +231,8 @@ def main() -> None:
                                  stderr=subprocess.STDOUT, text=True, timeout=90)
             (out / (name[:-2] + ".dryrun.log")).write_text(dry.stdout)
             valid = (dry.returncode == 0 and
-                     " -c " in dry.stdout and
-                     "dev/pci/" + name in dry.stdout and
-                     " -o " + objname in dry.stdout)
+                     private_dryrun_rule_present(dry.stdout, name, objname,
+                                                 shadow))
             checks.append({"name": name, "exit": dry.returncode,
                            "rule_present": valid})
             evidence["rules"] = checks
@@ -208,14 +241,15 @@ def main() -> None:
                 raise RuntimeError("missing native compile rule after regenerate: " + name)
         if sha(old_pci) != old_hash:
             raise RuntimeError("root native PCI source was unexpectedly modified")
-        evidence["state"] = "CONFIGURED_43_RULES_DRYRUN_PASS"
+        evidence["state"] = (
+            f"CONFIGURED_{NATIVE_C_UNIT_COUNT}_RULES_DRYRUN_PASS")
         evidence["limit"] = (
             "Candidate-only NetBSD kernel config & Makefile; source selection "
-            "checked for every selected source. NO 43-object full native "
+            "checked for every selected source. NO full native "
             "compile from this new shadow, kernel "
             "final link, runtime/WPA2 or actual hardware acceptance."
         )
-        print("HP_RTL_ISOLATED_CONFIG_43_SELECTED_RULES_PASS",
+        print(f"HP_RTL_ISOLATED_CONFIG_{NATIVE_C_UNIT_COUNT}_SELECTED_RULES_PASS",
               out_obj, flush=True)
     except Exception as e:
         evidence["state"] = "FAILED"

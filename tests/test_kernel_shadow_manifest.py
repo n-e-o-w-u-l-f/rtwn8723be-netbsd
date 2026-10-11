@@ -3,7 +3,7 @@
 
 This protects against a stale source tree that has zero or partial native
 declarations.  The generated shadow must contain exactly the canonical
-device, attach and 43 selected C declarations while retaining unrelated PCI
+device, attach and 44 selected C declarations while retaining unrelated PCI
 entries.
 """
 from importlib.util import module_from_spec, spec_from_file_location
@@ -40,8 +40,8 @@ assert "device  rtwn8723be_native: obsolete" not in lines
 assert "file dev/pci/rtwn8723be_old.c rtwn8723be_native" not in lines
 assert sum(line.startswith("device  rtwn8723be_native:") for line in lines) == 1
 assert sum(line.startswith("attach  rtwn8723be_native at pci") for line in lines) == 1
-assert len(files) == 43
-assert len(set(files)) == 43
+assert len(files) == 44
+assert len(set(files)) == 44
 
 inputs = MODULE.default_hp_shadow_inputs()
 assert inputs["sys"] == Path("/usr/src/sys")
@@ -51,5 +51,24 @@ paths = MODULE.hp_shadow_paths(inputs)
 assert paths["pci_manifest"] == Path("/usr/src/sys/dev/pci/files.pci")
 assert paths["baseline_config"] == Path("/usr/src/sys/arch/amd64/conf/GENERIC")
 assert paths["common"] == Path("/usr/src/common")
+assert MODULE.COMMON_REQUIRED_RELATIVE_PATHS == (
+    "include/prop/proplib.h",
+    "lib/libx86emu",
+    "lib/libc/misc",
+    "lib/libc/quad",
+    "lib/libc/string",
+    "lib/libc/arch/x86_64/string",
+    "lib/libc/arch/x86_64/atomic",
+    "lib/libc/hash/sha3",
+)
+shadow = Path("/private/sys")
+dryrun = ("cc -I/private/sys/../common/include -c "
+          "/private/sys/dev/pci/rtwn8723be_native.c "
+          "-o rtwn8723be_native.o")
+assert MODULE.private_dryrun_rule_present(
+    dryrun, "rtwn8723be_native.c", "rtwn8723be_native.o", shadow)
+assert not MODULE.private_dryrun_rule_present(
+    dryrun + " /usr/src/sys/dev/pci/rtwn8723be_native.c",
+    "rtwn8723be_native.c", "rtwn8723be_native.o", shadow)
 
 print("RTL_PRIVATE_SHADOW_MANIFEST_MERGE_OK")

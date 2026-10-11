@@ -25,6 +25,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "rtwn8723be_rf_native.h"
 #include "rtwn8723be_calibration_native.h"
 #include "rtwn8723be_h2c_native.h"
+#include "rtwn8723be_runtime_owner.h"
 
 static int rtwn8723be_netbsd_intr(void *);
 static void rtwn8723be_netbsd_softintr(void *);
@@ -48,6 +49,7 @@ rtwn8723be_netbsd_context_init(struct rtwn8723be_softc *sc,
     device_t self, const struct pci_attach_args *pa)
 {
     memset(sc, 0, sizeof(*sc));
+    rtwn8723be_runtime_owner_init(sc);
     sc->sc_dev = self;
     sc->sc_pa = *pa;
     sc->sc_pc = pa->pa_pc;
@@ -92,13 +94,14 @@ rtwn8723be_netbsd_context_fini(struct rtwn8723be_softc *sc)
         mutex_destroy(&sc->sc_irq_lock);
         sc->sc_irq_lock_initialized = false;
     }
-    if (!sc->sc_rf_ps_lock_initialized)
-        return;
-    mutex_enter(&sc->sc_rf_ps_lock);
-    KASSERT(!sc->sc_rfchange_inprogress);
-    mutex_exit(&sc->sc_rf_ps_lock);
-    mutex_destroy(&sc->sc_rf_ps_lock);
-    sc->sc_rf_ps_lock_initialized = false;
+    if (sc->sc_rf_ps_lock_initialized) {
+        mutex_enter(&sc->sc_rf_ps_lock);
+        KASSERT(!sc->sc_rfchange_inprogress);
+        mutex_exit(&sc->sc_rf_ps_lock);
+        mutex_destroy(&sc->sc_rf_ps_lock);
+        sc->sc_rf_ps_lock_initialized = false;
+    }
+    rtwn8723be_runtime_owner_fini(sc);
 }
 
 bool
