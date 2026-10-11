@@ -280,7 +280,8 @@ def check(root, require_closure=False):
     preflight = cleanup.split("if (stage == R23BE_STAGE_IDLE)", 1)
     if len(preflight) != 2:
         raise ValueError("IDLE no-write rollback gate missing")
-    preflight = preflight[1].split("if (stage >= R23BE_STAGE_IEEE80211_REGISTER)", 1)
+    preflight = preflight[1].split(
+        "if (stage >= R23BE_STAGE_IEEE80211_REGISTER &&", 1)
     if (len(preflight) != 2 or
             "sc->sc_initial_pci_saved = false;" not in preflight[0] or
             "return;" not in preflight[0] or
