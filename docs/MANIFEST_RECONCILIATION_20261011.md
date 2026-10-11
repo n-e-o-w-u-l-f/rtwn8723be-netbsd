@@ -41,14 +41,23 @@ The full private link also succeeded. Its `netbsd` SHA-256 is
 the embedded identity is `RTWN8723BE-NATIVE-SHADOW`. This is build evidence,
 not a hardware test, installation, or boot authorization.
 
+The current 46-unit Shadow G checkout at
+`8a85ab31b6ff2c478efb79529bc7141a5c0cba99` now closes the matching private
+build gate: 46/46 objects are nonempty, the ordered object record hashes to
+`18b1b4b85b71af884e24b8e9199f2901a6bc7068be576dc1cac1fbc2aa7a6c23`, and
+the complete kernel hashes to
+`e3ac1437d70a910ab41550292a6d6dbe78118a6d0d8fd595fa1a9e0a5b2adef6`.
+The generated config and Makefile contain zero i915 lines; the original PCI
+manifest hash remains
+`584bf78070c5868e2e48d0e563949cbf70a958b08166150f5363cfcbf5d7b707`.
+The candidate is a separate file from the live F77 `/netbsd`, was not
+installed, and was not booted.
+
 ## Required next evidence
 
-1. Recreate an isolated 46-unit HP source/object stage from the current Git
-   revision.
-2. Generate all 46 native rules and prove i915 exclusion/source integrity.
-3. Compile and hash all 46 objects, then perform a complete private-kernel
-   link.
-4. Close the four lifecycle owners with real NetBSD API integrations and
+1. Retain the completed G result only as a private build record; do not
+   promote it to an installed or bootable candidate.
+2. Close the four lifecycle owners with real NetBSD API integrations and
    reverse teardown before enabling PCI attach or IRQ binding.
-5. Test scan with received BSS entries, association, traffic, recovery,
+3. Test scan with received BSS entries, association, traffic, recovery,
    suspend/resume and detach before packaging.

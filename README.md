@@ -29,19 +29,20 @@ owner: it preflights compensators, masks and drains start-local IRQ work
 before reverse cleanup, and quarantines any recovery failure. It does not
 bind PCI, DMA, IRQ, RFKill or net80211 to live hardware.
 
-The first complete private HP kernel link has now succeeded for the historical 45-unit
-Shadow E build at `f57eaea`: i915 was excluded, the original PCI source-tree
-integrity check passed, all selected objects built, and the separate kernel
-identifies as `RTWN8723BE-NATIVE-SHADOW`. Its SHA-256 is
-`77be29c81d0f5a243f7c20cd54be857e46c323f6137ee6f46876d9826e6730f1`.
+The current 46-unit private Shadow G build has passed the full object and
+kernel-link gate at source checkout `8a85ab31b6ff2c478efb79529bc7141a5c0cba99`:
+i915 was absent from both generated inputs, all 46 selected objects are
+nonempty, the original PCI source manifest stayed intact, and the separate
+kernel identifies as `RTWN8723BE-NATIVE-SHADOW`. Its SHA-256 is
+`e3ac1437d70a910ab41550292a6d6dbe78118a6d0d8fd595fa1a9e0a5b2adef6`.
 This was an isolated build only: no candidate was installed or booted, and it
-does not establish a working WLAN driver. See [STATUS.md](STATUS.md) and the
-[native object checkpoint](docs/HP_NATIVE_OBJECT_CHECKPOINT_20261011.md).
+does not establish a working WLAN driver. See [STATUS.md](STATUS.md), the
+[native object checkpoint](docs/HP_NATIVE_OBJECT_CHECKPOINT_20261011.md), and
+the [Shadow G record](docs/HP_NATIVE_SHADOW_G_20261011.md).
 
-The current 46-unit selection still needs a fresh private object and kernel
-link gate. Complete native lifecycle ownership, callback binding, kernel link/install
-and physical WLAN acceptance remain open. An object build or portable C test
-is not a functional driver release. Packaging in `.tgz`, `.tbz` and `.txz`
+Complete native lifecycle ownership, callback binding, PCI/IRQ admission and
+physical WLAN acceptance remain open. An object build or portable C test is
+not a functional driver release. Packaging in `.tgz`, `.tbz` and `.txz`
 formats begins only after hardware acceptance.
 
 ## Target hardware

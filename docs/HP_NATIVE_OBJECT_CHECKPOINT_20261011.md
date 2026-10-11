@@ -39,6 +39,19 @@
 - The earlier linker lookup failure was resolved only for this command by an
   explicit `PATH=/usr/tools/bin:...`; no system-wide toolchain change was
   made. No kernel was installed or booted.
+- Shadow G at source checkout `8a85ab31b6ff2c478efb79529bc7141a5c0cba99`
+  is the matching current 46-object result: all selected objects are nonempty,
+  their ordered-hash record is
+  `18b1b4b85b71af884e24b8e9199f2901a6bc7068be576dc1cac1fbc2aa7a6c23`,
+  and `rtwn8723be_pre_running_recovery.o` is 28,976 bytes with SHA-256
+  `41a34e2cb3f9c24a1fd9eaa3d90d295a86205972de64b48895d9df4c1096bb71`.
+  The private kernel link completed with SHA-256
+  `e3ac1437d70a910ab41550292a6d6dbe78118a6d0d8fd595fa1a9e0a5b2adef6`
+  and identity `RTWN8723BE-NATIVE-SHADOW`. Its object and link logs hash to
+  `0b630b14c0697ae482e3470a68bd57888e5d7b6190a57774c19ed54b585b2fbe`
+  and `638274f03439d04bf82c8cdd89e132dedfc01675b4852a975fadce87ecbf32b5`.
+  The configuration and rendered Makefile have zero i915 lines, the original
+  PCI manifest hash is unchanged, and `/netbsd` is a distinct live F77 file.
 - A fresh checkout at `84f1b9704e7fa1628b729a8da5ae6cb819155d38` passed all
   53 HP-only regression scripts. The runner's result directory is now passed
   to tests as their artifact work directory, replacing a stale hard-coded
@@ -54,8 +67,7 @@
   contract rejects incomplete compensation before effects, masks/drains
   start-local IRQ work first, uses reverse cleanup, and quarantines an error.
   The journal does not release probe-owned allocations or invoke normal stop
-  callbacks. Neither new current-source unit is covered by Shadow E's
-  historical 45-object build.
+  callbacks. The completed Shadow G build covers both current-source units.
 - Net80211 registration now avoids publishing partial owner state before the
   fallible world-regdomain setup succeeds.
 - A small header-only policy permits unstarted rollback only after successful
@@ -66,10 +78,9 @@
 
 ## NEXT
 
-1. Create a fresh 46-unit private shadow from the current Git revision, prove the
-   i915 exclusion and original-source integrity, then compile/hash every
-   selected object.
-2. Retry the complete private-kernel link only after the 46-object gate.
+1. Keep Shadow G as a build-only record; do not install or boot it.
+2. Implement the real `bt_prepare` lifecycle owner, including actual MCU/RX
+   drain and its reverse ownership, without a synthetic success path.
 3. Implement the remaining real lifecycle owners and their reverse cleanup
    before any PCI probe binding or hardware test.
 4. Keep i915 trace-only pending physical early serial evidence; never boot

@@ -20,6 +20,12 @@ not live lifecycle owners, so the current source does not activate PCI, DMA,
 IRQ, RFKill or a net80211 device on the HP. The current driver-source revision is
 `8f18a9295d2e86036b11d170e13ec2d3ecbf6a1f`.
 
+The isolated current-source Shadow G checkout was
+`8a85ab31b6ff2c478efb79529bc7141a5c0cba99`. It completed the full private
+46-unit object and kernel-link gate without changing `/netbsd`, the boot menu,
+or the F77 recovery environment. This is build evidence only; it does not
+make the unbound lifecycle callbacks, PCI attach, WLAN, or i915 functional.
+
 Historical Shadow D evidence at commit
 `409d1b739ea96dcebe697d73c7d4b6c83ae4d00c` is limited but positive:
 
@@ -49,6 +55,26 @@ non-interactive build environment omitting `/usr/tools/bin`. The successful
 link uses an explicit per-command `PATH` containing that tool directory; no
 system profile, symlink, source tree, installed kernel, or boot entry was
 changed. Link success is build evidence only, not WLAN acceptance.
+
+The fresh 46-unit Shadow G result is reproducible from its retained private
+output directory:
+
+- all 46 selected objects are nonempty;
+- the ordered object-hash record hashes to
+  `18b1b4b85b71af884e24b8e9199f2901a6bc7068be576dc1cac1fbc2aa7a6c23`;
+- the new pre-`RUNNING` recovery object is 28,976 bytes and hashes to
+  `41a34e2cb3f9c24a1fd9eaa3d90d295a86205972de64b48895d9df4c1096bb71`;
+- the complete private kernel hashes to
+  `e3ac1437d70a910ab41550292a6d6dbe78118a6d0d8fd595fa1a9e0a5b2adef6`
+  and embeds `NetBSD 11.0 (RTWN8723BE-NATIVE-SHADOW) #0: Sun Oct 11
+  18:45:02 CEST 2026`;
+- the object and link logs hash to
+  `0b630b14c0697ae482e3470a68bd57888e5d7b6190a57774c19ed54b585b2fbe`
+  and `638274f03439d04bf82c8cdd89e132dedfc01675b4852a975fadce87ecbf32b5`;
+- both generated configuration and Makefile contain zero i915 lines, the
+  original PCI manifest remains
+  `584bf78070c5868e2e48d0e563949cbf70a958b08166150f5363cfcbf5d7b707`,
+  and the candidate is not the live `/netbsd`.
 
 A fresh checkout at `84f1b9704e7fa1628b729a8da5ae6cb819155d38` completed
 all 53 HP-only regression scripts successfully. The batch runner now supplies
@@ -88,20 +114,22 @@ hardware result.
   reverse ordering. It changes no live hardware path.
 - Completed the isolated 45-object and full private-kernel link described
   above, still with i915 excluded and without installing or booting it.
+- Completed the matching isolated 46-object and full private-kernel G link,
+  including object hashes, kernel identity, source-integrity check and live
+  kernel comparison. It was neither installed nor booted.
 
 ## NEXT
 
-1. Finish and record the already running, isolated 45-unit F link from
-   `2292690`; it is a historical source gate and cannot cover the current
-   46-unit selection.
-2. Create a fresh 46-unit private shadow from `0a39c3c`, prove i915 exclusion
-   and source integrity, then compile/hash every selected object and link it
-   without installing or booting it.
-3. Bind the recovery journal only when each real NetBSD lifecycle owner has
+1. Preserve the completed G result as build-only evidence; do not install or
+   boot it. Remove only superseded, confirmed private build shadows.
+2. Implement the real `bt_prepare` owner with genuine MCU/RX-drain,
+   serialization and reverse-release semantics; do not reuse the historical
+   runtime model as a shortcut.
+3. Close `dm_init`, net80211/RFKill ownership and the matching start/stop
+   paths with real NetBSD API integrations before PCI/IRQ binding.
+4. Bind the recovery journal only when each real NetBSD lifecycle owner has
    recorded its own acquired resources and provides compatible compensators;
    keep the normal `RUNNING` stop path separate.
-4. Close real lifecycle owners in reverse-cleanup order before binding any
-   operation to the PCI probe path.
 5. Keep i915 trace-only until a physical early serial capture exists. Never
    use F16.0, F83 or F84 as a test kernel.
 6. Test scan with received BSS entries, authentication, association, traffic,
