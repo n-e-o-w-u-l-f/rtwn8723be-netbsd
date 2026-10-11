@@ -97,6 +97,12 @@ The *next* builder was also hardened to avoid indefinitely stale `RUNNING` state
 
 Immutable resource and i915 safety: F77 remains the only last verified usable fallback, the new link candidate is uninstalled, and i915drmkms/F83/F84 black screen remains independent. No HP runtime command, physical WLAN/channel action, system-kernel change or i915 boot was performed.
 
+## RF validity publication sequencing (next source generation)
+
+In `rtwn8723be_runtime_bt_hw_init()`, the callback formerly published `r->rf_on = true` and `r->rf_state_valid = true` **before** the actual channel-state seed, media-state seed and MCU-generation BT-MP activation. These functions return real errors (`EINVAL`, `ENXIO`, `EAGAIN`, `EBUSY`). Therefore a failure could present an apparently valid RF owner without a usable software channel/media and BTC generation. Physical ERFON in the frozen Linux hw_init phase is not equivalent to a fully published NetBSD runtime state.
+
+The callback now begins with software RF_ON/RF-valid **false** and sets both to true only in the `if (error == 0)` branch *after* channel/media seed, successful BT-MP generation activation and `rx_generation` publication. The first-failure cleanup path remains the existing runtime shutdown; neither native IRQ nor PCI ring ownership is rewritten. The explicit `tests/test_runtime_rf_publication_order.py` is in the next HP candidate preflight; published production source and test were read back and tested by 7 source-contract checks PASS. This has **not** been compiled on HP or tested against real firmware in this work sequence. It does not prove the original first-start failure gone.
+
 ## Next exact acceptance
 
 1. On the HP, synchronize clean WIP HEAD and compile the **new** SHA-labeled kernel with `tools/build_hp_rtl50_next_candidate.sh`; verify its actual native output and SHA256. Do not overwrite the previously linked prepatch `obj/netbsd` or F77.
