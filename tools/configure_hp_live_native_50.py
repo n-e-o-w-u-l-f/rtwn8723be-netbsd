@@ -8,7 +8,7 @@ the F77 fallback. It intentionally disables i915drmkms in this RTL-only
 candidate to prevent conflating F83/F84 black-screen with WLAN testing.
 """
 from __future__ import annotations
-import argparse,hashlib,json,os,platform,re,socket,subprocess
+import argparse,hashlib,json,os,platform,re,shutil,socket,subprocess
 from datetime import datetime,timezone
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
@@ -85,9 +85,23 @@ def main():
         # compile fails even when the 50 C manifest parses correctly.
         owned={p.name:p for p in (ROOT/"src").iterdir() if p.is_file() and
                p.name.startswith("rtwn8723be_") and p.suffix in (".c",".h",".inc")}
+        # Never symlink mutable Git worktree source into a long-running
+        # kernel build: an unrelated fast-forward during nbmake would mix
+        # different commits into the same apparently source-pinned ELF.
+        # Snapshot C, H and frozen Linux-generated .inc files byte-for-byte
+        # under this private owner directory. The kernel build sees only
+        # these copies and unchanged read-only NetBSD base source.
+        owned_hashes={name:sha(path) for name,path in sorted(owned.items())}
         mirror(SRC/"dev/pci",out/"sys/dev/pci",{"files.pci"}|set(owned))
         for name,path in owned.items():
-            (out/"sys/dev/pci"/name).symlink_to(path)
+            dst=out/"sys/dev/pci"/name
+            shutil.copyfile(path,dst)
+            if not dst.is_file() or dst.is_symlink() or sha(dst)!=owned_hashes[name]:
+                raise RuntimeError("source changed during copy: "+name)
+        state["source_snapshot_sha256"]=owned_hashes
+        state["source_snapshot_files"]=len(owned_hashes)
+        state["source_snapshot_private_copies_pass"]=True
+        save()
         (out/"sys/dev/pci/files.pci").write_text(
             baseline.rstrip()+"\n\n# HP RTL WIP-50 isolated source selection\n"+wip+"\n")
         config=out/"HP-RTL-WIP50"
@@ -162,6 +176,15 @@ def main():
             if not present: raise RuntimeError("missing compiled NetBSD rule: "+name+" "+dry.stdout[-550:])
         state["rules"]=rules
         if sha(BASE)!=rootsha:raise RuntimeError("NetBSD root source changed during config")
+        if any(sha(out/"sys/dev/pci"/name)!=digest
+               for name,digest in owned_hashes.items()):
+            raise RuntimeError("private RTL source snapshot changed during config")
+        if any(sha(path)!=owned_hashes[name] for name,path in owned.items()):
+            raise RuntimeError("Git source changed while taking RTL snapshot")
+        if subprocess.run(["git","-C",str(ROOT),"rev-parse","HEAD"],
+                          capture_output=True,text=True,check=True,
+                          timeout=20).stdout.strip()!=git_head:
+            raise RuntimeError("Git source HEAD changed during config")
         state["state"]="CONFIGURED_50_WIP_RULES_PASS"
         print("HP_RTL50_NETBSD_OWNER_KCONFIG_PASS",len(units),len(rules),out,flush=True)
     except Exception as ex:
