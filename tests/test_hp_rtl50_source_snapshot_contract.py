@@ -45,5 +45,11 @@ for token in (
 assert builder.count("verify_hp_rtl50_source_snapshot.py") == 2, (
     "snapshot must be checked before and after HP kernel link")
 assert builder.count("--source-commit") == 2
+# An interrupted or post-link verification failure cannot masquerade as an
+# active forever-running compilation in full-link.state.
+assert 'FAILED_INCOMPLETE_EXIT:' in builder
+assert 'FAILED_SOURCE_SNAPSHOT:' in builder
+assert 'grep -q "^RUNNING "' in builder
+assert 'if "$PYTHON" -B "$ROOT/tools/verify_hp_rtl50_source_snapshot.py"' in builder
 assert "git -C" not in verifier, "verifier must inspect frozen copy, not mutable Git worktree"
 print("RTL50_PRIVATE_SOURCE_SNAPSHOT_CONTRACT_PASS")
