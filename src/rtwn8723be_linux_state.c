@@ -78,6 +78,7 @@ rtwn8723be_start_ops_ready(const struct rtwn8723be_linux_ops *ops)
 {
     if (ops->reset_trx_ring == NULL ||
         ops->bt_prepare == NULL ||
+        ops->establish_irq == NULL ||
         ops->set_retry_limit == NULL ||
         ops->enable_interrupt == NULL ||
         ops->init_rx_config == NULL ||
@@ -267,6 +268,12 @@ rtwn8723be_linux_adapter_start(void *ctx,
 
     R23BE_CALL(R23BE_STAGE_RESET_RINGS, ops->reset_trx_ring, ctx);
     R23BE_CALL(R23BE_STAGE_BT_PREPARE, ops->bt_prepare, ctx);
+
+    /* NetBSD drains hard/soft IRQ before ring reset. Re-establish the PCI
+     * handler after the quiesced reset and BTC prepare; device interrupts
+     * stay masked until the later enable_interrupt callback succeeds.
+     * Without this, HIMR may be enabled with no attached CPU IRQ handler. */
+    R23BE_CALL(R23BE_STAGE_BT_PREPARE, ops->establish_irq, ctx);
 
     error = rtwn8723be_linux_hw_init(ctx, state, ops);
     if (error != 0)
