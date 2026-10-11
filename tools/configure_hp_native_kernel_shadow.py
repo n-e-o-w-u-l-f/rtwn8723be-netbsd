@@ -95,6 +95,16 @@ def private_dryrun_rule_present(output: str, source_name: str,
             "/usr/src/" not in output)
 
 
+def render_private_config(baseline_include: str) -> str:
+    """Keep an unbootable i915 path out of every private RTL candidate."""
+    return (
+        f'include "{baseline_include}"\n'
+        f'ident "{PRIVATE_CONFIG_NAME}"\n'
+        'no rtwn*\n'
+        'no i915drmkms*\n'
+        'rtwn8723be_native* at pci? dev ? function ?\n')
+
+
 def populate_links(base: Path, dest: Path, ignore: set[str]) -> None:
     dest.mkdir(mode=0o700)
     for item in base.iterdir():
@@ -201,11 +211,7 @@ def main() -> None:
 
         private_config = out / PRIVATE_CONFIG_NAME
         baseline_include = baseline_config.relative_to(source_sys).as_posix()
-        private_config.write_text(
-            f'include "{baseline_include}"\n'
-            f'ident "{PRIVATE_CONFIG_NAME}"\n'
-            'no rtwn*\n'
-            'rtwn8723be_native* at pci? dev ? function ?\n')
+        private_config.write_text(render_private_config(baseline_include))
         command = [str(nbconfig), "-s", str(shadow), "-b", str(out_obj),
                    str(private_config)]
         cp = subprocess.run(command, cwd=out, text=True, stdout=subprocess.PIPE,

@@ -71,4 +71,13 @@ assert not MODULE.private_dryrun_rule_present(
     dryrun + " /usr/src/sys/dev/pci/rtwn8723be_native.c",
     "rtwn8723be_native.c", "rtwn8723be_native.o", shadow)
 
+private_config = MODULE.render_private_config("arch/amd64/conf/GENERIC")
+assert private_config.splitlines() == [
+    'include "arch/amd64/conf/GENERIC"',
+    'ident "RTWN8723BE-NATIVE-SHADOW"',
+    'no rtwn*',
+    'no i915drmkms*',
+    'rtwn8723be_native* at pci? dev ? function ?',
+]
+
 print("RTL_PRIVATE_SHADOW_MANIFEST_MERGE_OK")
