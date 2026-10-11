@@ -85,6 +85,18 @@ Pinned Linux reference:
 
 **i915 scope remains separate:** F83/F84 both physically black-screened; F84 async fbdev scheduling was disproven as an adequate fix. The i915 trace transport record requires a proven independent early console/trace before another physical display takeover; no new i915 hardware experiment, install or boot was performed in this pass.
 
+## World regulatory parity and reliable future-build state (2026-10-11)
+
+The requester provided direct HP NetBSD build evidence for the running **source-pinned 2e5a2cc** candidate at approximately 12:50 CEST: `full-link.state=RUNNING`, original `nbmake` process PID 10994 elapsed 41m07s, two GCC processes and log size 20,235,921 bytes with progress from `nbmkdep` to actual `nouveau_nvkm_*.o` compilation. No `obj/netbsd` existed at that observation. Process/host state after this supplied snapshot is **UNKNOWN**; it must not be represented as a completed link, failure, hang or current live process without fresh evidence. No second build or reboot was triggered.
+
+A regulatory parity violation on the 50-unit WIP branch was verified against frozen Linux `rtlwifi/regd.c` (source hash `fd179f8a05be3ccae366b9b96e176b51fbe54aab`) and the independently developed policy on `main`: prior WIP `netbsd_init_core` **and** `net80211_register` each rewrote all 14 2.4 GHz channels as active CCK+OFDM. Linux world regdomain initially permits active CCK+OFDM channels 1–11, passive CCK+OFDM channels 12–13, passive CCK-only channel 14; country/board regulatory relaxation requires a separate authorized real producer.
+
+The WIP now has one `rtwn8723be_netbsd_apply_world_regdomain()` in its existing native NetBSD C unit, declared in the native header, invoked after `memset(ic)` at core setup and again **before** publishing `n->sc`/ifnet methods at net80211 registration. This preserves the existing 50-unit native selection while eliminating the duplicate writer which formerly erased the passive flags. A dedicated `tests/test_wip_world_regdomain_glue.py` source gate checks channel groups/flags, exact use at both sites, and prohibition of a second channel writer; it is included in the *next* HP-only runner. Direct fresh GitHub readback of three modified native files, source gate and runner produced 16/16 corresponding source assertions PASS; the actual regression runner and production C were **not executed on HP** in this chat. Physical active/passive scan, board/country regulatory owner, RX and WPA2 remain OPEN.
+
+The *next* builder was also hardened to avoid indefinitely stale `RUNNING` state when its shell exits nonzero during unexpected post-link or artifact validation errors. The EXIT handler writes `FAILED_INCOMPLETE_EXIT:<status>` only while the marker still says RUNNING, and a post-link source-snapshot mismatch writes `FAILED_SOURCE_SNAPSHOT:<status>` explicitly. SIGKILL or hardware loss cannot be trapped, so independent process/log checks remain mandatory. The source-contract regression now checks these failure markers. The old running 2e5a2cc candidate still uses its own initial runner and is **not** retroactively affected.
+
+Immutable resource and i915 safety: F77 remains the only last verified usable fallback, the new link candidate is uninstalled, and i915drmkms/F83/F84 black screen remains independent. No HP runtime command, physical WLAN/channel action, system-kernel change or i915 boot was performed.
+
 ## Next exact acceptance
 
 1. On the HP, synchronize clean WIP HEAD and compile the **new** SHA-labeled kernel with `tools/build_hp_rtl50_next_candidate.sh`; verify its actual native output and SHA256. Do not overwrite the previously linked prepatch `obj/netbsd` or F77.
