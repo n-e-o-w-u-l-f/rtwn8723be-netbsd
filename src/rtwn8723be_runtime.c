@@ -898,10 +898,14 @@ rtwn8723be_runtime_bt_hw_init(void *arg)
         sc->sc_bcn_ctrl_val, sc->sc_receive_config);
     if (error == 0) error = rtwn8723be_btc_mp_native_activate(sc);
     if (error == 0) {
+        /*
+         * The native BT hardware callback executes Linux INIT_HW and
+         * INIT_DM synchronously before this runtime state is seeded.
+         * Do NOT enqueue a second pair of INIT events: two RF/BT
+         * initializations in one firmware generation are not equivalent.
+         */
         r->rx_generation = sc->sc_h2c.firmware_generation;
-        error = rtwn8723be_runtime_btc_event(sc, R23BE_BTC_INIT_HW, 0);
     }
-    if (error == 0) error = rtwn8723be_runtime_btc_event(sc, R23BE_BTC_INIT_DM, 0);
     return error;
 }
 
