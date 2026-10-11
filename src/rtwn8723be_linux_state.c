@@ -76,6 +76,8 @@ rtwn8723be_stop_ops_ready(const struct rtwn8723be_linux_ops *ops)
 static int
 rtwn8723be_start_ops_ready(const struct rtwn8723be_linux_ops *ops)
 {
+    int error;
+
     if (ops->reset_trx_ring == NULL ||
         ops->bt_prepare == NULL ||
         ops->establish_irq == NULL ||
@@ -84,7 +86,17 @@ rtwn8723be_start_ops_ready(const struct rtwn8723be_linux_ops *ops)
         ops->init_rx_config == NULL ||
         ops->mark_hal_start == NULL)
         return ENOSYS;
-    return rtwn8723be_hw_ops_ready(ops);
+    error = rtwn8723be_hw_ops_ready(ops);
+    if (error != 0)
+        return error;
+    /*
+     * This opt-in WIP has REAL reverse owners, unlike main's deliberately
+     * unbound lifecycle foundation. A missing HALT/IRQ/RF/ASPM shutdown
+     * callback must fail before the first reset_trx_ring touches DMA.
+     * Runtime still owns stage-specific rollback on a callback failure;
+     * pointer presence alone is NOT proof that physical poweroff worked.
+     */
+    return rtwn8723be_stop_ops_ready(ops);
 }
 
 #define R23BE_CALL(stage_id, op, ...) do { \
