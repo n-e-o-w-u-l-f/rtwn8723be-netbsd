@@ -884,9 +884,14 @@ rtwn8723be_runtime_bt_hw_init(void *arg)
         !sc->sc_linux.mac_func_enable || !sc->sc_bb_valid ||
         !sc->sc_rf_chnlval_valid || !sc->sc_btc.initialized)
         return ENXIO;
-    /* hw.c publishes ERFON after the completed MAC/BB/RF configuration. */
-    r->rf_on = true;
-    r->rf_state_valid = true;
+    /*
+     * Do not advertise a usable RF generation until the real channel/media
+     * state and firmware-bound BT-MP owner have ALL accepted it. Earlier
+     * publication exposed RF_ON after a partial seed/activation failure.
+     * Linux's ERFON hardware state is not a NetBSD software-owner grant.
+     */
+    r->rf_on = false;
+    r->rf_state_valid = false;
     r->poweroff_verified = false;
     mutex_enter(&r->stats_lock);
     r->wifi.firmware_version = ((uint32_t)sc->sc_fw_info.version << 16) |
@@ -905,6 +910,8 @@ rtwn8723be_runtime_bt_hw_init(void *arg)
          * initializations in one firmware generation are not equivalent.
          */
         r->rx_generation = sc->sc_h2c.firmware_generation;
+        r->rf_on = true;
+        r->rf_state_valid = true;
     }
     return error;
 }
