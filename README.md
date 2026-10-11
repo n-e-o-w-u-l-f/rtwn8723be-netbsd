@@ -20,25 +20,27 @@ Version **0.1.0** remains experimental. F77 is the verified HP recovery
 kernel; it is not evidence that the current source tree is a working WLAN
 driver.
 
-The current private manifest selects 46 C units. The conservative
+The current private manifest selects 47 C units. The conservative
 world-regdomain unit represents Linux's safe baseline: channels 1–11 are
 active CCK/OFDM, 12–13 are passive CCK/OFDM, and channel 14 is passive
 CCK-only. EFUSE channel-plan mapping and the country-IE notifier are still
 open. The 46th unit is an unbound, resource-journaled pre-`RUNNING` recovery
-owner: it preflights compensators, masks and drains start-local IRQ work
-before reverse cleanup, and quarantines any recovery failure. It does not
-bind PCI, DMA, IRQ, RFKill or net80211 to live hardware.
+owner. The 47th is a unit-tested, unbound port of the Linux BTC high-level
+`get`/`set` policy; it does not supply the missing whole-driver lifecycle
+owner or activate PCI, DMA, IRQ, RFKill, or net80211 hardware.
 
-The current 46-unit private Shadow G build has passed the full object and
-kernel-link gate at source checkout `8a85ab31b6ff2c478efb79529bc7141a5c0cba99`:
-i915 was absent from both generated inputs, all 46 selected objects are
-nonempty, the original PCI source manifest stayed intact, and the separate
-kernel identifies as `RTWN8723BE-NATIVE-SHADOW`. Its SHA-256 is
-`e3ac1437d70a910ab41550292a6d6dbe78118a6d0d8fd595fa1a9e0a5b2adef6`.
+The current 47-unit private Shadow H build passed the complete object and
+kernel-link gate at source checkout `66fed5c6e732a373e4faa16f96b5742725c99d3b`.
+Its private configuration explicitly contains `no i915drmkms*`; the private
+PCI manifest and rendered Makefile contain no i915 input. All 47 selected
+objects are nonempty, the original PCI source manifest stayed intact, and the
+separate kernel identifies as `RTWN8723BE-NATIVE-SHADOW`. Its SHA-256 is
+`390a3905b41463dee6b0395138ed406dee37051d6506a696c8f764fb0024ac38`.
 This was an isolated build only: no candidate was installed or booted, and it
 does not establish a working WLAN driver. See [STATUS.md](STATUS.md), the
 [native object checkpoint](docs/HP_NATIVE_OBJECT_CHECKPOINT_20261011.md), and
-the [Shadow G record](docs/HP_NATIVE_SHADOW_G_20261011.md).
+the [Shadow H record](docs/HP_NATIVE_SHADOW_H_20261011.md). Shadow G remains
+the retained historical 46-unit build record.
 
 Complete native lifecycle ownership, callback binding, PCI/IRQ admission and
 physical WLAN acceptance remain open. An object build or portable C test is
