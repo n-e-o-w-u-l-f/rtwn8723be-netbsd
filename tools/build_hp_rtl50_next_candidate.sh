@@ -54,6 +54,7 @@ for testname in \
     test_reserved_beacon_native_source.py \
     test_failed_probe_net80211_rollback.py \
     test_runtime_dma_reset_owner.py \
+    test_runtime_start_shutdown_error_source.py \
     test_rf_calibration_pre_dm_source.py \
     test_calibration.py \
     test_calibration_native.py \
