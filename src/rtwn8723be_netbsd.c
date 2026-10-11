@@ -1778,7 +1778,23 @@ rtwn8723be_netbsd_init_mac(void *arg)
 
     rtwn8723be_write_1(sc, R23BE_REG_FWHW_TXQ_CTRL + 1, 0x1f);
     rtwn8723be_write_4(sc, R23BE_REG_RCR, sc->sc_receive_config);
+    /*
+     * Live HP F77: RXFLTMAP0/1/2 = 0000/0000/ffff despite apparently
+     * successful channel scans and ZERO beacon RX. Those registers gate
+     * management/control/data frame subtypes independently from RCR.
+     *
+     * Frozen Linux rtl8723be/hw.c writes only MAP2, apparently relying on
+     * prior hardware/default state. The independent RTL8723B rtw88
+     * reference (September 2026 v4, WLAN_RX_FILTER0/1/2) explicitly
+     * selects ffff/0400/ffff. Apply that source-derived 8723B policy at
+     * this exact powered MAC RX-filter stage: accept management (including
+     * beacons), PS-Poll control and all data subtypes. This is an opt-in
+     * WIP candidate, not evidence that live RF RX or WPA2 now works.
+     * Preserve the reference programming order MAP2 -> MAP1 -> MAP0.
+     */
     rtwn8723be_write_2(sc, R23BE_REG_RXFLTMAP2, 0xffff);
+    rtwn8723be_write_2(sc, R23BE_REG_RXFLTMAP1, 0x0400);
+    rtwn8723be_write_2(sc, R23BE_REG_RXFLTMAP0, 0xffff);
     rtwn8723be_write_4(sc, R23BE_REG_TCR, sc->sc_transmit_config);
 
     error = rtwn8723be_netbsd_program_ring_bases(sc);
