@@ -21,6 +21,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 
 #include "rtwn8723be_net80211.h"
 #include "rtwn8723be_net80211_state.h"
+#include "rtwn8723be_netbsd.h"
 
 static int rtwn8723be_n80211_ifinit(struct ifnet *);
 static int rtwn8723be_n80211_ioctl(struct ifnet *, u_long, void *);

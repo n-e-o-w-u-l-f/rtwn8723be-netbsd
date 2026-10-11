@@ -4,8 +4,11 @@
 
 #include <sys/types.h>
 #include "rtwn8723be_os_compat.h"
-#include "rtwn8723be_netbsd.h"
 #include "rtwn8723be_rx_decode.h"
+
+/* The public lifecycle declaration layer owns no PCI softc definition. */
+struct rtwn8723be_softc;
+struct ifnet;
 
 /*
  * NetBSD 11 ifnet/net80211 glue, independent of native PCI attach.

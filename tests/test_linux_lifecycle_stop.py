@@ -55,6 +55,12 @@ static int fail_mark_start(void *arg)
     ++c->calls;
     return EIO;
 }
+static int fail_cleanup(void *arg)
+{
+    struct context *c = arg;
+    ++c->calls;
+    return EIO;
+}
 static struct rtwn8723be_linux_ops start_ops(void)
 {
     struct rtwn8723be_linux_ops o = {0};
@@ -89,6 +95,12 @@ static struct rtwn8723be_linux_ops start_ops(void)
     o.enable_interrupt = step;
     o.init_rx_config = step;
     o.mark_hal_start = step;
+    /* A start cannot begin until its full reverse cleanup exists. */
+    o.bt_halt_deinit = step;
+    o.mark_hal_stop = step;
+    o.disable_interrupt = step;
+    o.wait_rf_change_idle = step;
+    o.hw_disable = step;
     return o;
 }
 
@@ -150,9 +162,19 @@ int main(void)
     assert(rtwn8723be_linux_adapter_start(&c, &s, &ops) == EAGAIN);
     assert(c.calls == 0 && s.stage == R23BE_STAGE_STOPPING);
 
+    /* A start preflight must refuse to create an unrecoverable half-state. */
+    c.calls = 0;
+    s = (struct rtwn8723be_linux_state){0};
+    s.stage = R23BE_STAGE_PROBED;
+    ops = start_ops();
+    ops.hw_disable = NULL;
+    assert(rtwn8723be_linux_adapter_start(&c, &s, &ops) == ENOSYS);
+    assert(c.calls == 0 && s.stage == R23BE_STAGE_PROBED && !s.started);
+
     /*
-     * A failing final start callback must NOT publish RUNNING. The half
-     * started adapter requires explicit recovery; blind retry is blocked.
+     * A failing final start callback must NOT publish RUNNING.  The new
+     * reverse owner runs every teardown phase, reaches STOPPED and permits
+     * a future clean retry only after all callbacks returned successfully.
      */
     c.calls = 0;
     s = (struct rtwn8723be_linux_state){0};
@@ -160,13 +182,34 @@ int main(void)
     ops = start_ops();
     ops.mark_hal_start = fail_mark_start;
     assert(rtwn8723be_linux_adapter_start(&c, &s, &ops) == EIO);
-    assert(s.stage == R23BE_STAGE_RX_CONFIG && !s.started &&
-           s.fw_ready && !s.being_init_adapter);
-    {
-        unsigned calls_after_failure = c.calls;
-        assert(rtwn8723be_linux_adapter_start(&c, &s, &ops) == EAGAIN);
-        assert(c.calls == calls_after_failure);
-    }
+    assert(s.stage == R23BE_STAGE_STOPPED && !s.started &&
+           !s.fw_ready && !s.mac_func_enable && !s.being_init_adapter);
+    assert(c.calls == 33);
+    c.calls = 0;
+    ops.mark_hal_start = step;
+    assert(rtwn8723be_linux_adapter_start(&c, &s, &ops) == 0);
+    assert(s.stage == R23BE_STAGE_RUNNING && s.started);
+
+    /* An early failure is also reversed instead of leaking a start phase. */
+    c = (struct context){.fail_at = 2};
+    s = (struct rtwn8723be_linux_state){0};
+    s.stage = R23BE_STAGE_PROBED;
+    ops = start_ops();
+    assert(rtwn8723be_linux_adapter_start(&c, &s, &ops) == EIO);
+    assert(c.calls == 8 && s.stage == R23BE_STAGE_STOPPED &&
+           !s.started && !s.fw_ready && !s.mac_func_enable);
+
+    /* A teardown error leaves an explicit STOPPING recovery blocker. */
+    c.calls = 0;
+    s = (struct rtwn8723be_linux_state){0};
+    s.stage = R23BE_STAGE_PROBED;
+    ops = start_ops();
+    ops.mark_hal_start = fail_mark_start;
+    ops.disable_interrupt = fail_cleanup;
+    assert(rtwn8723be_linux_adapter_start(&c, &s, &ops) == EIO);
+    assert(c.calls == 33 && s.stage == R23BE_STAGE_STOPPING &&
+           !s.started && s.fw_ready && s.mac_func_enable);
+    assert(rtwn8723be_linux_adapter_start(&c, &s, &ops) == EAGAIN);
 
     c.calls = 0;
     s = (struct rtwn8723be_linux_state){0};

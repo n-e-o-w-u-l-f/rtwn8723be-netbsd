@@ -76,6 +76,8 @@ rtwn8723be_stop_ops_ready(const struct rtwn8723be_linux_ops *ops)
 static int
 rtwn8723be_start_ops_ready(const struct rtwn8723be_linux_ops *ops)
 {
+    int error;
+
     if (ops->reset_trx_ring == NULL ||
         ops->bt_prepare == NULL ||
         ops->set_retry_limit == NULL ||
@@ -83,7 +85,11 @@ rtwn8723be_start_ops_ready(const struct rtwn8723be_linux_ops *ops)
         ops->init_rx_config == NULL ||
         ops->mark_hal_start == NULL)
         return ENOSYS;
-    return rtwn8723be_hw_ops_ready(ops);
+    error = rtwn8723be_hw_ops_ready(ops);
+    if (error != 0)
+        return error;
+    /* A start must not enter hardware before its reverse path exists. */
+    return rtwn8723be_stop_ops_ready(ops);
 }
 
 #define R23BE_CALL(stage_id, op, ...) do { \
@@ -252,6 +258,7 @@ rtwn8723be_linux_adapter_start(void *ctx,
     const struct rtwn8723be_linux_ops *ops)
 {
     int error;
+    int cleanup_error;
 
     if (state == NULL || ops == NULL)
         return EINVAL;
@@ -289,7 +296,64 @@ rtwn8723be_linux_adapter_start(void *ctx,
     return 0;
 
 fail:
+    /*
+     * Linux's PCI stop path is also the rollback owner for a start that
+     * never reached HAL START.  Preserve a failed cleanup as the visible
+     * error because it prevents a safe retry; a complete rollback leaves
+     * STOPPED and returns the original start failure.
+     */
+    cleanup_error = rtwn8723be_linux_adapter_abort(ctx, state, ops);
+    if (cleanup_error != 0)
+        return cleanup_error;
     return error != 0 ? error : EIO;
+}
+
+int
+rtwn8723be_linux_adapter_abort(void *ctx,
+    struct rtwn8723be_linux_state *state,
+    const struct rtwn8723be_linux_ops *ops)
+{
+    int error;
+    int first_error = 0;
+
+    if (state == NULL || ops == NULL)
+        return EINVAL;
+    if (state->started || state->stage < R23BE_STAGE_RESET_RINGS ||
+        state->stage >= R23BE_STAGE_RUNNING)
+        return EAGAIN;
+    error = rtwn8723be_stop_ops_ready(ops);
+    if (error != 0)
+        return error;
+
+    /*
+     * A failed start may have enabled only a prefix of the hardware path.
+     * Each stop callback is therefore required to be idempotent for every
+     * pre-RUNNING stage.  Continue the reverse order after an error, retain
+     * STOPPING for explicit recovery, and never publish a retryable state.
+     */
+    state->stage = R23BE_STAGE_STOPPING;
+    state->being_init_adapter = false;
+    state->started = false;
+
+#define R23BE_ABORT_CALL(op) do { \
+    error = (op)(ctx); \
+    if (first_error == 0 && error != 0) \
+        first_error = error; \
+} while (0)
+    R23BE_ABORT_CALL(ops->bt_halt_deinit);
+    R23BE_ABORT_CALL(ops->mark_hal_stop);
+    R23BE_ABORT_CALL(ops->disable_interrupt);
+    R23BE_ABORT_CALL(ops->wait_rf_change_idle);
+    R23BE_ABORT_CALL(ops->hw_disable);
+    R23BE_ABORT_CALL(ops->enable_aspm);
+#undef R23BE_ABORT_CALL
+
+    if (first_error != 0)
+        return first_error;
+    state->fw_ready = false;
+    state->mac_func_enable = false;
+    state->stage = R23BE_STAGE_STOPPED;
+    return 0;
 }
 
 int
