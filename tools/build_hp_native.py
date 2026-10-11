@@ -54,9 +54,9 @@ try:
                        manifest, re.M)
     # The current manifest includes the separate TX-DMA and card-disable
     # owners, world-regdomain policy and pre-RUNNING recovery journal
-    # (46 units).  A prior 43-object build
+    # (47 units).  A prior 43-object build
     # is historical evidence only.
-    if len(units) != 46 or len(set(units)) != len(units):
+    if len(units) != 47 or len(set(units)) != len(units):
         raise RuntimeError("unexpected native C manifest; re-inventory first")
     dest = tree / "sys/dev/pci"
     sources = [ROOT / "src" / name for name in units]

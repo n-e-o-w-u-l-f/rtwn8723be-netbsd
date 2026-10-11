@@ -687,6 +687,8 @@ struct btc_coexist {
 
 	/* Native MP completion is owned by sc_btc_mp, not Linux completion. */
 	void *r23be_state;
+	/* Optional high-level get/set policy, owned by the whole-driver context. */
+	void *r23be_policy;
 	void (*r23be_delay_ms)(void *, unsigned int);
 	void (*r23be_debug)(void *, unsigned long, int, const char *, va_list);
 
