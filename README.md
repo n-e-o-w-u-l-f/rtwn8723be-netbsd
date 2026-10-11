@@ -2,44 +2,48 @@
 
 **Project version: 0.1.0**
 
-Experimental native NetBSD driver development for the Realtek RTL8723BE PCIe WLAN adapter, based on the Linux `rtlwifi/rtl8723be` reference implementation.
+Experimental native NetBSD driver development for the Realtek RTL8723BE PCIe
+WLAN adapter, based on the Linux `rtlwifi/rtl8723be` reference implementation.
 
 ## Versioning
 
-- **0.1.x** — experimental development, hardware bring-up, diagnostics and driver construction.
-- **1.0.0** — first functional software release proven on the target HP TPN-W121.
-- Version 1.0 is therefore a **functional target milestone**, not merely a source/API milestone.
+- **0.1.x** — experimental development, hardware bring-up, diagnostics and
+  driver construction.
+- **1.0.0** — first functional software release proven on the target HP
+  TPN-W121.
+
+Version 1.0 is a hardware-proven target milestone, not a source/API milestone.
 
 ## Current state
 
-Version **0.1.0** remains experimental. The running HP recovery kernel is
-**F77**; WLAN is still down and reports `no network`.
+Version **0.1.0** remains experimental. F77 is the verified HP recovery
+kernel; it is not evidence that the current source tree is a working WLAN
+driver.
 
-The separate native driver source now includes 41 C units. On 2026-10-06,
-all 41 native objects and all 45 regression scripts passed on HP. The full
-frozen one- and two-antenna Bluetooth algorithms now use per-device DM/STA
-and all 20 formerly shared histories. Actual Linux/port C traces pass
-33 scenarios/41,280 events and 128,640 compared operations in each normal
-and UBSan run. The native copied-event workqueue and stop/error broker pass
-10 scenarios/208 checks in each run. Real OS providers and full owner
-binding remain open; see [the algorithm checkpoint](docs/BTC_ALGORITHMS_NATIVE_NETBSD_20261006.md).
-The
-per-device Bluetooth MP request/reply, timeout quarantine and cancel/drain
-provider passes 42 actual-C modeled scenarios/537 checks normal and UBSan;
-its activation and RX consumer binding still require the full BTC owner.
-The firmware loader retains the verified Linux fallback/version/polling
-behavior and NetBSD firmload resource order (113 actual-C scenarios).
-The installed firmware images match the decompressed Arch Linux files.
+The current private manifest selects 45 C units. The new conservative
+world-regdomain unit represents Linux's safe baseline: channels 1–11 are
+active CCK/OFDM, 12–13 are passive CCK/OFDM, and channel 14 is passive
+CCK-only. EFUSE channel-plan mapping and the country-IE notifier are still
+open. A small Net80211 rollback helper now permits an interface that was
+registered but never started to unwind only the post-registration probe
+stages; it does not bind PCI, DMA, IRQ, RFKill or net80211 to live hardware.
 
-Complete native BTC/lifecycle ownership, seven callback bindings, kernel
-link/install and physical WLAN acceptance remain open. An object build is
-not a functional release. See [the full-scope contract](docs/FULL_SCOPE_CONTRACT.md)
-and [the firmware loading checkpoint](docs/FIRMWARE_LINUX_NETBSD_DIFFERENCES_20261006.md).
-See [the native Bluetooth MP checkpoint](docs/BTC_MP_NATIVE_NETBSD_20261006.md)
-for synchronization rules, verified limits and the remaining bindings.
+Historical HP evidence exists for the prior 44-unit commit:
 
-Earlier F8.x dry-run kernels and F6/F7 bring-up observations in
-[STATUS.md](STATUS.md) are historical checkpoints.
+- all selected objects compiled with i915 excluded;
+- the source-tree integrity check passed; and
+- the subsequent private-kernel link stopped before `obj/netbsd` while
+  building `libkern.o`, with `collect2: fatal error: cannot find 'ld'`.
+
+That is an isolated toolchain linker-discovery blocker, not a successful
+kernel link or an RTL/i915 driver result. No current candidate was installed
+or booted. See [STATUS.md](STATUS.md) and the
+[native object checkpoint](docs/HP_NATIVE_OBJECT_CHECKPOINT_20261011.md).
+
+Complete native lifecycle ownership, callback binding, kernel link/install
+and physical WLAN acceptance remain open. An object build or portable C test
+is not a functional driver release. Packaging in `.tgz`, `.tbz` and `.txz`
+formats begins only after hardware acceptance.
 
 ## Target hardware
 
@@ -54,8 +58,10 @@ Earlier F8.x dry-run kernels and F6/F7 bring-up observations in
 
 ## Safety boundary
 
-Experimental kernels are booted with `userconf disable i915drmkms*` because the integrated Intel graphics driver causes a black screen on this machine.
+F77 remains the fallback kernel with `i915drmkms` disabled. The observed F83
+and F84 screen failures (black panel with backlight after early boot text) do
+not yet establish a root cause. No i915 candidate may be activated before a
+physical early serial trace exists; never boot F16.0.
 
-`/netbsd` production kernel is not replaced by this project. Experimental kernels are installed under separate `/netbsd.rtwn8723be-*` names.
-
-See [`STATUS.md`](STATUS.md) for the complete verified state and test history.
+`/netbsd` is not replaced by this project. Experimental kernels, if ever
+accepted for a test, use separate `/netbsd.rtwn8723be-*` names.

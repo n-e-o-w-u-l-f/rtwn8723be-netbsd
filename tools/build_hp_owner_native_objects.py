@@ -48,7 +48,7 @@ def main():
     if not (OBJDIR / "machine/cdefs.h").is_file() or not MAKE.is_file():
         parser.error("original generated native build tree is unavailable")
     all_units = RULE.findall(MANIFEST.read_text())
-    if len(all_units) != 44 or len(set(all_units)) != 44:
+    if len(all_units) != 45 or len(set(all_units)) != 45:
         parser.error("unexpected native source closure; verify current manifest")
     if args.only is not None:
         if args.only not in all_units:

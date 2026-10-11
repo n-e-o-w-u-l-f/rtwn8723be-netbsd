@@ -40,6 +40,7 @@ on:
       - 'tests/test_kernel_source_integrity.py'
       - 'tests/test_runtime_owner.py'
       - 'tests/test_rx_dma_bounds.py'
+      - 'tests/**'
       - '.github/workflows/portable-c-regressions.yml'
   pull_request:
     paths:
@@ -80,6 +81,7 @@ on:
       - 'tests/test_kernel_source_integrity.py'
       - 'tests/test_runtime_owner.py'
       - 'tests/test_rx_dma_bounds.py'
+      - 'tests/**'
       - '.github/workflows/portable-c-regressions.yml'
   workflow_dispatch:
 
@@ -110,6 +112,14 @@ jobs:
         run: python3 tests/test_efuse_shadow_bounds.py
       - name: Native source/header and tool-output integrity
         run: python3 tests/test_kernel_source_integrity.py
+      - name: Conservative world-regdomain baseline (strict C11)
+        run: python3 tests/test_regdomain_world_baseline.py
+      - name: World-regdomain NetBSD glue
+        run: python3 tests/test_regdomain_world_glue.py
+      - name: Net80211 registration publication order
+        run: python3 tests/test_net80211_unpublished_registration.py
+      - name: Net80211 unstarted probe rollback (strict C11)
+        run: python3 tests/test_net80211_unstarted_rollback.py
       - name: Inert runtime-owner lifecycle foundation
         run: python3 tests/test_runtime_owner.py
       - name: Native callback and manifest inventory

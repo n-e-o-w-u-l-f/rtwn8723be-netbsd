@@ -2,40 +2,42 @@
 
 ## Current source selection
 
-`config/files.rtwn8723be_native` selects **44 unique native C translation
-units**.  The closure inventory must therefore reject any 43-unit assumption.
-The 44th unit is `rtwn8723be_runtime_owner.c`, an inert per-device lifecycle
-foundation. It does not attach hardware or bind a pending Linux lifecycle
-callback. The current selection also includes the real TX DMA, native
-card-disable and RF-kill owners.
+`config/files.rtwn8723be_native` now selects **45 unique native C translation
+units**. The 45th unit is `rtwn8723be_regdomain.c`, which applies only the
+safe Linux-world 2.4 GHz channel baseline. It does not read or map the EFUSE
+channel-plan byte, install a country notifier, attach hardware, or bind a
+pending lifecycle callback.
 
-## What this does and does not prove
-
-The documented 42-object HP build from 2026-10-10 remains valid only for the
-then-selected sources. The 43-object private HP build from 2026-10-11 is a
-compiler baseline for the prior selection. Neither is evidence that the
-current 44-unit selection has linked into a kernel or worked on hardware.
-
-The current tools now require 44 unique manifest entries.  A private HP
-candidate configuration must generate a compile rule for **every** selected
-unit before a 44-object build is attempted.  The existing source inventory
-continues to report four deliberately unbound lifecycle owners:
+The source inventory still deliberately reports four unbound lifecycle
+owners:
 
 - `register_ieee80211`
 - `init_rfkill`
 - `bt_prepare`
 - `dm_init`
 
-Consequently this reconciliation does not authorize PCI attach, IRQ binding,
-DMA enablement, WLAN association, an installer, or a booted experimental
-kernel.
+## Historical 44-unit evidence
+
+The previous 44-unit revision
+`409d1b739ea96dcebe697d73c7d4b6c83ae4d00c` generated all selected compile
+rules, excluded i915 from the private configuration, preserved the original
+PCI manifest, and compiled all 44 objects nonempty. The ordered aggregate is
+`1c588c7d4a6fb466ebe50232427b7e543ea52dfeeb67c3b6d59c54c2f31c14f0`.
+
+That object result does not cover the current 45-unit selection. The next
+complete private-kernel link stopped at `libkern.o` before `obj/netbsd`
+existed because `collect2` could not locate `ld`. It is not a driver link or
+hardware result.
 
 ## Required next evidence
 
-1. Recreate an isolated HP source/object stage from the GitHub revision.
-2. Generate all 44 native rules in that private stage.
-3. Compile and hash all 44 objects, then perform a complete private-kernel
+1. Diagnose the toolchain's linker lookup without changing the system source
+   tree or silently adding a local workaround.
+2. Recreate an isolated 45-unit HP source/object stage from the Git revision.
+3. Generate all 45 native rules and prove i915 exclusion/source integrity.
+4. Compile and hash all 45 objects, then perform a complete private-kernel
    link.
-4. Close the four lifecycle owners with real NetBSD API integrations.
-5. Test scan with received BSS entries, association, traffic, recovery,
+5. Close the four lifecycle owners with real NetBSD API integrations and
+   reverse teardown before enabling PCI attach or IRQ binding.
+6. Test scan with received BSS entries, association, traffic, recovery,
    suspend/resume and detach before packaging.

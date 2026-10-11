@@ -3,47 +3,59 @@
 ## IST
 
 - HP TPN-W121 remains on the verified F77 recovery kernel with
-  `i915drmkms` disabled. No experimental kernel was installed or booted.
-- Git revision `78ff3572071b54521d5d1f5c3d2fd11704ab9e30` configured a new
-  owner-only source/object shadow at `rtl-kconfig-20261011-b`.
-- All 43 entries selected by that revision generated real NetBSD 11 compile
-  rules. The original `/usr/src/sys/dev/pci/files.pci` hash was unchanged.
-- All 43 selected C objects compiled nonempty with the HP NetBSD 11 toolchain.
-  The ordered SHA-256 aggregate of their individual SHA-256 values is
-  `3d7a471dfdb7f3bd3ddb0152dcfd97320b841338811dca02f309eb50b83853ea`.
-  `rtwn8723be_native.o` is
-  `15ab18002fdd6ee8fe08832754074ee627f7f0a18e49444aeb1d6a0cd4f24e46` and
-  `rtwn8723be_netbsd.o` is
-  `1f9ab689dc73c98ccbdbdf300965cb8314594013fdee168c6765ea8217337633`.
-- This is compiler evidence only. It does not establish a private-kernel link,
-  runtime callback closure, PCI attach, IRQ handling, WLAN scan/association,
-  traffic, recovery, suspend/resume, detach or package readiness.
+  `i915drmkms` disabled. No current experimental kernel was installed or
+  booted.
+- The earlier owner-only Shadow B at
+  `78ff3572071b54521d5d1f5c3d2fd11704ab9e30` compiled 43 selected objects;
+  it is retained solely as a historical baseline.
+- Shadow D at
+  `409d1b739ea96dcebe697d73c7d4b6c83ae4d00c` compiled all 44 selected C
+  objects nonempty with the HP NetBSD 11 toolchain. Its private configuration
+  explicitly had `no i915drmkms*`, and the original `/usr/src/sys/dev/pci/files.pci`
+  hash was unchanged.
+- The ordered SHA-256 aggregate for those 44 objects is
+  `1c588c7d4a6fb466ebe50232427b7e543ea52dfeeb67c3b6d59c54c2f31c14f0`.
+  Selected object hashes include:
+  - `rtwn8723be_runtime_owner.o`:
+    `f349f604a587959eb192a735405464ffff48cb2eef07ff130a6f4dd028a4fbbf3`
+  - `rtwn8723be_netbsd.o`:
+    `60b4e0b48fbe3b576af7dd2f318ff906896a3aa60d087a5a8ef32dcb4521d2b0`
+  - `rtwn8723be_native.o`:
+    `21593184f1248b15f73bb4460450a08ceacffeff5db1dc381d22209ac028df3c`
+- The subsequent full private `netbsd` link stopped before producing
+  `obj/netbsd`, while linking the standard kernel library `libkern.o`:
+
+  ```
+  collect2: fatal error: cannot find 'ld'
+  ```
+
+  The prefixed linker exists and a direct linker probe succeeds. This is an
+  unresolved toolchain lookup problem, not a successful kernel link and not
+  evidence about RTL or i915 runtime behavior.
 
 ## ÄNDERUNGEN
 
-- The private shadow now supplies the immutable sibling `common/` tree needed
-  by generated NetBSD compiler flags such as `sys/../common/include`; it never
-  writes to the system source tree.  Its preflight validates every required
-  `common` subtree and rejects generated rules with a direct `/usr/src/`
-  source fallback.
-- The native manifest now has 44 units. The new
-  `rtwn8723be_runtime_owner` is only a per-device lifecycle-lock foundation:
-  no PCI, DMA, IRQ, net80211, workqueue, coexistence, callback or register
-  path is enabled by it.
-- Its source contract checks initialization after softc zeroing, teardown
-  after existing IRQ/RF-PS quiescence, `IPL_NONE` mutexes, zero outstanding
-  I/O depth, and rejects accidental hardware-lifetime bindings.
+- The current source selection is now 45 C units. The new
+  `rtwn8723be_regdomain.c` supplies only the conservative Linux-world
+  regulatory baseline. Its portable strict-C11 test passed; it has not yet
+  been included in a native 45-object build.
+- Net80211 registration now avoids publishing partial owner state before the
+  fallible world-regdomain setup succeeds.
+- A small header-only policy permits unstarted rollback only after successful
+  net80211 registration and during RFKill/IRQ/probed/stopped states. It binds
+  no callback and changes no hardware behavior.
+- No i915, PCI attach, IRQ, DMA, RFKill, net80211 or workqueue activation was
+  added. No kernel was installed or booted.
 
 ## NEXT
 
-1. Make a fresh 44-unit private HP shadow from this Git revision and build the
-   new owner together with the context/native micro-closure.
-2. Repeat the full 44-object compile/hash gate before attempting a private
-   kernel link.
-3. Close the four real lifecycle owners (`register_ieee80211`, `init_rfkill`,
-   `bt_prepare`, `dm_init`) with proper NetBSD lifetimes; do not import the
-   stale frozen runtime or enable an attach path early.
-4. Keep i915 trace-only until a physical early-console capture is available;
-   never boot F16.0 and do not use an i915 candidate as an RTL test vehicle.
-5. Hardware acceptance and package work remain after full runtime closure and
-   a recovery-safe private-kernel test.
+1. Reproduce and resolve the `collect2` linker-discovery failure with a
+   documented toolchain fix, rather than a local PATH workaround.
+2. Create a fresh 45-unit private shadow from the Git revision, prove the
+   i915 exclusion and original-source integrity, then compile/hash every
+   selected object.
+3. Retry the complete private-kernel link only after the 45-object gate.
+4. Implement the remaining real lifecycle owners and their reverse cleanup
+   before any PCI probe binding or hardware test.
+5. Keep i915 trace-only pending physical early serial evidence; never boot
+   F16.0, F83 or F84.

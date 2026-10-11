@@ -2,46 +2,74 @@
 
 Date: 2026-10-11
 
-## State
+## IST
 
-**Hardware bring-up is partial — not a functional WLAN release.**
+**Hardware bring-up is partial — this is not a functional WLAN release.**
 
 Target hardware is HP TPN-W121 on NetBSD 11.0 amd64:
 
-- RTL8723BE PCIe, 10ec:b723, subsystem 103c:81c1
-- Firmware rtl8723befw_36.bin is validated and used by the F77 recovery kernel.
-- Current live recovery kernel: RTWN8723BE-F77-LINUX-EFUSE-MAP.
+- RTL8723BE PCIe, `10ec:b723`, subsystem `103c:81c1`
+- F77 is the verified recovery boot and keeps `i915drmkms` disabled.
+- F77 must not be confused with acceptance of the current Git source tree.
+- F16.0 must never be booted. F83 and F84 reached a black screen with
+  backlight after early text; the root cause is unconfirmed.
 
-## Observed HP behavior
+The current private manifest contains 45 C units. It remains intentionally
+unbound: `register_ieee80211`, `init_rfkill`, `bt_prepare`, and `dm_init` are
+not live lifecycle owners, so the current source does not activate PCI, DMA,
+IRQ, RFKill or a net80211 device on the HP.
 
-F77 is the verified normal boot and keeps i915drmkms disabled. The RTL8723BE initialization path reaches firmware ready, DMA setup, interrupt setup and NetBSD net80211 attachment. The interface can be brought UP and drives the scan state machine through channels 1–14 without a reported channel-programming error.
+Historical Shadow D evidence at commit
+`409d1b739ea96dcebe697d73c7d4b6c83ae4d00c` is limited but positive:
 
-This is not yet proof of working WLAN. No received BSS, authentication, association, protected data traffic, suspend/resume, recovery, or clean detach has been demonstrated on the target.
+- the original `files.pci` was unchanged;
+- the generated private configuration explicitly excluded i915;
+- all 44 selected C objects compiled nonempty; and
+- their ordered SHA-256 aggregate is
+  `1c588c7d4a6fb466ebe50232427b7e543ea52dfeeb67c3b6d59c54c2f31c14f0`.
 
-## Port scope
+The following complete private `netbsd` link failed before `obj/netbsd`
+existed while building `libkern.o`:
 
-The full required order is maintained in docs/PORT-STATE-MACHINE.md. A complete port must preserve the frozen Linux behavior at fd179f8a05be3ccae366b9b96e176b51fbe54aab while replacing only Linux kernel-service boundaries with NetBSD equivalents.
+```
+collect2: fatal error: cannot find 'ld'
+```
 
-The repository contains source-level lifecycle, DMA, firmware, RF/PHY, H2C/C2H, interrupt and net80211 adapter work. Source inventory or isolated host tests are not hardware acceptance.
+The target-prefixed linker exists and can link a direct probe; the failure is
+therefore currently recorded as a toolchain linker-discovery issue, not as an
+RTL/i915 compile result. No candidate was installed or booted from that link.
 
-Open closure areas include the actual ownership and integration of net80211 registration, RF-kill, BT preparation/initialization, dynamic-management initialization, calibration/card-disable paths, Bluetooth coexistence provider, MCU/event lifetime, receive delivery, power management, recovery and teardown. No count-based source manifest closes these runtime obligations without a native NetBSD build and HP test.
+## ÄNDERUNGEN
 
-The current native manifest has 44 C units; the 44th is an inert runtime
-owner foundation. It establishes only per-device lifecycle locking and has no
-PCI, DMA, IRQ, net80211, workqueue, callback or register behavior. The
-preceding 43-object HP compile is retained as a baseline checkpoint only; it
-does not validate the new 44-unit selection or runtime behavior. See
-`docs/MANIFEST_RECONCILIATION_20261011.md`.
+- Added a conservative Linux-world 2.4 GHz regulatory baseline: 1–11 active
+  CCK/OFDM, 12–13 passive CCK/OFDM, 14 passive CCK-only. The portable C11
+  regression passed. This does not yet read EFUSE channel plan `0xb8`, map a
+  country, or process country-IE notifier changes.
+- Prevented partial Net80211 publication when the fallible policy setup
+  fails.
+- Added a tested whitelist for teardown of a registered but unstarted
+  interface at `IEEE80211_REGISTER`, `RFKILL`, `IRQ_ESTABLISH`, `PROBED`, and
+  `STOPPED`. Hardware-start failure states remain blocked for a future,
+  explicit reverse-recovery owner.
+- Kept NetBSD's reference-compatible `splnet()` detach scope after checking
+  `if_rtwn.c`; no speculative locking change was made.
+- CI now executes the new regulatory and Net80211 regression tests on source
+  and test-only changes.
 
-## Release gate
+## NEXT
 
-Do not publish an installer as a functional driver until the HP proves scanning with received BSS entries, authentication, association, stable traffic, error recovery, suspend/resume and detach on the final native NetBSD build.
-
-After that hardware acceptance, the repository must build reproducible source and binary packages in .tgz, .tbz and .txz formats with pkgsrc/pkgin metadata. Packaging before this gate is development-only and must not be presented as an installable driver release.
-
-## Safety
-
-- F77 remains the fallback kernel.
-- Never boot F16.0.
-- Do not enable an unreviewed i915 test as part of RTL bring-up.
-- Record every code change, build, hardware result and rollback in Git.
+1. Diagnose and reproduce the isolated `collect2` linker-discovery failure;
+   do not mask it with an unverified system-toolchain change.
+2. From the resulting Git revision, create a fresh 45-unit private HP shadow,
+   prove i915 is excluded and original source integrity is unchanged, then
+   generate, compile and hash all 45 selected objects.
+3. Retry the complete private-kernel link only after that object gate passes.
+   A link result is still not permission to install or boot a kernel.
+4. Close the real lifecycle owners in reverse-cleanup order before binding any
+   operation to the PCI probe path. Preserve explicit recovery for failed
+   hardware-start states.
+5. Keep i915 trace-only until a physical early serial capture exists. Never
+   use F16.0, F83 or F84 as a test kernel.
+6. Test scan with received BSS entries, authentication, association, traffic,
+   recovery, suspend/resume and detach only after full runtime closure.
+   Package work follows that hardware acceptance.

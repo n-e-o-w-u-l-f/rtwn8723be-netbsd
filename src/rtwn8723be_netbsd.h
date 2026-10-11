@@ -194,6 +194,7 @@ struct rtwn8723be_softc {
 void rtwn8723be_netbsd_context_init(struct rtwn8723be_softc *,
     device_t, const struct pci_attach_args *);
 void rtwn8723be_netbsd_context_fini(struct rtwn8723be_softc *);
+int rtwn8723be_netbsd_apply_world_regdomain(struct rtwn8723be_softc *);
 
 uint8_t rtwn8723be_read_1(struct rtwn8723be_softc *, bus_size_t);
 uint16_t rtwn8723be_read_2(struct rtwn8723be_softc *, bus_size_t);

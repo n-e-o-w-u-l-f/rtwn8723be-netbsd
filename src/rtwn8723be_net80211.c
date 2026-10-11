@@ -20,6 +20,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <net80211/ieee80211_proto.h>
 
 #include "rtwn8723be_net80211.h"
+#include "rtwn8723be_net80211_state.h"
 
 static int rtwn8723be_n80211_ifinit(struct ifnet *);
 static int rtwn8723be_n80211_ioctl(struct ifnet *, u_long, void *);
@@ -77,12 +78,13 @@ rtwn8723be_n80211_ifstop(struct rtwn8723be_net80211 *n)
     ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
     ifp->if_timer = 0;
     /* Detach may stop an interface that was registered but never started. */
-    if (!n->sc->sc_linux.started &&
-        (n->sc->sc_linux.stage == R23BE_STAGE_PROBED ||
-         n->sc->sc_linux.stage == R23BE_STAGE_STOPPED))
-        return 0;
-    if (!n->sc->sc_linux.started ||
-        n->sc->sc_linux.stage != R23BE_STAGE_RUNNING)
+    if (!n->sc->sc_linux.started) {
+        if (rtwn8723be_net80211_unstarted_detach_allowed(
+            &n->sc->sc_linux))
+            return 0;
+        return EBUSY;
+    }
+    if (n->sc->sc_linux.stage != R23BE_STAGE_RUNNING)
         return EBUSY; /* An interrupted stop needs explicit recovery. */
     if (n->methods.hw_stop == NULL)
         return ENOSYS;
@@ -177,7 +179,7 @@ rtwn8723be_net80211_register(struct rtwn8723be_net80211 *n,
 {
     struct ieee80211com *ic;
     struct ifnet *ifp;
-    unsigned int ch;
+    int error;
 
     if (n == NULL || sc == NULL || methods == NULL)
         return EINVAL;
@@ -194,9 +196,6 @@ rtwn8723be_net80211_register(struct rtwn8723be_net80211 *n,
         sc->sc_macaddr[4] == 0 && sc->sc_macaddr[5] == 0))
         return EINVAL;
 
-    sc->sc_security_policy_valid = false;
-    n->sc = sc;
-    n->methods = *methods;
     ic = &sc->sc_ic;
     ifp = &sc->sc_ec.ec_if;
     ic->ic_ifp = ifp;
@@ -214,13 +213,13 @@ rtwn8723be_net80211_register(struct rtwn8723be_net80211 *n,
         IEEE80211_C_WPA2;
     ic->ic_sup_rates[IEEE80211_MODE_11B] = ieee80211_std_rateset_11b;
     ic->ic_sup_rates[IEEE80211_MODE_11G] = ieee80211_std_rateset_11g;
-    for (ch = 1; ch <= 14; ch++) {
-        ic->ic_channels[ch].ic_freq =
-            ieee80211_ieee2mhz(ch, IEEE80211_CHAN_2GHZ);
-        ic->ic_channels[ch].ic_flags =
-            IEEE80211_CHAN_CCK | IEEE80211_CHAN_OFDM |
-            IEEE80211_CHAN_DYN | IEEE80211_CHAN_2GHZ;
-    }
+    error = rtwn8723be_netbsd_apply_world_regdomain(sc);
+    if (error != 0)
+        return error;
+
+    sc->sc_security_policy_valid = false;
+    n->sc = sc;
+    n->methods = *methods;
 
     ifp->if_softc = n;
     ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
