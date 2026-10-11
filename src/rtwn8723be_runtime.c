@@ -1163,8 +1163,35 @@ rtwn8723be_runtime_stop(struct rtwn8723be_softc *sc)
     mutex_exit(&r->lifecycle_lock);
     runtime_jobs_drain(sc);
     mutex_enter(&r->lifecycle_lock);
+    /*
+     * Probe registers net80211 before RFkill and before establishing the
+     * PCI interrupt, but it does NOT start firmware or RX/TX engines.
+     * Failed probe/normal detach must be able to retire that unstarted
+     * ifnet without running the hardware-start-only poweroff/HALT path.
+     *
+     * Never mistake a partially started HW_INIT failure for an unstarted
+     * probe: accept only the exact pre-start stages and verify firmware,
+     * HAL, BTC and interrupt state before making this no-poweroff exit.
+     * The owner then unregisters net80211 and frees DMA in reverse order.
+     */
     if (!sc->sc_linux.started &&
-        (sc->sc_linux.stage <= R23BE_STAGE_PROBED ||
+        (sc->sc_linux.stage == R23BE_STAGE_IEEE80211_REGISTER ||
+         sc->sc_linux.stage == R23BE_STAGE_RFKILL ||
+         sc->sc_linux.stage == R23BE_STAGE_IRQ_ESTABLISH ||
+         sc->sc_linux.stage == R23BE_STAGE_PROBED) &&
+        !sc->sc_linux.being_init_adapter &&
+        !sc->sc_linux.fw_ready &&
+        !sc->sc_h2c.state.firmware_ready &&
+        !sc->sc_hal_started &&
+        !sc->sc_btc.initialized &&
+        !sc->sc_irq_enabled) {
+        rtwn8723be_netbsd_disestablish_irq(sc);
+        r->transition = false;
+        mutex_exit(&r->lifecycle_lock);
+        return 0;
+    }
+    if (!sc->sc_linux.started &&
+        (sc->sc_linux.stage <= R23BE_STAGE_PCI_RINGS ||
          (sc->sc_linux.stage == R23BE_STAGE_STOPPED && r->poweroff_verified &&
           r->mcu_rx_drained && !sc->sc_btc.initialized))) {
         rtwn8723be_netbsd_disestablish_irq(sc);
