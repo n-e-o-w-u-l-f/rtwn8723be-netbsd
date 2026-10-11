@@ -2301,10 +2301,27 @@ rtwn8723be_netbsd_mark_hal_stop(void *arg)
 }
 
 /*
- * Foundation of the full Linux probe/start state machine.  Unspecified
- * callbacks remain NULL until their exact Linux hardware semantics have been
- * ported; rtwn8723be_linux_state.c will reject such an incomplete transition
- * with ENOSYS rather than touching hardware out of order.
+ * Linux rtl8723be_hw_init calls BTC INIT_HW and INIT_DM synchronously.
+ * NetBSD's native handler performs that real register/algorithm work.
+ * Only after it succeeds may the runtime publish the RF/MAC generation
+ * and provide channel, media, BT-MP and DM lifecycle state.
+ */
+static int
+rtwn8723be_netbsd_bt_hw_runtime_init(void *arg)
+{
+    int error;
+
+    error = rtwn8723be_netbsd_bt_hw_init(arg);
+    if (error != 0)
+        return error;
+    return rtwn8723be_runtime_bt_hw_init(arg);
+}
+
+/*
+ * WIP native Linux-stage callback graph. The initial PCI probe, registered
+ * net80211 interface, RFkill, Bluetooth, DM and teardown each have explicit
+ * owners. This source graph is opt-in: never install/boot without native
+ * kernel-link, regulatory, RX/IRQ/DMA, WPA2 and recovery acceptance gates.
  */
 const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .pci_enable = rtwn8723be_netbsd_pci_enable,
@@ -2321,7 +2338,10 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .init_aspm = rtwn8723be_netbsd_init_aspm,
     .init_core = rtwn8723be_netbsd_init_core,
     .init_pci_rings = rtwn8723be_netbsd_init_pci_rings,
+    .register_ieee80211 = rtwn8723be_runtime_register,
+    .init_rfkill = rtwn8723be_runtime_rfkill_init,
     .reset_trx_ring = rtwn8723be_netbsd_reset_trx_ring,
+    .bt_prepare = rtwn8723be_runtime_bt_prepare,
     .disable_aspm = rtwn8723be_netbsd_disable_aspm,
     .read_cr = rtwn8723be_netbsd_read_cr,
     .check_pcie_dma_hang = rtwn8723be_netbsd_check_pcie_dma_hang,
@@ -2348,7 +2368,8 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .release_pcie_dma = rtwn8723be_netbsd_release_pcie_dma,
     .enable_aspm = rtwn8723be_netbsd_enable_aspm,
     .enable_aspm_backdoor = rtwn8723be_netbsd_enable_aspm_backdoor,
-    .bt_hw_init = rtwn8723be_netbsd_bt_hw_init,
+    .bt_hw_init = rtwn8723be_netbsd_bt_hw_runtime_init,
+    .dm_init = rtwn8723be_runtime_dm_init,
     .establish_irq = rtwn8723be_netbsd_establish_irq,
     .enable_interrupt = rtwn8723be_netbsd_enable_interrupt,
     .init_rx_config = rtwn8723be_netbsd_init_rx_config,
