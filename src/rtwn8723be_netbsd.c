@@ -834,13 +834,53 @@ rtwn8723be_netbsd_init_leds(void *arg)
     return 0;
 }
 
+/*
+ * Conservative world-regdomain baseline from frozen Linux rtlwifi/regd.c:
+ * CH1–11 permit active CCK/OFDM scan, CH12–13 require passive scan,
+ * CH14 is passive CCK-only. This is NOT a DE-country grant or a replacement
+ * for a future validated EEPROM/cfg80211 country-policy owner.
+ *
+ * Use one NetBSD publication helper at both core and ifnet registration;
+ * otherwise the later net80211 setup can silently re-enable active scan
+ * on channels the immutable hardware policy marked passive.
+ */
+int
+rtwn8723be_netbsd_apply_world_regdomain(struct rtwn8723be_softc *sc)
+{
+    struct ieee80211com *ic;
+    unsigned int ch;
+
+    if (sc == NULL)
+        return EINVAL;
+    ic = &sc->sc_ic;
+    for (ch = 1; ch <= 14U; ch++) {
+        ic->ic_channels[ch].ic_freq =
+            ieee80211_ieee2mhz(ch, IEEE80211_CHAN_2GHZ);
+        if (ch <= 11U) {
+            ic->ic_channels[ch].ic_flags =
+                IEEE80211_CHAN_CCK | IEEE80211_CHAN_OFDM |
+                IEEE80211_CHAN_DYN | IEEE80211_CHAN_2GHZ;
+        } else if (ch <= 13U) {
+            ic->ic_channels[ch].ic_flags =
+                IEEE80211_CHAN_CCK | IEEE80211_CHAN_OFDM |
+                IEEE80211_CHAN_DYN | IEEE80211_CHAN_2GHZ |
+                IEEE80211_CHAN_PASSIVE;
+        } else {
+            ic->ic_channels[ch].ic_flags =
+                IEEE80211_CHAN_CCK | IEEE80211_CHAN_2GHZ |
+                IEEE80211_CHAN_PASSIVE;
+        }
+    }
+    return 0;
+}
+
 int
 rtwn8723be_netbsd_init_core(void *arg)
 {
     struct rtwn8723be_softc *sc = arg;
     struct ieee80211com *ic = &sc->sc_ic;
     struct ifnet *ifp = &sc->sc_ec.ec_if;
-    unsigned int i;
+    int error;
 
     if (!sc->sc_efuse_autoload_ok)
         return ENXIO;
@@ -877,13 +917,9 @@ rtwn8723be_netbsd_init_core(void *arg)
     ic->ic_sup_rates[IEEE80211_MODE_11B] = ieee80211_std_rateset_11b;
     ic->ic_sup_rates[IEEE80211_MODE_11G] = ieee80211_std_rateset_11g;
 
-    for (i = 1; i <= 14; i++) {
-        ic->ic_channels[i].ic_freq =
-            ieee80211_ieee2mhz(i, IEEE80211_CHAN_2GHZ);
-        ic->ic_channels[i].ic_flags =
-            IEEE80211_CHAN_CCK | IEEE80211_CHAN_OFDM |
-            IEEE80211_CHAN_DYN | IEEE80211_CHAN_2GHZ;
-    }
+    error = rtwn8723be_netbsd_apply_world_regdomain(sc);
+    if (error != 0)
+        return error;
 
     IEEE80211_ADDR_COPY(ic->ic_myaddr, sc->sc_macaddr);
     sc->sc_core_initialized = true;
