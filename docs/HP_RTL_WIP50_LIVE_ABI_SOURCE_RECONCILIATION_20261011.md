@@ -42,6 +42,18 @@ Thus **126/126 referenced symbol names have a known F77 kernel or NetBSD object 
 
 On the actual HP, seven separate source regressions passed in one clean run: `test_irq_mutex_single_owner.py`, `test_runtime_sw_owner_order.py`, `test_reserved_beacon_native_source.py`, `test_failed_probe_net80211_rollback.py`, `test_runtime_dma_reset_owner.py`, `test_full_runtime_callbacks_source.py`, `test_port_closure_inventory.py`. The last test still deliberately reports `CALLBACK_AND_PG_CLOSURE=OPEN` for real RF/BTC/hardware teardown acceptance.
 
+## Full native NetBSD kernel `dependall` — diagnosed linker environment blocker
+
+New owner source stage `rtl-kconfig-live-inc-20261011` first completed dependencies and proceeded to NetBSD library/kernel C builds. The initial full `dependall` failed **exit 2** at `obj/lib/kern/libkern.o` because **target cross-GCC's `collect2` could not locate executable `ld`**; the exact log says `collect2: fatal error: cannot find 'ld'`. The 50 RTL C source/object/partial-link tests remained sound and untouched. This was NOT a driver symbol, Linux callback or LLVM error.
+
+FAILURE_FINGERPRINT: `NetBSD full kernel dependall | HP owner isolated libkern.o | cross-GCC collect2 target-ld PATH resolution | NetBSD11 + native /usr/tools + owner nbmake wrapper | executable netbsd ELF linked`. Class: technical build environment / **defective linker preflight**; a successful `gcc -c` does not validate `gcc -nostdlib -r`. Do not repeat that older owner wrapper as-is without the verified explicit linker PATH.
+
+Remediation verified on the *actual* HP: owner-local `rtl-linker-preflight/tools/ld` symlink to `/usr/tools/bin/x86_64--netbsd-ld`, PATH prepended to the build environment. A real `x86_64--netbsd-gcc -nostdlib -r` emitted a valid ELF relocatable object. Fixed `tools/configure_hp_live_native_50.py` now automatically creates a private target `ld` and performs an executable GCC+link test before any full kernel build. A newly generated isolated Kconfig stage `rtl-kconfig-live-crossld-20261011/status.json` reports `target_linker_preflight_pass=true`, `CONFIGURED_50_WIP_RULES_PASS`; `cross-linker-probe-linked.o` exists (1152 bytes). The newly generated source overlay did not touch `/usr/src` or `/netbsd`.
+
+Original full-log: `rtl-kconfig-live-inc-20261011/full-kernel-link.log`, state `FAILED:2`. In-place **incremental continuation** with the corrected linker lookup: `rtl-kconfig-live-inc-20261011/full-kernel-link-ldfixed.log` and `full-kernel-link-ldfixed.state`. At 07:21:53 CEST this job was `RUNNING`, already **585** combined kernel object files and no new compiler errors; the full ELF link had **not** occurred. This check is a real host-local process, not a claim of future ChatGPT asynchronous delivery.
+
+The original 50-unit source snapshot is unchanged while this kernel compiles. Separately, the experimental RX management filter patch is committed in GitHub and HP GCC tested but **is not yet in the compiling source snapshot**. Preserve this distinction in all acceptance claims.
+
 ## Unmet acceptance gates
 
 - Full selected executable kernel link and ELF identity (50-partial `ld -r` is NOT a kernel `netbsd` link), actual PCI attach, tested cleanup/failure injection, IRQ, DMA, RF/EFUSE regulatory, net80211 RX/beacons, association and WPA2 key handshake, DHCP/DNS, traffic, PM & recovery remain OPEN.
