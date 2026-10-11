@@ -60,7 +60,17 @@ static struct rtwn8723be_linux_ops start_ops(void)
     struct rtwn8723be_linux_ops o = {0};
     o.reset_trx_ring = step;
     o.bt_prepare = step;
+    o.establish_irq = step;
     o.disable_aspm = step;
+    /*
+     * Unlike the unbound main foundation, this native 50-unit WIP
+     * requires complete inverse hardware callbacks on EVERY start.
+     */
+    o.bt_halt_deinit = step;
+    o.mark_hal_stop = step;
+    o.disable_interrupt = step;
+    o.wait_rf_change_idle = step;
+    o.hw_disable = step;
     o.read_cr = read_cr;
     o.check_pcie_dma_hang = check_dma_hang;
     o.reset_pcie_interface_dma = reset_dma;
@@ -149,6 +159,20 @@ int main(void)
     s.started = false;
     assert(rtwn8723be_linux_adapter_start(&c, &s, &ops) == EAGAIN);
     assert(c.calls == 0 && s.stage == R23BE_STAGE_STOPPING);
+
+    /*
+     * A missing native reverse owner must reject startup before any DMA,
+     * IRQ, firmware or rf work and leave the previous PROBED state intact.
+     * The WIP really binds these owners; main's inert lifecycle is separate.
+     */
+    c.calls = 0;
+    s = (struct rtwn8723be_linux_state){0};
+    s.stage = R23BE_STAGE_PROBED;
+    ops = start_ops();
+    ops.hw_disable = NULL;
+    assert(rtwn8723be_linux_adapter_start(&c, &s, &ops) == ENOSYS);
+    assert(c.calls == 0 && s.stage == R23BE_STAGE_PROBED &&
+           !s.started && !s.fw_ready);
 
     /*
      * A failing final start callback must NOT publish RUNNING. The half
