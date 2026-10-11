@@ -2,6 +2,30 @@
 
 STATUS: **FULL 50-UNIT NETBSD KERNEL LINKED; NEXT SOURCE REVISION NOT YET REBUILT; RADIO RX/WPA2 NOT TESTED.** Times Europe/Berlin. This record supersedes earlier partial-link claims; it does not promote a kernel to TESTREADY or production.
 
+## 2e5a2cc source-pinned full kernel link: independently proven
+
+**New exact HP terminal evidence supplied 2026-10-12 at approximately 01:28 CEST, describing the completed 2026-10-11 build.** This result closes the full **KERNEL_LINK** gate for **source 2e5a2cc97b9bbae3e55aa984e1477e7c29858bce**, including the earlier management RX filter and source state as of that Git commit. It does **not** cover any subsequent WIP source changes (pre-DM calibration fix, later BT event ordering, stop-owner preflight, regulator fixes, RF owner publication or source snapshot hardening).
+
+```text
+=== STATUS ===
+LINKED source=2e5a2cc97b9bbae3e55aa984e1477e7c29858bce ident=HP-RTL50-2e5a2cc97b9b-SAFE-GENFB
+=== PROZESSE ===
+=== KERNEL ===
+NetBSD 11.0 (HP-RTL50-2e5a2cc97b9b-SAFE-GENFB) #0: Sun Oct 11 13:03:55 CEST 2026
+SHA256 (.../rtl-kconfig-live-2e5a2cc97b9b/obj/netbsd) = 2eecc4e188c247514d5bc5b639c2773f3d8a823e4f84cc3a65e7e4960471a423
+```
+
+**Scope of validation:** user SSH readback of persisted `LINKED` status, embedded `what(1)` kernel identity, reproducible artifact pathname and SHA-256. The process grep displayed no remaining `nbmake`/`x86_64--netbsd-gcc`/`x86_64--netbsd-ld` processes at this observation. It is one successful link for an exact historical source snapshot, not evidence that the latest source has built or run.
+
+**Safety:** no kernel installation, `/netbsd` overwrite, reboot, radio activation, physical WLAN scan, WPA2 handshake, i915 DRM/KMS takeover or F77 fallback change is evidenced. No assumptions about post-SSH current boot identity. The new script `tools/build_hp_rtl50_next_candidate.sh` produces a *new* short-Git-SHA directory and will refuse unexpected runtime host/boot/branch state. It snapshots its RTL C/H/INC inputs, SHA-checks them before and after compile, requires all regression checks and never installs/reboots.
+
+**Next authorized execution:** after confirming the HP source checkout is clean, F77 is still the selected running kernel and there are no active builds, `git pull --ff-only origin wip/hp-rtl-runtime-48-merge-20261010` and invoke the checked HP-only build runner **once**. On initial regression failure, preserve the error for source repair rather than repeating an expensive kernel build. Read back `full-link.state`, `what`, SHA-256 and compiler log from the new SHA directory. Physical Wi-Fi/DRM acceptance remains OPEN.
+
+**NetBSD reference audit:** current NetBSD `sys/net80211/_ieee80211.h` defines `IEEE80211_CHAN_PASSIVE` (0x00000200), `IEEE80211_CHAN_CCK`, `IEEE80211_CHAN_DYN` and `IEEE80211_CHAN_2GHZ`. The NetBSD `sys/arch/amd64/conf/GENERIC` contains `nouveau* at pci? dev ? function ?`, so the future private `no nouveau* at pci?` exclusion addresses an actual GENERIC attachment. These are source confirmations; generated NetBSD 11 `nbconfig` must still accept the exact private candidate config.
+
+- https://github.com/NetBSD/src/blob/trunk/sys/net80211/_ieee80211.h
+- https://github.com/NetBSD/src/blob/trunk/sys/arch/amd64/conf/GENERIC
+
 ## Real HP NetBSD executable link: supplied and checked 2026-10-11
 
 At approx 07:50 CEST on 2026-10-11, the native HP owner build completed in the isolated, immutable pre-RX-filter source staging directory:
