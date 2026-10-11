@@ -28,16 +28,13 @@ open. A small Net80211 rollback helper now permits an interface that was
 registered but never started to unwind only the post-registration probe
 stages; it does not bind PCI, DMA, IRQ, RFKill or net80211 to live hardware.
 
-Historical HP evidence exists for the prior 44-unit commit:
-
-- all selected objects compiled with i915 excluded;
-- the source-tree integrity check passed; and
-- the subsequent private-kernel link stopped before `obj/netbsd` while
-  building `libkern.o`, with `collect2: fatal error: cannot find 'ld'`.
-
-That is an isolated toolchain linker-discovery blocker, not a successful
-kernel link or an RTL/i915 driver result. No current candidate was installed
-or booted. See [STATUS.md](STATUS.md) and the
+The first complete private HP kernel link has now succeeded for the 45-unit
+Shadow E build at `f57eaea`: i915 was excluded, the original PCI source-tree
+integrity check passed, all selected objects built, and the separate kernel
+identifies as `RTWN8723BE-NATIVE-SHADOW`. Its SHA-256 is
+`77be29c81d0f5a243f7c20cd54be857e46c323f6137ee6f46876d9826e6730f1`.
+This was an isolated build only: no candidate was installed or booted, and it
+does not establish a working WLAN driver. See [STATUS.md](STATUS.md) and the
 [native object checkpoint](docs/HP_NATIVE_OBJECT_CHECKPOINT_20261011.md).
 
 Complete native lifecycle ownership, callback binding, kernel link/install

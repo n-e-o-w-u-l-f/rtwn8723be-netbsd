@@ -16,7 +16,7 @@ owners:
 - `bt_prepare`
 - `dm_init`
 
-## Historical 44-unit evidence
+## Native build evidence
 
 The previous 44-unit revision
 `409d1b739ea96dcebe697d73c7d4b6c83ae4d00c` generated all selected compile
@@ -24,20 +24,27 @@ rules, excluded i915 from the private configuration, preserved the original
 PCI manifest, and compiled all 44 objects nonempty. The ordered aggregate is
 `1c588c7d4a6fb466ebe50232427b7e543ea52dfeeb67c3b6d59c54c2f31c14f0`.
 
-That object result does not cover the current 45-unit selection. The next
-complete private-kernel link stopped at `libkern.o` before `obj/netbsd`
-existed because `collect2` could not locate `ld`. It is not a driver link or
-hardware result.
+That historical object result does not cover the current 45-unit selection.
+Shadow E at `f57eaeadef553d04692231e283e400d61630c967` does: all 45 objects
+are nonempty; its object aggregate is
+`c76cc21790575f56d3c5d35db8ca7a25acc192362f7aa52acbbbeef7cbc84839`; the
+original PCI manifest hash remains
+`584bf78070c5868e2e48d0e563949cbf70a958b08166150f5363cfcbf5d7b707`; and
+i915 is absent from both the private config and the generated Makefile.
+
+The full private link also succeeded. Its `netbsd` SHA-256 is
+`77be29c81d0f5a243f7c20cd54be857e46c323f6137ee6f46876d9826e6730f1` and
+the embedded identity is `RTWN8723BE-NATIVE-SHADOW`. This is build evidence,
+not a hardware test, installation, or boot authorization.
 
 ## Required next evidence
 
-1. Diagnose the toolchain's linker lookup without changing the system source
-   tree or silently adding a local workaround.
-2. Recreate an isolated 45-unit HP source/object stage from the Git revision.
-3. Generate all 45 native rules and prove i915 exclusion/source integrity.
-4. Compile and hash all 45 objects, then perform a complete private-kernel
+1. Recreate an isolated 45-unit HP source/object stage from the current Git
+   revision.
+2. Generate all 45 native rules and prove i915 exclusion/source integrity.
+3. Compile and hash all 45 objects, then perform a complete private-kernel
    link.
-5. Close the four lifecycle owners with real NetBSD API integrations and
+4. Close the four lifecycle owners with real NetBSD API integrations and
    reverse teardown before enabling PCI attach or IRQ binding.
-6. Test scan with received BSS entries, association, traffic, recovery,
+5. Test scan with received BSS entries, association, traffic, recovery,
    suspend/resume and detach before packaging.

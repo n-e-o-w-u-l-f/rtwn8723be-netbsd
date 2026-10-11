@@ -22,16 +22,23 @@
     `60b4e0b48fbe3b576af7dd2f318ff906896a3aa60d087a5a8ef32dcb4521d2b0`
   - `rtwn8723be_native.o`:
     `21593184f1248b15f73bb4460450a08ceacffeff5db1dc381d22209ac028df3c`
-- The subsequent full private `netbsd` link stopped before producing
-  `obj/netbsd`, while linking the standard kernel library `libkern.o`:
-
-  ```
-  collect2: fatal error: cannot find 'ld'
-  ```
-
-  The prefixed linker exists and a direct linker probe succeeds. This is an
-  unresolved toolchain lookup problem, not a successful kernel link and not
-  evidence about RTL or i915 runtime behavior.
+- Shadow E at `f57eaeadef553d04692231e283e400d61630c967` is the current
+  45-object private build result. It selected and built all 45 native objects
+  nonempty, preserved the original PCI manifest hash
+  `584bf78070c5868e2e48d0e563949cbf70a958b08166150f5363cfcbf5d7b707`, and
+  explicitly excluded i915 both in the config and rendered Makefile.
+- The full private `netbsd` link completed successfully in Shadow E. The
+  kernel SHA-256 is
+  `77be29c81d0f5a243f7c20cd54be857e46c323f6137ee6f46876d9826e6730f1`; its
+  embedded identity is `RTWN8723BE-NATIVE-SHADOW`. The object aggregate is
+  `c76cc21790575f56d3c5d35db8ca7a25acc192362f7aa52acbbbeef7cbc84839`, the
+  object-build log SHA-256 is
+  `ab71dbeeda83f72eed40bb45d506d0328e569d09f6c2c13c1c811a1f24aec955`, and
+  the link-log SHA-256 is
+  `8f84bc530a75aee1c217b6dca5f23cbd05097424da33a9dcf2bd37c76c9029f0`.
+- The earlier linker lookup failure was resolved only for this command by an
+  explicit `PATH=/usr/tools/bin:...`; no system-wide toolchain change was
+  made. No kernel was installed or booted.
 - A fresh checkout at `84f1b9704e7fa1628b729a8da5ae6cb819155d38` passed all
   53 HP-only regression scripts. The runner's result directory is now passed
   to tests as their artifact work directory, replacing a stale hard-coded
@@ -40,10 +47,10 @@
 
 ## ÄNDERUNGEN
 
-- The current source selection is now 45 C units. The new
+- The current source selection is 45 C units. The new
   `rtwn8723be_regdomain.c` supplies only the conservative Linux-world
-  regulatory baseline. Its portable strict-C11 test passed; it has not yet
-  been included in a native 45-object build.
+  regulatory baseline. Its portable strict-C11 test passed and it is included
+  in the successful native 45-object build.
 - Net80211 registration now avoids publishing partial owner state before the
   fallible world-regdomain setup succeeds.
 - A small header-only policy permits unstarted rollback only after successful
@@ -54,13 +61,11 @@
 
 ## NEXT
 
-1. Reproduce and resolve the `collect2` linker-discovery failure with a
-   documented toolchain fix, rather than a local PATH workaround.
-2. Create a fresh 45-unit private shadow from the Git revision, prove the
+1. Create a fresh 45-unit private shadow from the current Git revision, prove the
    i915 exclusion and original-source integrity, then compile/hash every
    selected object.
-3. Retry the complete private-kernel link only after the 45-object gate.
-4. Implement the remaining real lifecycle owners and their reverse cleanup
+2. Retry the complete private-kernel link only after the 45-object gate.
+3. Implement the remaining real lifecycle owners and their reverse cleanup
    before any PCI probe binding or hardware test.
-5. Keep i915 trace-only pending physical early serial evidence; never boot
+4. Keep i915 trace-only pending physical early serial evidence; never boot
    F16.0, F83 or F84.

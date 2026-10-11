@@ -17,7 +17,8 @@ Target hardware is HP TPN-W121 on NetBSD 11.0 amd64:
 The current private manifest contains 45 C units. It remains intentionally
 unbound: `register_ieee80211`, `init_rfkill`, `bt_prepare`, and `dm_init` are
 not live lifecycle owners, so the current source does not activate PCI, DMA,
-IRQ, RFKill or a net80211 device on the HP.
+IRQ, RFKill or a net80211 device on the HP. GitHub `main` is currently
+`229269002a7a52bb3620988ae46c15f6a217d709`.
 
 Historical Shadow D evidence at commit
 `409d1b739ea96dcebe697d73c7d4b6c83ae4d00c` is limited but positive:
@@ -28,16 +29,26 @@ Historical Shadow D evidence at commit
 - their ordered SHA-256 aggregate is
   `1c588c7d4a6fb466ebe50232427b7e543ea52dfeeb67c3b6d59c54c2f31c14f0`.
 
-The following complete private `netbsd` link failed before `obj/netbsd`
-existed while building `libkern.o`:
+The current 45-unit Shadow E stage, built from
+`f57eaeadef553d04692231e283e400d61630c967`, is the first complete private
+kernel-link evidence:
 
-```
-collect2: fatal error: cannot find 'ld'
-```
+- all 45 selected C objects compiled nonempty;
+- the ordered object aggregate is
+  `c76cc21790575f56d3c5d35db8ca7a25acc192362f7aa52acbbbeef7cbc84839`;
+- the original `/usr/src/sys/dev/pci/files.pci` still hashes to
+  `584bf78070c5868e2e48d0e563949cbf70a958b08166150f5363cfcbf5d7b707`;
+- the private config contains `no i915drmkms*`, and the rendered Makefile has
+  no i915 input; and
+- the full private `netbsd` link succeeded. Its SHA-256 is
+  `77be29c81d0f5a243f7c20cd54be857e46c323f6137ee6f46876d9826e6730f1` and
+  its identity is `RTWN8723BE-NATIVE-SHADOW`.
 
-The target-prefixed linker exists and can link a direct probe; the failure is
-therefore currently recorded as a toolchain linker-discovery issue, not as an
-RTL/i915 compile result. No candidate was installed or booted from that link.
+The prior `collect2: fatal error: cannot find 'ld'` was traced to the
+non-interactive build environment omitting `/usr/tools/bin`. The successful
+link uses an explicit per-command `PATH` containing that tool directory; no
+system profile, symlink, source tree, installed kernel, or boot entry was
+changed. Link success is build evidence only, not WLAN acceptance.
 
 A fresh checkout at `84f1b9704e7fa1628b729a8da5ae6cb819155d38` completed
 all 53 HP-only regression scripts successfully. The batch runner now supplies
@@ -62,21 +73,25 @@ hardware result.
   `if_rtwn.c`; no speculative locking change was made.
 - CI now executes the new regulatory and Net80211 regression tests on source
   and test-only changes.
+- Replaced the earlier generic failed-start abort with the exact Linux-shaped
+  behavior: a pre-`RUNNING` error returns directly and retains its last stage
+  as a fail-closed quarantine. The Red/Green C11 regression proves that no
+  normal stop callback is invoked for a failed `mark_hal_start` path.
+- Completed the isolated 45-object and full private-kernel link described
+  above, still with i915 excluded and without installing or booting it.
 
 ## NEXT
 
-1. Diagnose and reproduce the isolated `collect2` linker-discovery failure;
-   do not mask it with an unverified system-toolchain change.
-2. From the resulting Git revision, create a fresh 45-unit private HP shadow,
-   prove i915 is excluded and original source integrity is unchanged, then
-   generate, compile and hash all 45 selected objects.
-3. Retry the complete private-kernel link only after that object gate passes.
-   A link result is still not permission to install or boot a kernel.
-4. Close the real lifecycle owners in reverse-cleanup order before binding any
-   operation to the PCI probe path. Preserve explicit recovery for failed
-   hardware-start states.
-5. Keep i915 trace-only until a physical early serial capture exists. Never
+1. Repeat the complete isolated object/link gate from `2292690`; the prior
+   Shadow E is tied to the earlier source revision and is not reused.
+2. Design and test the full resource-journaled pre-`RUNNING` recovery owner
+   before binding any lifecycle callback. It must mask and drain start-local
+   IRQ work before resource teardown, preserve probe-owned allocations, and
+   never reuse the normal `RUNNING` stop path.
+3. Close real lifecycle owners in reverse-cleanup order before binding any
+   operation to the PCI probe path.
+4. Keep i915 trace-only until a physical early serial capture exists. Never
    use F16.0, F83 or F84 as a test kernel.
-6. Test scan with received BSS entries, authentication, association, traffic,
+5. Test scan with received BSS entries, authentication, association, traffic,
    recovery, suspend/resume and detach only after full runtime closure.
    Package work follows that hardware acceptance.
