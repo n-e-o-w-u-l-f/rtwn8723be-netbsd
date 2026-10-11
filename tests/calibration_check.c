@@ -338,10 +338,24 @@ int main(void)
     input.btc_bound = false;
     assert(rtwn8723be_calibration_run(&context, &state, &input) == ENXIO);
     input.btc_bound = true;
+    /*
+     * Frozen hw_init: ERFON IQK/LCK precedes dm_init. An uninitialized DM
+     * may NOT block the first RF calibration unless the caller explicitly
+     * enabled thermal tracking, which requires its real DM producer.
+     */
     input.dm_state_valid = false;
+    input.txpower_tracking = true;
     assert(rtwn8723be_calibration_run(&context, &state, &input) == ENXIO);
+    assert(actual.calls == 0 && actual.count == 0);
+    input.txpower_tracking = false;
+    input.btc_ant_num = 1U; /* one antenna: LCK runs, IQK skipped */
+    reset(0);
+    memset(&state, 0, sizeof(state));
+    assert(rtwn8723be_calibration_run(&context, &state, &input) == 0);
+    assert(actual.calls != 0 && !state.lck_inprogress);
     input.dm_state_valid = true;
     input.txpower_tracking = input.tm_trigger = true;
+    reset(0);
     assert(rtwn8723be_calibration_run(&context, &state, &input) == ENOTSUP);
     assert(actual.calls == 0 && actual.count == 0);
     input.tm_trigger = false;
