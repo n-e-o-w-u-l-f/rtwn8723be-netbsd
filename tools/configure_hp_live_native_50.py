@@ -89,8 +89,46 @@ def main():
         wrapper=wrapper.replace('NETBSDSRCDIR=/usr/src;',f'NETBSDSRCDIR={out};')
         wrapper=wrapper.replace("MAKEOBJDIR='${.CURDIR:C,^/usr/src,/usr/obj,}'",
                                 "MAKEOBJDIR='${.CURDIR:C,^"+str(out)+","+str(out/"obj")+",}'")
+        # Cross GCC's collect2 expects executable 'ld' in PATH, whereas
+        # NetBSD build.sh installed only x86_64--netbsd-ld. The exact
+        # failure was "collect2: fatal error: cannot find 'ld'" at
+        # libkern.o with a clean 50-object native compile. An isolated
+        # PATH and private symlink fix this toolchain lookup, not the
+        # kernel source and not the installed host's linker.
+        cross_cc=Path("/usr/tools/bin/x86_64--netbsd-gcc")
+        cross_ld=Path("/usr/tools/bin/x86_64--netbsd-ld")
+        if not cross_cc.is_file() or not cross_ld.is_file():
+            raise RuntimeError("NetBSD target cross-gcc/linker unavailable")
+        owner_tools=out/"toolchain"
+        owner_tools.mkdir(mode=0o700)
+        (owner_tools/"ld").symlink_to(cross_ld)
+        old_exec='exec "${TOOLDIR}/bin/nbmake"'
+        if old_exec not in wrapper:
+            raise RuntimeError("NetBSD make wrapper entry changed; must audit")
+        wrapper=wrapper.replace(old_exec,
+            'PATH="'+str(owner_tools)+':${TOOLDIR}/bin:$PATH"; export PATH\\n'+old_exec)
         wrapper_path=out/"nbmake-owner"
         wrapper_path.write_text(wrapper);wrapper_path.chmod(0o700)
+        test_c=out/"cross-linker-probe.c"
+        test_o=out/"cross-linker-probe.o"
+        test_link=out/"cross-linker-probe-linked.o"
+        test_c.write_text("int netbsd_owner_link_probe(void){return 0;}\\n")
+        env=os.environ.copy()
+        env["PATH"]=str(owner_tools)+":/usr/tools/bin:"+env.get("PATH","")
+        compile_result=subprocess.run(
+            [str(cross_cc),"-ffreestanding","-c","-o",str(test_o),str(test_c)],
+            text=True,capture_output=True,env=env,timeout=45)
+        link_result=subprocess.run(
+            [str(cross_cc),"-nostdlib","-r","-o",str(test_link),str(test_o)],
+            text=True,capture_output=True,env=env,timeout=45) if compile_result.returncode==0 else None
+        state["target_linker_preflight_pass"]=(
+            compile_result.returncode==0 and link_result is not None and
+            link_result.returncode==0 and test_link.stat().st_size>0
+            if link_result is not None and test_link.exists() else False)
+        if not state["target_linker_preflight_pass"]:
+            raise RuntimeError("NetBSD cross GCC cannot find target ld: "+
+                compile_result.stderr[-400:]+
+                (link_result.stderr[-400:] if link_result else ""))
         rules=[]
         for name in ("rtwn8723be_native.c","rtwn8723be_netbsd.c",
                      "rtwn8723be_runtime.c","rtwn8723be_net80211.c",
