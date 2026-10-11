@@ -32,6 +32,11 @@
   The prefixed linker exists and a direct linker probe succeeds. This is an
   unresolved toolchain lookup problem, not a successful kernel link and not
   evidence about RTL or i915 runtime behavior.
+- A fresh checkout at `84f1b9704e7fa1628b729a8da5ae6cb819155d38` passed all
+  53 HP-only regression scripts. The runner's result directory is now passed
+  to tests as their artifact work directory, replacing a stale hard-coded
+  path. This validates the test batch execution, not a native kernel link or
+  hardware operation.
 
 ## ÄNDERUNGEN
 

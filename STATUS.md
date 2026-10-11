@@ -39,6 +39,13 @@ The target-prefixed linker exists and can link a direct probe; the failure is
 therefore currently recorded as a toolchain linker-discovery issue, not as an
 RTL/i915 compile result. No candidate was installed or booted from that link.
 
+A fresh checkout at `84f1b9704e7fa1628b729a8da5ae6cb819155d38` completed
+all 53 HP-only regression scripts successfully. The batch runner now supplies
+its own result directory as the test-artifact work directory; this fixes the
+former stale `/root/hp-driver-port-20261005` test-harness path without changing
+driver behavior. This is source-test evidence only, not a native link or
+hardware result.
+
 ## ÄNDERUNGEN
 
 - Added a conservative Linux-world 2.4 GHz regulatory baseline: 1–11 active
