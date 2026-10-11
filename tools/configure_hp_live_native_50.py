@@ -43,6 +43,22 @@ def main():
     if len(units)!=50 or len(set(units))!=50: ap.error("50 unique sources required")
     if any(not (ROOT/"src"/name).is_file() for name in units):
         ap.error("source missing")
+    # The previous kernel linked successfully but used a pre-RX-filter
+    # snapshot. Never give multiple source generations the SAME kernel
+    # identity; require a clean, exact Git revision before staging.
+    git_head=subprocess.run(
+        ["git","-C",str(ROOT),"rev-parse","HEAD"],
+        capture_output=True,text=True,timeout=20,check=True).stdout.strip()
+    git_branch=subprocess.run(
+        ["git","-C",str(ROOT),"branch","--show-current"],
+        capture_output=True,text=True,timeout=20,check=True).stdout.strip()
+    git_dirty=subprocess.run(
+        ["git","-C",str(ROOT),"status","--porcelain=v1"],
+        capture_output=True,text=True,timeout=20,check=True).stdout.strip()
+    if not re.fullmatch(r"[0-9a-f]{40}",git_head):
+        ap.error("invalid source commit identity")
+    if git_dirty or git_branch != "wip/hp-rtl-runtime-48-merge-20261010":
+        ap.error("source checkout must be clean and on the WIP branch")
     baseline=BASE.read_text()
     if "rtwn8723be_native" in baseline: ap.error("native source already selected; reconcile")
     out=a.output.resolve()
@@ -52,6 +68,8 @@ def main():
     out.mkdir(mode=0o700)
     status=out/"status.json"
     state={"state":"STAGING","host":socket.gethostname(),
+           "source_commit":git_head,
+           "kernel_ident":"HP-RTL50-"+git_head[:12]+"-SAFE-GENFB",
            "root_pci_sha256":rootsha,"selected":units,
            "output":str(out),"started":datetime.now(timezone.utc).isoformat()}
     def save():
@@ -74,7 +92,7 @@ def main():
             baseline.rstrip()+"\n\n# HP RTL WIP-50 isolated source selection\n"+wip+"\n")
         config=out/"HP-RTL-WIP50"
         config.write_text('include "arch/amd64/conf/GENERIC"\n'
-                          'ident "HP-RTL-WIP50-SAFE-GENFB"\n'
+                          'ident "'+state["kernel_ident"]+'"\n'
                           'no rtwn*\n'
                           'no i915drmkms*\n'
                           'rtwn8723be_native* at pci? dev ? function ?\n')
