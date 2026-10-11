@@ -1142,10 +1142,19 @@ fail:
     mutex_exit(&r->lifecycle_lock);
     runtime_jobs_drain(sc);
     mutex_enter(&r->lifecycle_lock);
+    /*
+     * A failed start and a failed reverse shutdown are DIFFERENT faults.
+     * Preserve the original startup errno for diagnosis, but report an
+     * unsuccessful cleanup to the caller first: that error means the DMA,
+     * IRQ, RF or BTC graph may remain live and a retry is prohibited.
+     * Returning only the initial start errno masked that safety boundary.
+     */
+    if (error != 0 && r->first_error == 0)
+        r->first_error = error;
     cleanup = runtime_shutdown(sc, sc->sc_linux.started);
     r->transition = false;
     mutex_exit(&r->lifecycle_lock);
-    return error != 0 ? error : cleanup;
+    return cleanup != 0 ? cleanup : (error != 0 ? error : EIO);
 }
 
 int
