@@ -1222,7 +1222,14 @@ rtwn8723be_runtime_unregister(struct rtwn8723be_softc *sc)
     mutex_exit(&r->queue_lock);
     mutex_exit(&r->lifecycle_lock);
     error = rtwn8723be_runtime_stop(sc);
-    if (error != 0 && !r->poweroff_verified) return error;
+    /*
+     * A successful firmware poweroff alone does NOT prove RX/TX ring DMA
+     * retirement, BTC worker drain or ASPM restore. runtime_shutdown()
+     * reports all of these through the stop result; never detach ifnet
+     * or free PCI resources after any remaining teardown failure.
+     */
+    if (error != 0)
+        return error;
     mutex_enter(&r->lifecycle_lock);
     mutex_enter(&r->queue_lock);
     r->closing = true;
