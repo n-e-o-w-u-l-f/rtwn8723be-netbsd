@@ -39,9 +39,11 @@ for token in ("ops->reset_trx_ring", "ops->bt_prepare",
               "ops->establish_irq", "rtwn8723be_linux_hw_init",
               "ops->enable_interrupt", "ops->mark_hal_start"):
     assert token in start,token
-assert start.index("ops->reset_trx_ring") < start.index("ops->bt_prepare") < (
-    start.index("ops->establish_irq") < start.index("rtwn8723be_linux_hw_init") <
-    start.index("ops->enable_interrupt") < start.index("ops->mark_hal_start"))
+order = ("ops->reset_trx_ring", "ops->bt_prepare",
+         "ops->establish_irq", "rtwn8723be_linux_hw_init",
+         "ops->enable_interrupt", "ops->mark_hal_start")
+positions = [start.index(name) for name in order]
+assert positions == sorted(positions), list(zip(order, positions))
 assert "ops->establish_irq == NULL" in state
 detach=native[native.index("rtwn8723be_native_detach(device_t self"):native.index(
     "rtwn8723be_native_attach(device_t parent")]
