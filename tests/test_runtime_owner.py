@@ -80,7 +80,7 @@ assert manifest.count("rtwn8723be_runtime_owner.c") == 1
 native_units = re.findall(
     r"^file\s+dev/pci/(rtwn8723be_\w+\.c)\s+rtwn8723be_native$",
     manifest, re.M)
-assert len(native_units) == 45 and len(set(native_units)) == 45
+assert len(native_units) == 46 and len(set(native_units)) == 46
 
 check_owner_body(owner_c)
 for forbidden in (

@@ -53,9 +53,10 @@ try:
     units = re.findall(r"^file\s+dev/pci/(rtwn8723be_\w+\.c)\s+rtwn8723be_native$",
                        manifest, re.M)
     # The current manifest includes the separate TX-DMA and card-disable
-    # owners and world-regdomain policy (45 units).  A prior 43-object build
+    # owners, world-regdomain policy and pre-RUNNING recovery journal
+    # (46 units).  A prior 43-object build
     # is historical evidence only.
-    if len(units) != 45 or len(set(units)) != len(units):
+    if len(units) != 46 or len(set(units)) != len(units):
         raise RuntimeError("unexpected native C manifest; re-inventory first")
     dest = tree / "sys/dev/pci"
     sources = [ROOT / "src" / name for name in units]

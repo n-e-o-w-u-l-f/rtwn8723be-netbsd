@@ -22,13 +22,15 @@ native = set(re.findall(
 ))
 # Keep the source-integrity gate tied to the current manifest.  The former
 # 43-object HP proof is historical; the current manifest selects the inert
-# runtime lifetime foundation and portable world-regdomain policy (45 units).
-assert len(native) == 45
+# runtime lifetime foundation, portable world-regdomain policy and an inert
+# pre-RUNNING recovery journal (46 units).
+assert len(native) == 46
 assert {"rtwn8723be_bb_native.c", "rtwn8723be_txpwr_pg.c",
         "rtwn8723be_rf_channel_state.c", "rtwn8723be_calibration.c",
         "rtwn8723be_calibration_native.c", "rtwn8723be_thermal.c",
         "rtwn8723be_hw_disable.c", "rtwn8723be_hw_disable_native.c", "rtwn8723be_tx_native.c",
         "rtwn8723be_runtime_owner.c", "rtwn8723be_regdomain.c",
+        "rtwn8723be_pre_running_recovery.c",
         "rtwn8723be_btc_mp.c",
         "rtwn8723be_btc_mp_native.c", "rtwn8723be_btc1.c",
         "rtwn8723be_btc2.c", "rtwn8723be_btc_engine.c",
