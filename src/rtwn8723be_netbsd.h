@@ -223,6 +223,7 @@ int rtwn8723be_netbsd_init_io(void *);
 int rtwn8723be_netbsd_read_eeprom_info(void *);
 int rtwn8723be_netbsd_init_sw_vars(void *);
 int rtwn8723be_netbsd_init_leds(void *);
+int rtwn8723be_netbsd_apply_world_regdomain(struct rtwn8723be_softc *);
 int rtwn8723be_netbsd_init_core(void *);
 int rtwn8723be_netbsd_init_pci_rings(void *);
 int rtwn8723be_netbsd_reset_trx_ring(void *);
