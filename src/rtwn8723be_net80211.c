@@ -129,12 +129,21 @@ rtwn8723be_n80211_ioctl(struct ifnet *ifp, u_long cmd, void *data)
         if (error != 0)
             break;
         if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) == IFF_UP) {
+            /*
+             * The native Linux-order start opens firmware, allocates and
+             * drains worker resources, and may sleep. Never execute it
+             * with the network IPL raised by splnet().
+             */
+            splx(s);
             error = rtwn8723be_n80211_ifinit(ifp);
+            s = splnet();
             if (error != 0)
                 ifp->if_flags &= ~IFF_UP;
         } else if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) ==
             IFF_RUNNING) {
+            splx(s);
             error = rtwn8723be_n80211_ifstop(n);
+            s = splnet();
         }
         break;
     case SIOCADDMULTI:
@@ -152,9 +161,12 @@ rtwn8723be_n80211_ioctl(struct ifnet *ifp, u_long cmd, void *data)
         error = 0;
         if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) ==
             (IFF_UP | IFF_RUNNING)) {
+            /* ENETRESET is a full sleepable hardware stop+restart. */
+            splx(s);
             error = rtwn8723be_n80211_ifstop(n);
             if (error == 0)
                 error = rtwn8723be_n80211_ifinit(ifp);
+            s = splnet();
         }
     }
     splx(s);
