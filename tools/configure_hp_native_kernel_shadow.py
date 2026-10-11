@@ -21,20 +21,52 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-STAGE = Path("/root/hp-driver-port-20261005/netbsd-native/sys")
-CONFIG = STAGE / "arch/amd64/conf/HP-RTL-NATIVE-20261005"
-NBTCONFIG = Path("/root/hp-driver-port-20261005/native-tools/bin/nbconfig")
-MAKE = Path("/root/hp-driver-port-20261005/native-tools/bin/nbmake-amd64")
 MANIFEST = ROOT / "config/files.rtwn8723be_native"
 SELECTED = re.compile(
     r"^file\s+dev/pci/(rtwn8723be_\w+\.c)\s+rtwn8723be_native\s*$", re.M)
-OLD_FILE = re.compile(
-    r"^file\s+dev/pci/rtwn8723be_\w+\.c\s+rtwn8723be_native\s*$")
-ROOT_CONFIG_NAME = "HP-RTL-NATIVE-20261005"
+OLD_DECLARATION = re.compile(
+    r"^\s*(?:device\s+rtwn8723be_native:|"
+    r"attach\s+rtwn8723be_native\s+at\s+pci|"
+    r"file\s+dev/pci/rtwn8723be_\w+\.c\s+rtwn8723be_native\s*$)")
+PRIVATE_CONFIG_NAME = "RTWN8723BE-NATIVE-SHADOW"
 
 
 def sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def default_hp_shadow_inputs() -> dict[str, Path]:
+    """Return the immutable NetBSD 11 source and tool locations on HP."""
+    return {
+        "sys": Path("/usr/src/sys"),
+        "nbconfig": Path("/usr/tools/bin/nbconfig"),
+        "make": Path("/usr/tools/bin/nbmake-amd64"),
+    }
+
+
+def hp_shadow_paths(inputs: dict[str, Path]) -> dict[str, Path]:
+    """Derive only read-only source paths from the HP tool locations."""
+    source_sys = inputs["sys"]
+    return {
+        "pci_manifest": source_sys / "dev/pci/files.pci",
+        "baseline_config": source_sys / "arch/amd64/conf/GENERIC",
+    }
+
+
+def render_private_pci_manifest(base: str, native_manifest: str) -> str:
+    """Replace only native declarations with the canonical project manifest."""
+    selected = SELECTED.findall(native_manifest)
+    declarations = native_manifest.splitlines()
+    if (len(selected) != 43 or len(set(selected)) != 43 or
+            sum(line.startswith("device  rtwn8723be_native:")
+                for line in declarations) != 1 or
+            sum(line.startswith("attach  rtwn8723be_native at pci")
+                for line in declarations) != 1):
+        raise RuntimeError("canonical native manifest is incomplete")
+    filtered = [line for line in base.splitlines()
+                if not OLD_DECLARATION.match(line)]
+    return "\n".join(filtered).rstrip("\n") + "\n\n" + \
+        native_manifest.rstrip("\n") + "\n"
 
 
 def populate_links(base: Path, dest: Path, ignore: set[str]) -> None:
@@ -55,10 +87,18 @@ def main() -> None:
         parser.error("REFUSED: NetBSD kernel configure is HP-only")
     if os.geteuid() == 0:
         parser.error("REFUSED: owner workspace only, no root/privilege escalation")
-    if not CONFIG.is_file() or not NBTCONFIG.is_file() or not MAKE.is_file():
-        parser.error("unchanged native NetBSD source/config/tools unavailable")
-    if not (STAGE / "dev/pci/files.pci").is_file():
-        parser.error("pinned native PCI manifest absent")
+    inputs = default_hp_shadow_inputs()
+    source_sys = inputs["sys"]
+    nbconfig = inputs["nbconfig"]
+    make = inputs["make"]
+    paths = hp_shadow_paths(inputs)
+    old_pci = paths["pci_manifest"]
+    baseline_config = paths["baseline_config"]
+    if (not baseline_config.is_file() or not nbconfig.is_file() or
+            not make.is_file()):
+        parser.error("immutable NetBSD 11 source/config/tools unavailable")
+    if not old_pci.is_file():
+        parser.error("NetBSD PCI manifest unavailable")
     selected = SELECTED.findall(MANIFEST.read_text())
     if len(selected) != 43 or len(set(selected)) != 43:
         parser.error("expected exactly 43 unique native C units")
@@ -71,7 +111,6 @@ def main() -> None:
     out.mkdir(mode=0o700)
     shadow = out / "sys"
     out_obj = out / "obj"
-    old_pci = STAGE / "dev/pci/files.pci"
     old_hash = sha(old_pci)
     status = out / "status.json"
     evidence = {
@@ -93,43 +132,37 @@ def main() -> None:
     save()
 
     try:
-        populate_links(STAGE, shadow, {"dev"})
-        populate_links(STAGE / "dev", shadow / "dev", {"pci"})
+        populate_links(source_sys, shadow, {"dev"})
+        populate_links(source_sys / "dev", shadow / "dev", {"pci"})
         # Root source is NEVER a writable symlink path or hardlink target.
         # All owners under the virtual dev/pci dir point to reviewed current
         # GitHub text, with remaining ordinary NetBSD files left untouched.
         current = {
             p.name: p for p in (ROOT / "src").iterdir()
             if p.is_file() and p.name.startswith("rtwn8723be_")
-            and p.suffix in {".c", ".h"}
+            and p.suffix in {".c", ".h", ".inc"}
         }
-        populate_links(STAGE / "dev/pci", shadow / "dev/pci",
+        populate_links(source_sys / "dev/pci", shadow / "dev/pci",
                        {"files.pci"} | set(current))
         for name, source in current.items():
             (shadow / "dev/pci" / name).symlink_to(source)
 
-        lines = old_pci.read_text().splitlines()
-        previous = [line for line in lines if OLD_FILE.match(line)]
-        if len(previous) < 36:
-            raise RuntimeError("unexpected original native PCI manifest baseline")
-        filtered = [line for line in lines if not OLD_FILE.match(line)]
-        if sum(line.strip().startswith("device  rtwn8723be_native:") for line in filtered) != 1:
-            raise RuntimeError("native device definition nonunique")
-        if sum(line.strip().startswith("attach  rtwn8723be_native at pci") for line in filtered) != 1:
-            raise RuntimeError("native attachment definition nonunique")
-        filtered.extend([
-            "",
-            "# HP owner-only source-derived RTL candidate: exactly 43 C units",
-            "# No native device installed/started; this changes no root files.",
-        ])
-        filtered.extend(f"file dev/pci/{name} rtwn8723be_native" for name in selected)
         shadow_manifest = shadow / "dev/pci/files.pci"
-        shadow_manifest.write_text("\n".join(filtered) + "\n")
+        shadow_manifest.write_text(render_private_pci_manifest(
+            old_pci.read_text(), MANIFEST.read_text()))
         generated = SELECTED.findall(shadow_manifest.read_text())
         if generated != selected or sha(old_pci) != old_hash:
             raise RuntimeError("shadow source closure invalid or original source changed")
 
-        command = [str(NBTCONFIG), "-s", str(shadow), "-b", str(out_obj), str(CONFIG)]
+        private_config = out / PRIVATE_CONFIG_NAME
+        baseline_include = baseline_config.relative_to(source_sys).as_posix()
+        private_config.write_text(
+            f'include "{baseline_include}"\n'
+            f'ident "{PRIVATE_CONFIG_NAME}"\n'
+            'no rtwn*\n'
+            'rtwn8723be_native* at pci? dev ? function ?\n')
+        command = [str(nbconfig), "-s", str(shadow), "-b", str(out_obj),
+                   str(private_config)]
         cp = subprocess.run(command, cwd=out, text=True, stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, timeout=180)
         (out / "config.log").write_text(cp.stdout)
@@ -147,7 +180,7 @@ def main() -> None:
         # selection drift and made the 42-object checkpoint look current.
         for name in selected:
             objname = name[:-2] + ".o"
-            dry = subprocess.run([str(MAKE), "-C", str(out_obj),
+            dry = subprocess.run([str(make), "-C", str(out_obj),
                                   "-n", "-B", objname],
                                  cwd=out, stdout=subprocess.PIPE,
                                  stderr=subprocess.STDOUT, text=True, timeout=90)
