@@ -50,6 +50,7 @@ grep -Fq 'R23BE_REG_RXFLTMAP0, 0xffff' "$ROOT/src/rtwn8723be_netbsd.c"
 grep -Fq 'if (error != 0)' "$ROOT/src/rtwn8723be_runtime.c"
 for testname in \
     test_irq_mutex_single_owner.py \
+    test_hp_rtl50_source_snapshot_contract.py \
     test_runtime_sw_owner_order.py \
     test_reserved_beacon_native_source.py \
     test_failed_probe_net80211_rollback.py \
