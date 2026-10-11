@@ -109,6 +109,13 @@ def main():
                           'ident "'+state["kernel_ident"]+'"\n'
                           'no rtwn*\n'
                           'no i915drmkms*\n'
+                          # The HP has Intel CHV (8086:22b1), not NVIDIA.
+                          # NetBSD GENERIC selects nouveau, which caused
+                          # irrelevant NVKM builds in the observed 20 MiB
+                          # RTL-only kernel log. Exact NetBSD GENERIC.local
+                          # syntax: no nouveau* at pci?.
+                          # Fail closed if nbconfig rejects this exclusion.
+                          'no nouveau* at pci?\n'
                           'rtwn8723be_native* at pci? dev ? function ?\n')
         p=subprocess.run([str(CONFIG),"-s",str(out/"sys"),"-b",str(out/"obj"),str(config)],
             text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=180)
