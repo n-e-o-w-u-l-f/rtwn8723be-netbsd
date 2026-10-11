@@ -78,6 +78,11 @@ test -s "$OUT/status.json"
 "$PYTHON" -B "$ROOT/tools/verify_hp_rtl50_source_snapshot.py" \
     --output "$OUT" --source-commit "$HEAD"
 echo "RUNNING source=$HEAD" >"$OUT/full-link.state"
+# A failed post-link identity/snapshot check, a missing utility or an
+# interrupted owner shell must not leave an indefinite false RUNNING token.
+# A SIGKILL cannot be trapped: inspect the actual ps/log evidence in that
+# exceptional case rather than inferring liveness from this status file.
+trap 'rc=$?; if [ "$rc" -ne 0 ] && grep -q "^RUNNING " "$OUT/full-link.state" 2>/dev/null; then printf "FAILED_INCOMPLETE_EXIT:%s source=%s\\n" "$rc" "$HEAD" >"$OUT/full-link.state"; fi' 0
 echo "HP_RTL50_NEXT_KERNEL_BUILD_START commit=$HEAD"
 if "$OUT/nbmake-owner" -C "$OUT/obj" -j2 dependall >"$OUT/full-link.log" 2>&1; then
     :
@@ -91,8 +96,15 @@ fi
 
 # The kernel must still consume the exact immutable source snapshot
 # after the full dependall process; no live-worktree pointer is accepted.
-"$PYTHON" -B "$ROOT/tools/verify_hp_rtl50_source_snapshot.py" \
-    --output "$OUT" --source-commit "$HEAD"
+if "$PYTHON" -B "$ROOT/tools/verify_hp_rtl50_source_snapshot.py" \
+    --output "$OUT" --source-commit "$HEAD"; then
+    :
+else
+    rc=$?
+    echo "FAILED_SOURCE_SNAPSHOT:$rc source=$HEAD" >"$OUT/full-link.state"
+    echo "REFUSED: owner C/H/INC snapshot changed during kernel link" >&2
+    exit "$rc"
+fi
 EXPECTED="HP-RTL50-$SHORT-SAFE-GENFB"
 if [ ! -s "$OUT/obj/netbsd" ] || ! /usr/bin/what "$OUT/obj/netbsd" | grep -F "$EXPECTED" >/dev/null; then
     echo "FAILED_IDENTITY source=$HEAD" >"$OUT/full-link.state"
