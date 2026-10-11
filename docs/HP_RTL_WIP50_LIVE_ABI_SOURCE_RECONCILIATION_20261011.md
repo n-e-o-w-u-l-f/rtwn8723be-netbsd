@@ -32,6 +32,16 @@ The source lives on the isolated branch `wip/hp-rtl-runtime-48-merge-20261010`; 
 3. The first complete 50-object selected Make build failed **because overlay omitted frozen generated `.inc` Bluetooth algorithm sources**. Root cause fixed in the generator by symlinking WIP `.inc` alongside C/H; no blind retry with old overlay.
 4. Corrected owner overlay: `/home/andreas/projects/netbsd-driver-recovery-20261011/rtl-kconfig-live-inc-20261011`. Actual `nbmake-owner -j2` on all 50 native generated object targets **exit 0**, 50 objects present. Native `x86_64--netbsd-ld -r` **exit 0**, output `rtwn8723be_native50.o`, SHA256 `bf96dede97eabaf279956ae2fd6679cad07e21e13331f81592388805fe600e89`; `nm -u` **0 internal RTL imports, 126 external kernel imports**.
 
+## External symbol owner resolution against actual HP F77
+
+The unprivileged HP inspected all **3,076 existing F77 native kernel objects** with `/usr/tools/bin/x86_64--netbsd-nm -g --defined-only`. From **126** undefined imports in the new relocatable 50-object WIP driver:
+- **120** have actual strong/visible symbol definitions in those NetBSD F77 object files. The resulting provider map includes all **18** imported `ieee80211_*` functions with concrete `ieee80211.o`, `ieee80211_node.o`, `ieee80211_input.o`, `ieee80211_output.o`, `ieee80211_ioctl.o` and `ieee80211_crypto.o` object providers.
+- The remaining **six** generic kernel/compiler primitives were independently **verified as defined text symbols inside the live F77 ELF kernel** `/netbsd.v1-f77-linux-efuse-map-20260926`: `atomic_inc_uint`, `membar_producer`, `memcmp`, `memcpy`, `memset`, `strlcpy`.
+
+Thus **126/126 referenced symbol names have a known F77 kernel or NetBSD object provider**. This is not the full new `netbsd` executable link, ABI version proof, hardware RF, PM, attach or WLAN acceptance. No symbol was replaced with a dummy function or bypassed.
+
+On the actual HP, seven separate source regressions passed in one clean run: `test_irq_mutex_single_owner.py`, `test_runtime_sw_owner_order.py`, `test_reserved_beacon_native_source.py`, `test_failed_probe_net80211_rollback.py`, `test_runtime_dma_reset_owner.py`, `test_full_runtime_callbacks_source.py`, `test_port_closure_inventory.py`. The last test still deliberately reports `CALLBACK_AND_PG_CLOSURE=OPEN` for real RF/BTC/hardware teardown acceptance.
+
 ## Unmet acceptance gates
 
 - Full selected executable kernel link and ELF identity (50-partial `ld -r` is NOT a kernel `netbsd` link), actual PCI attach, tested cleanup/failure injection, IRQ, DMA, RF/EFUSE regulatory, net80211 RX/beacons, association and WPA2 key handshake, DHCP/DNS, traffic, PM & recovery remain OPEN.
