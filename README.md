@@ -20,15 +20,16 @@ Version **0.1.0** remains experimental. F77 is the verified HP recovery
 kernel; it is not evidence that the current source tree is a working WLAN
 driver.
 
-The current private manifest selects 45 C units. The new conservative
+The current private manifest selects 46 C units. The conservative
 world-regdomain unit represents Linux's safe baseline: channels 1–11 are
 active CCK/OFDM, 12–13 are passive CCK/OFDM, and channel 14 is passive
 CCK-only. EFUSE channel-plan mapping and the country-IE notifier are still
-open. A small Net80211 rollback helper now permits an interface that was
-registered but never started to unwind only the post-registration probe
-stages; it does not bind PCI, DMA, IRQ, RFKill or net80211 to live hardware.
+open. The 46th unit is an unbound, resource-journaled pre-`RUNNING` recovery
+owner: it preflights compensators, masks and drains start-local IRQ work
+before reverse cleanup, and quarantines any recovery failure. It does not
+bind PCI, DMA, IRQ, RFKill or net80211 to live hardware.
 
-The first complete private HP kernel link has now succeeded for the 45-unit
+The first complete private HP kernel link has now succeeded for the historical 45-unit
 Shadow E build at `f57eaea`: i915 was excluded, the original PCI source-tree
 integrity check passed, all selected objects built, and the separate kernel
 identifies as `RTWN8723BE-NATIVE-SHADOW`. Its SHA-256 is
@@ -37,7 +38,8 @@ This was an isolated build only: no candidate was installed or booted, and it
 does not establish a working WLAN driver. See [STATUS.md](STATUS.md) and the
 [native object checkpoint](docs/HP_NATIVE_OBJECT_CHECKPOINT_20261011.md).
 
-Complete native lifecycle ownership, callback binding, kernel link/install
+The current 46-unit selection still needs a fresh private object and kernel
+link gate. Complete native lifecycle ownership, callback binding, kernel link/install
 and physical WLAN acceptance remain open. An object build or portable C test
 is not a functional driver release. Packaging in `.tgz`, `.tbz` and `.txz`
 formats begins only after hardware acceptance.

@@ -2,10 +2,14 @@
 
 ## Current source selection
 
-`config/files.rtwn8723be_native` now selects **45 unique native C translation
+`config/files.rtwn8723be_native` now selects **46 unique native C translation
 units**. The 45th unit is `rtwn8723be_regdomain.c`, which applies only the
-safe Linux-world 2.4 GHz channel baseline. It does not read or map the EFUSE
-channel-plan byte, install a country notifier, attach hardware, or bind a
+safe Linux-world 2.4 GHz channel baseline. The 46th is
+`rtwn8723be_pre_running_recovery.c`, an unbound recovery journal for a
+failed Linux-order adapter start before HAL START is published. It preflights
+compensators, masks and drains start-local IRQ work before reverse cleanup,
+and retains a failed recovery as quarantined state. Neither unit reads or
+maps EFUSE, installs a country notifier, attaches hardware, or binds a
 pending lifecycle callback.
 
 The source inventory still deliberately reports four unbound lifecycle
@@ -24,7 +28,7 @@ rules, excluded i915 from the private configuration, preserved the original
 PCI manifest, and compiled all 44 objects nonempty. The ordered aggregate is
 `1c588c7d4a6fb466ebe50232427b7e543ea52dfeeb67c3b6d59c54c2f31c14f0`.
 
-That historical object result does not cover the current 45-unit selection.
+That historical object result does not cover the then-current 45-unit selection.
 Shadow E at `f57eaeadef553d04692231e283e400d61630c967` does: all 45 objects
 are nonempty; its object aggregate is
 `c76cc21790575f56d3c5d35db8ca7a25acc192362f7aa52acbbbeef7cbc84839`; the
@@ -39,10 +43,10 @@ not a hardware test, installation, or boot authorization.
 
 ## Required next evidence
 
-1. Recreate an isolated 45-unit HP source/object stage from the current Git
+1. Recreate an isolated 46-unit HP source/object stage from the current Git
    revision.
-2. Generate all 45 native rules and prove i915 exclusion/source integrity.
-3. Compile and hash all 45 objects, then perform a complete private-kernel
+2. Generate all 46 native rules and prove i915 exclusion/source integrity.
+3. Compile and hash all 46 objects, then perform a complete private-kernel
    link.
 4. Close the four lifecycle owners with real NetBSD API integrations and
    reverse teardown before enabling PCI attach or IRQ binding.

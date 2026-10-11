@@ -14,11 +14,11 @@ Target hardware is HP TPN-W121 on NetBSD 11.0 amd64:
 - F16.0 must never be booted. F83 and F84 reached a black screen with
   backlight after early text; the root cause is unconfirmed.
 
-The current private manifest contains 45 C units. It remains intentionally
+The current private manifest contains 46 C units. It remains intentionally
 unbound: `register_ieee80211`, `init_rfkill`, `bt_prepare`, and `dm_init` are
 not live lifecycle owners, so the current source does not activate PCI, DMA,
 IRQ, RFKill or a net80211 device on the HP. GitHub `main` is currently
-`229269002a7a52bb3620988ae46c15f6a217d709`.
+`0a39c3c18d175b2d058291718c0a48a2f4106e2d`.
 
 Historical Shadow D evidence at commit
 `409d1b739ea96dcebe697d73c7d4b6c83ae4d00c` is limited but positive:
@@ -29,7 +29,7 @@ Historical Shadow D evidence at commit
 - their ordered SHA-256 aggregate is
   `1c588c7d4a6fb466ebe50232427b7e543ea52dfeeb67c3b6d59c54c2f31c14f0`.
 
-The current 45-unit Shadow E stage, built from
+The historical 45-unit Shadow E stage, built from
 `f57eaeadef553d04692231e283e400d61630c967`, is the first complete private
 kernel-link evidence:
 
@@ -77,21 +77,31 @@ hardware result.
   behavior: a pre-`RUNNING` error returns directly and retains its last stage
   as a fail-closed quarantine. The Red/Green C11 regression proves that no
   normal stop callback is invoked for a failed `mark_hal_start` path.
+- Added a 46th, unbound pre-`RUNNING` resource journal. It accepts only an
+  explicit failed-start checkpoint under exclusive ownership, preflights all
+  compensators before an effect, masks and drains start-local IRQ work first,
+  and performs reverse cleanup without releasing probe-owned PCI/BAR/DMA/IRQ
+  objects or calling the normal `RUNNING` stop path. A C11/UBSan test covers
+  missing-compensator rejection, drain-failure quarantine, and successful
+  reverse ordering. It changes no live hardware path.
 - Completed the isolated 45-object and full private-kernel link described
   above, still with i915 excluded and without installing or booting it.
 
 ## NEXT
 
-1. Repeat the complete isolated object/link gate from `2292690`; the prior
-   Shadow E is tied to the earlier source revision and is not reused.
-2. Design and test the full resource-journaled pre-`RUNNING` recovery owner
-   before binding any lifecycle callback. It must mask and drain start-local
-   IRQ work before resource teardown, preserve probe-owned allocations, and
-   never reuse the normal `RUNNING` stop path.
-3. Close real lifecycle owners in reverse-cleanup order before binding any
+1. Finish and record the already running, isolated 45-unit F link from
+   `2292690`; it is a historical source gate and cannot cover the current
+   46-unit selection.
+2. Create a fresh 46-unit private shadow from `0a39c3c`, prove i915 exclusion
+   and source integrity, then compile/hash every selected object and link it
+   without installing or booting it.
+3. Bind the recovery journal only when each real NetBSD lifecycle owner has
+   recorded its own acquired resources and provides compatible compensators;
+   keep the normal `RUNNING` stop path separate.
+4. Close real lifecycle owners in reverse-cleanup order before binding any
    operation to the PCI probe path.
-4. Keep i915 trace-only until a physical early serial capture exists. Never
+5. Keep i915 trace-only until a physical early serial capture exists. Never
    use F16.0, F83 or F84 as a test kernel.
-5. Test scan with received BSS entries, authentication, association, traffic,
+6. Test scan with received BSS entries, authentication, association, traffic,
    recovery, suspend/resume and detach only after full runtime closure.
    Package work follows that hardware acceptance.

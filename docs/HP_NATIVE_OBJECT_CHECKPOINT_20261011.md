@@ -22,7 +22,7 @@
     `60b4e0b48fbe3b576af7dd2f318ff906896a3aa60d087a5a8ef32dcb4521d2b0`
   - `rtwn8723be_native.o`:
     `21593184f1248b15f73bb4460450a08ceacffeff5db1dc381d22209ac028df3c`
-- Shadow E at `f57eaeadef553d04692231e283e400d61630c967` is the current
+- Shadow E at `f57eaeadef553d04692231e283e400d61630c967` is the historical
   45-object private build result. It selected and built all 45 native objects
   nonempty, preserved the original PCI manifest hash
   `584bf78070c5868e2e48d0e563949cbf70a958b08166150f5363cfcbf5d7b707`, and
@@ -47,10 +47,15 @@
 
 ## ÄNDERUNGEN
 
-- The current source selection is 45 C units. The new
+- The current source selection is 46 C units. The
   `rtwn8723be_regdomain.c` supplies only the conservative Linux-world
-  regulatory baseline. Its portable strict-C11 test passed and it is included
-  in the successful native 45-object build.
+  regulatory baseline. `rtwn8723be_pre_running_recovery.c` adds an unbound
+  recovery journal for a failed adapter start before HAL START: its C11/UBSan
+  contract rejects incomplete compensation before effects, masks/drains
+  start-local IRQ work first, uses reverse cleanup, and quarantines an error.
+  The journal does not release probe-owned allocations or invoke normal stop
+  callbacks. Neither new current-source unit is covered by Shadow E's
+  historical 45-object build.
 - Net80211 registration now avoids publishing partial owner state before the
   fallible world-regdomain setup succeeds.
 - A small header-only policy permits unstarted rollback only after successful
@@ -61,10 +66,10 @@
 
 ## NEXT
 
-1. Create a fresh 45-unit private shadow from the current Git revision, prove the
+1. Create a fresh 46-unit private shadow from the current Git revision, prove the
    i915 exclusion and original-source integrity, then compile/hash every
    selected object.
-2. Retry the complete private-kernel link only after the 45-object gate.
+2. Retry the complete private-kernel link only after the 46-object gate.
 3. Implement the remaining real lifecycle owners and their reverse cleanup
    before any PCI probe binding or hardware test.
 4. Keep i915 trace-only pending physical early serial evidence; never boot
