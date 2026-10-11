@@ -930,9 +930,15 @@ rtwn8723be_runtime_dm_init(void *arg)
     in.rf_path_count = sc->sc_rf_path_count;
     in.crystal_cap = sc->sc_xtal_cap;
     in.current_channel = r->wifi.channel;
-    error = rtwn8723be_dm_native_init(sc, &r->dm, &in);
-    if (error == 0) error = rtwn8723be_btc_native_enable_events(sc);
-    return error;
+    /*
+     * Linux hw_init calls dm_init BEFORE rtl_pci_start publishes START,
+     * IRQ enable and the host TX/RX datapath. The native BTC event gate
+     * explicitly requires RUNNING, so enabling it here always returns
+     * EAGAIN on the first valid start. DM initialization is synchronous;
+     * only runtime_start() may publish async BTC events after hardware
+     * and both data paths have accepted this generation.
+     */
+    return rtwn8723be_dm_native_init(sc, &r->dm, &in);
 }
 
 int
@@ -1131,6 +1137,13 @@ rtwn8723be_runtime_start(struct rtwn8723be_softc *sc)
     if (error != 0) goto fail;
     error = rtwn8723be_datapath_start(&r->datapath);
     if (error == 0) error = rtwn8723be_net80211_tx_run(&r->tx);
+    /*
+     * Only the fully RUNNING Linux state, enabled IRQ and prepared RX/TX
+     * paths authorize asynchronous BTC notifications for this generation.
+     * If enable fails, the common failed-start path stops datapath, TX
+     * and hardware; it must not leak a partially usable ifnet.
+     */
+    if (error == 0) error = rtwn8723be_btc_native_enable_events(sc);
     if (error != 0) goto fail;
     mutex_enter(&r->queue_lock);
     r->jobs_enabled = true;
