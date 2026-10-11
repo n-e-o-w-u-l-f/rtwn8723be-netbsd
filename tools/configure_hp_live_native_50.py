@@ -61,8 +61,12 @@ def main():
         (out/"common").symlink_to(COMMON,target_is_directory=True)
         mirror(SRC,out/"sys",{"dev"})
         mirror(SRC/"dev",out/"sys/dev",{"pci"})
+        # The frozen BTC antenna algorithms include generated .inc sources
+        # (e.g. rtwn8723be_btc1_linux.inc). They are owned text, not
+        # compiler-generated outputs; omit them and the selected kernel
+        # compile fails even when the 50 C manifest parses correctly.
         owned={p.name:p for p in (ROOT/"src").iterdir() if p.is_file() and
-               p.name.startswith("rtwn8723be_") and p.suffix in (".c",".h")}
+               p.name.startswith("rtwn8723be_") and p.suffix in (".c",".h",".inc")}
         mirror(SRC/"dev/pci",out/"sys/dev/pci",{"files.pci"}|set(owned))
         for name,path in owned.items():
             (out/"sys/dev/pci"/name).symlink_to(path)
