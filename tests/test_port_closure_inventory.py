@@ -6,8 +6,10 @@ import re
 import sys
 
 EXPECTED_MISSING = {
-    "probe": ("register_ieee80211", "init_rfkill"),
-    "start": ("bt_prepare", "dm_init"),
+    # Source callbacks are bound on the opt-in WIP candidate. This is not
+    # runtime completion: real RF/RX/WPA2/PM and detach gates stay OPEN.
+    "probe": (),
+    "start": (),
     "stop": (),
 }
 
@@ -92,7 +94,7 @@ def check(root, require_closure=False):
         "goto restore_desc;",
         "goto unload_map;",
         "slot->m = m;",
-        "ring->producer = (idx + 1U) % ring->count;",
+        "ring->producer = qid == RTWN8723BE_BEACON_QUEUE ?",
         "unload_map:",
         "bus_dmamap_unload(sc->sc_dmat, slot->map);",
         "restore_desc:",
@@ -196,11 +198,11 @@ def check(root, require_closure=False):
             "rtwn8723be_btc_engine.c", "rtwn8723be_btc_native.c",
             "rtwn8723be_btc_providers_native.c"} <= set(native_units):
         raise ValueError("actual BTC algorithms/native event owner missing from manifest")
-    if len(names) != 53 or len(native_units) != 42:
+    if len(names) != 53 or len(native_units) != 50:
         raise ValueError("source or native build manifest changed; re-inventory required")
     if set(missing) != expected:
         raise ValueError("callback inventory changed: now missing " + repr(missing))
-    if len(bound) != 49:
+    if len(bound) != 53:
         raise ValueError("bound callback count changed; re-inventory required")
     if dict(bound).get("wait_rf_change_idle") != \
             "rtwn8723be_netbsd_wait_rf_change_idle":
@@ -209,8 +211,11 @@ def check(root, require_closure=False):
             "rtwn8723be_netbsd_bt_halt_deinit":
         raise ValueError("BTC halt/deinit callback binding changed")
     btc_native = (src / "rtwn8723be_btc_native.c").read_text()
-    if dict(bound).get("bt_hw_init") != "rtwn8723be_netbsd_bt_hw_init":
-        raise ValueError("source-backed BTC hardware init binding missing")
+    if dict(bound).get("bt_hw_init") != "rtwn8723be_netbsd_bt_hw_runtime_init":
+        raise ValueError("native synchronous BTC + runtime state wrapper missing")
+    if (body.index("error = rtwn8723be_netbsd_bt_hw_init(arg);") >
+            body.index("return rtwn8723be_runtime_bt_hw_init(arg);")):
+        raise ValueError("BTC state published before real HW initialization")
     hw_init_match = re.search(
         r"\nint\nrtwn8723be_netbsd_bt_hw_init\(void \*arg\).*?\n\}\n",
         btc_native, re.S)
@@ -279,7 +284,7 @@ def check(root, require_closure=False):
     if (len(preflight) != 2 or
             "sc->sc_initial_pci_saved = false;" not in preflight[0] or
             "return;" not in preflight[0] or
-            "refusing incomplete post-registration teardown" not in preflight[1]):
+            "registered probe has no teardown owner; resources retained" not in preflight[1]):
         raise ValueError("unsafe IDLE or post-registration probe cleanup")
     attach = pci_attach.split("rtwn8723be_native_attach(", 1)
     if len(attach) != 2:
@@ -421,8 +426,13 @@ def check(root, require_closure=False):
         raise ValueError("GPIO RF owner is not released on both paths")
     if "if (sc->sc_linux.stage == R23BE_STAGE_RUNNING &&" not in sample:
         raise ValueError("GPIO sample must not report unstarted hardware")
-    if ".init_rfkill = " in initializer.group(1):
-        raise ValueError("rfkill probe callback bound before poll/teardown owner")
+    if (dict(bound).get("init_rfkill") !=
+            "rtwn8723be_runtime_rfkill_init"):
+        raise ValueError("real RFkill runtime callback missing")
+    runtime = (src / "rtwn8723be_runtime.c").read_text()
+    if ("r->rfkill_polling = true;" not in runtime or
+            "rtwn8723be_runtime_unregister(sc)" not in pci_attach):
+        raise ValueError("RFkill callback lacks polling or teardown owner")
     shutdown_native = (src / "rtwn8723be_hw_disable_native.c").read_text()
     if ("sc_rfchange_inprogress = true" not in netbsd or
             "ETIMEDOUT" not in netbsd or
@@ -433,16 +443,14 @@ def check(root, require_closure=False):
             "sc_calibration_owner" not in calibration or
             "cal_native_phase" not in calibration):
         raise ValueError("guarded calibration implementation changed; re-inventory required")
-    if re.search(r"\bsc_calibration_owner\s*=(?!=)",
-                 "\n".join(p.read_text() for p in src.glob("*.c"))):
-        raise ValueError("calibration owner assignment added; audit real BTC/DM/RF ownership first")
+    if "sc->sc_calibration_owner = &runtime_cal_owner;" not in runtime:
+        raise ValueError("runtime RF calibration owner not actually acquired")
     shutdown = (src / "rtwn8723be_hw_disable_native.c").read_text()
     if (dict(bound).get("hw_disable") != "rtwn8723be_netbsd_hw_disable" or
             "sc_hw_disable_owner" not in shutdown):
         raise ValueError("guarded card-disable implementation changed; re-inventory required")
-    if re.search(r"\bsc_hw_disable_owner\s*=(?!=)",
-                 "\n".join(p.read_text() for p in src.glob("*.c"))):
-        raise ValueError("card-disable owner assignment added; audit real STOPPING/BTC/RF/IRQ lifetime first")
+    if "sc->sc_hw_disable_owner = &runtime_disable_owner;" not in runtime:
+        raise ValueError("runtime HW disable teardown owner not actually acquired")
     providers = (src / "rtwn8723be_btc_providers_native.c").read_text()
     provider_header = (src / "rtwn8723be_btc_providers_native.h").read_text()
     for token in (
@@ -530,10 +538,8 @@ def check(root, require_closure=False):
             afh.count("goto fail;") != 3):
         raise ValueError("AFH per-segment publication/partial-error parity changed")
     guarded = ("rf_calibration", "hw_disable")
-    if re.search(r"\brtwn8723be_btc_native_init\s*\(",
-        "\n".join(p.read_text() for p in src.glob("*.c")
-                    if p.name != "rtwn8723be_btc_native.c")):
-        raise ValueError("BTC owner bound; audit all 27 providers and real state/MCU/RX lifetime first")
+    if "return rtwn8723be_btc_native_init(sc, &context, &runtime_btc_owner, r);" not in runtime:
+        raise ValueError("BT coexistence owner no longer bound to runtime state")
     print(f"DECLARED={len(names)} BOUND={len(bound)} MISSING={len(missing)}")
     for phase, items in EXPECTED_MISSING.items():
         print(phase.upper() + "=" + ",".join(items))
