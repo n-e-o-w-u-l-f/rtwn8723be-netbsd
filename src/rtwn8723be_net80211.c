@@ -199,7 +199,7 @@ rtwn8723be_net80211_register(struct rtwn8723be_net80211 *n,
 {
     struct ieee80211com *ic;
     struct ifnet *ifp;
-    unsigned int ch;
+    int error;
 
     if (n == NULL || sc == NULL || methods == NULL)
         return EINVAL;
@@ -216,9 +216,6 @@ rtwn8723be_net80211_register(struct rtwn8723be_net80211 *n,
         sc->sc_macaddr[4] == 0 && sc->sc_macaddr[5] == 0))
         return EINVAL;
 
-    sc->sc_security_policy_valid = false;
-    n->sc = sc;
-    n->methods = *methods;
     ic = &sc->sc_ic;
     ifp = &sc->sc_ec.ec_if;
     ic->ic_ifp = ifp;
@@ -236,14 +233,14 @@ rtwn8723be_net80211_register(struct rtwn8723be_net80211 *n,
         IEEE80211_C_WPA2;
     ic->ic_sup_rates[IEEE80211_MODE_11B] = ieee80211_std_rateset_11b;
     ic->ic_sup_rates[IEEE80211_MODE_11G] = ieee80211_std_rateset_11g;
-    for (ch = 1; ch <= 14; ch++) {
-        ic->ic_channels[ch].ic_freq =
-            ieee80211_ieee2mhz(ch, IEEE80211_CHAN_2GHZ);
-        ic->ic_channels[ch].ic_flags =
-            IEEE80211_CHAN_CCK | IEEE80211_CHAN_OFDM |
-            IEEE80211_CHAN_DYN | IEEE80211_CHAN_2GHZ;
-    }
+    error = rtwn8723be_netbsd_apply_world_regdomain(sc);
+    if (error != 0)
+        return error;
 
+    /* Publish the owner only after regulatory setup cannot fail. */
+    sc->sc_security_policy_valid = false;
+    n->sc = sc;
+    n->methods = *methods;
     ifp->if_softc = n;
     ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
     ifp->if_init = rtwn8723be_n80211_ifinit;
