@@ -425,8 +425,21 @@ rtwn8723be_calibration_run(const struct rtwn8723be_calibration_context *ctx,
     /* Linux's entire calibration block is conditional on ERFON. */
     if (!input->rf_on)
         return 0;
-    if (!input->btc_bound || !input->btc_initialized ||
-        !input->dm_state_valid)
+    /*
+     * Frozen rtl8723be_hw_init() performs its ERFON IQK/LCK block BEFORE
+     * rtl8723be_dm_init(). Requiring fully initialized software DM here
+     * makes first firmware start fail ENXIO on every RF-ON device.
+     *
+     * Linux dm_check_txpower_tracking() returns immediately until
+     * dm_init_txpower_tracking() has enabled the tracking state. Thus
+     * IQK/LCK require the verified BT/PHY owner independently of DM,
+     * whereas an explicitly enabled thermal-tracking transaction still
+     * requires a real initialized DM producer. Never invent thermal
+     * readiness or silently disable requested tracking.
+     */
+    if (!input->btc_bound || !input->btc_initialized)
+        return ENXIO;
+    if (input->txpower_tracking && !input->dm_state_valid)
         return ENXIO;
     if (input->btc_ant_num > 1U || input->current_channel < 1U ||
         input->current_channel > 14U)
