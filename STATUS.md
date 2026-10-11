@@ -117,11 +117,14 @@ hardware result.
 - Completed the matching isolated 46-object and full private-kernel G link,
   including object hashes, kernel identity, source-integrity check and live
   kernel comparison. It was neither installed nor booted.
+- Removed the confirmed, inactive historical Shadow E/F output directories
+  after their hashes were recorded. The current G output remains retained as
+  the reproducible build-only record.
 
 ## NEXT
 
 1. Preserve the completed G result as build-only evidence; do not install or
-   boot it. Remove only superseded, confirmed private build shadows.
+   boot it. The superseded, confirmed E/F private build shadows are removed.
 2. Implement the real `bt_prepare` owner with genuine MCU/RX-drain,
    serialization and reverse-release semantics; do not reuse the historical
    runtime model as a shortcut.

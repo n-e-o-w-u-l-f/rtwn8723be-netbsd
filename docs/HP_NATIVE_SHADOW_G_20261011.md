@@ -35,12 +35,14 @@
   `9b65629c0527bbd40f7ffa0d4ef0c59a32b5edceb597a5df8c86d1e7be1c8fde`.
 
 No candidate was installed or booted; neither the F77 kernel nor the boot
-menu was changed.
+menu was changed. The superseded, inactive private E/F build output
+directories were removed after their evidence was recorded; the current G
+output is retained as this checkpoint's reproducible build record.
 
 ## NEXT
 
-1. Retain this as a build-only checkpoint and remove only superseded private
-   E/F build outputs after this record is committed.
+1. Retain this as a build-only checkpoint; it must not be promoted to an
+   installed or bootable candidate.
 2. Replace the absent `bt_prepare` callback only with a real owner for the
    MCU/RX-drain, BTC context and reverse-release lifetime. The old runtime
    model is not sufficient evidence for such a binding.
