@@ -9,7 +9,8 @@ a=p.parse_args()
 a.repo=a.repo.resolve(strict=True)
 a.output=a.output.resolve()
 a.linux_tree=a.linux_tree.resolve(strict=True)
-env=dict(os.environ, RTWN8723BE_LINUX_TREE=str(a.linux_tree))
+env=dict(os.environ, RTWN8723BE_LINUX_TREE=str(a.linux_tree),
+         RTWN8723BE_HP_WORKDIR=str(a.output))
 if platform.system()!="NetBSD" or not socket.gethostname().startswith("hp-tpnw121"):
     sys.exit("REFUSED: compilation/regressions are authorized only on HP/NetBSD")
 resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
