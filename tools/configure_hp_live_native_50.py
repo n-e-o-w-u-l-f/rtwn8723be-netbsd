@@ -106,13 +106,13 @@ def main():
         if old_exec not in wrapper:
             raise RuntimeError("NetBSD make wrapper entry changed; must audit")
         wrapper=wrapper.replace(old_exec,
-            'PATH="'+str(owner_tools)+':${TOOLDIR}/bin:$PATH"; export PATH\\n'+old_exec)
+            'PATH="'+str(owner_tools)+':${TOOLDIR}/bin:$PATH"; export PATH\n'+old_exec)
         wrapper_path=out/"nbmake-owner"
         wrapper_path.write_text(wrapper);wrapper_path.chmod(0o700)
         test_c=out/"cross-linker-probe.c"
         test_o=out/"cross-linker-probe.o"
         test_link=out/"cross-linker-probe-linked.o"
-        test_c.write_text("int netbsd_owner_link_probe(void){return 0;}\\n")
+        test_c.write_text("int netbsd_owner_link_probe(void){return 0;}\n")
         env=os.environ.copy()
         env["PATH"]=str(owner_tools)+":/usr/tools/bin:"+env.get("PATH","")
         compile_result=subprocess.run(
