@@ -73,6 +73,8 @@ if [ -e "$OUT" ] || [ -L "$OUT" ]; then
 fi
 "$PYTHON" -B "$ROOT/tools/configure_hp_live_native_50.py" --output "$OUT"
 test -s "$OUT/status.json"
+"$PYTHON" -B "$ROOT/tools/verify_hp_rtl50_source_snapshot.py" \
+    --output "$OUT" --source-commit "$HEAD"
 echo "RUNNING source=$HEAD" >"$OUT/full-link.state"
 echo "HP_RTL50_NEXT_KERNEL_BUILD_START commit=$HEAD"
 if "$OUT/nbmake-owner" -C "$OUT/obj" -j2 dependall >"$OUT/full-link.log" 2>&1; then
@@ -85,6 +87,10 @@ else
     exit "$rc"
 fi
 
+# The kernel must still consume the exact immutable source snapshot
+# after the full dependall process; no live-worktree pointer is accepted.
+"$PYTHON" -B "$ROOT/tools/verify_hp_rtl50_source_snapshot.py" \
+    --output "$OUT" --source-commit "$HEAD"
 EXPECTED="HP-RTL50-$SHORT-SAFE-GENFB"
 if [ ! -s "$OUT/obj/netbsd" ] || ! /usr/bin/what "$OUT/obj/netbsd" | grep -F "$EXPECTED" >/dev/null; then
     echo "FAILED_IDENTITY source=$HEAD" >"$OUT/full-link.state"
