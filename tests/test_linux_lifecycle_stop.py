@@ -200,7 +200,7 @@ int main(void)
            !s.started && !s.fw_ready && !s.mac_func_enable);
 
     /* A teardown error leaves an explicit STOPPING recovery blocker. */
-    c.calls = 0;
+    c = (struct context){0};
     s = (struct rtwn8723be_linux_state){0};
     s.stage = R23BE_STAGE_PROBED;
     ops = start_ops();
