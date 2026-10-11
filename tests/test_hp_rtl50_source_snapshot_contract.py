@@ -28,6 +28,11 @@ assert 'p.suffix in (".c",".h",".inc")' in start
 assert "private RTL source snapshot changed during config" in generator
 assert "Git source changed while taking RTL snapshot" in generator
 assert "Git source HEAD changed during config" in generator
+# The HP contains Intel Cherryview, not an NVIDIA GPU: a pure WLAN test
+# kernel must not pay for or risk a second unrelated GPU KMS provider.
+# The original GENERIC + 50-unit build was observed compiling nouveau NVKM.
+assert "'no i915drmkms*\\n'" in generator
+assert "'no nouveau* at pci?\\n'" in generator
 for token in (
     'status.get("source_commit") != args.source_commit',
     'status.get("kernel_ident") != expected_ident',
