@@ -112,6 +112,8 @@ def generate(linux_tree):
     h = h.replace('\tstruct completion bt_mp_comp;',
         '\t/* Native MP completion is owned by sc_btc_mp, not Linux completion. */\n'
         '\tvoid *r23be_state;\n'
+        '\t/* Optional high-level get/set policy, owned by the whole-driver context. */\n'
+        '\tvoid *r23be_policy;\n'
         '\tvoid (*r23be_delay_ms)(void *, unsigned int);\n'
         '\tvoid (*r23be_debug)(void *, unsigned long, int, const char *, va_list);')
     output['src/rtwn8723be_btc_linux_types.h'] = h + '\n#endif\n'

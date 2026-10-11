@@ -163,7 +163,7 @@
     "src/rtwn8723be_btc1_types.h": "892477676ad1ffb84d7d1d1a0f96b3bce3f63891978dd19db0b4209f0e654ee1",
     "src/rtwn8723be_btc2_linux.inc": "25ececb952efb8c77dfb781748d8a0167c710e4cc9a90e037c20492f35b22630",
     "src/rtwn8723be_btc2_types.h": "1223d00de6d6b321e5ce0095b0ad8493d103bb1d2debf301745cc988f62aea0a",
-    "src/rtwn8723be_btc_linux_types.h": "aa44b6e76437ce377d13226135f9223a1e3161688956c4ea6ea06e541b5d9f0a",
+    "src/rtwn8723be_btc_linux_types.h": "472faf46ca4e88fd1791a852d88103bf6b8a48cf79de6f52e0ee92e1694b9949",
     "src/rtwn8723be_btc_dm_types.h": "3ef88c4fb69e31a1511579bdc7fa478187f5d0d117aa8045838cce1dd8676aa7",
     "src/rtwn8723be_btc_history.h": "7f3ca5bb7040dc6038e0584273f2f1fe594bc3edf2fa8ccd37004b83cdfc146f"
   },
