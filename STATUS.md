@@ -18,7 +18,7 @@ The current private manifest contains 46 C units. It remains intentionally
 unbound: `register_ieee80211`, `init_rfkill`, `bt_prepare`, and `dm_init` are
 not live lifecycle owners, so the current source does not activate PCI, DMA,
 IRQ, RFKill or a net80211 device on the HP. GitHub `main` is currently
-`0a39c3c18d175b2d058291718c0a48a2f4106e2d`.
+`8f18a9295d2e86036b11d170e13ec2d3ecbf6a1f`.
 
 Historical Shadow D evidence at commit
 `409d1b739ea96dcebe697d73c7d4b6c83ae4d00c` is limited but positive:
@@ -81,7 +81,9 @@ hardware result.
   explicit failed-start checkpoint under exclusive ownership, preflights all
   compensators before an effect, masks and drains start-local IRQ work first,
   and performs reverse cleanup without releasing probe-owned PCI/BAR/DMA/IRQ
-  objects or calling the normal `RUNNING` stop path. A C11/UBSan test covers
+  objects or calling the normal `RUNNING` stop path. Phases may be skipped,
+  but cannot be reordered; DMA/DM is released before the earlier Post-HW
+  resource. A C11/UBSan test covers
   missing-compensator rejection, drain-failure quarantine, and successful
   reverse ordering. It changes no live hardware path.
 - Completed the isolated 45-object and full private-kernel link described
