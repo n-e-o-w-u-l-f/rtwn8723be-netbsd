@@ -17,7 +17,7 @@ Target hardware is HP TPN-W121 on NetBSD 11.0 amd64:
 The current private manifest contains 46 C units. It remains intentionally
 unbound: `register_ieee80211`, `init_rfkill`, `bt_prepare`, and `dm_init` are
 not live lifecycle owners, so the current source does not activate PCI, DMA,
-IRQ, RFKill or a net80211 device on the HP. GitHub `main` is currently
+IRQ, RFKill or a net80211 device on the HP. The current driver-source revision is
 `8f18a9295d2e86036b11d170e13ec2d3ecbf6a1f`.
 
 Historical Shadow D evidence at commit
