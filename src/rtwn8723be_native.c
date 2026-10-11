@@ -172,10 +172,22 @@ rtwn8723be_native_detach(device_t self, int flags)
 {
     struct rtwn8723be_softc *sc = device_private(self);
 
+    int error;
+
     (void)flags;
-    /* Runtime/network teardown has not yet been implemented or validated. */
-    if (sc->sc_linux.stage >= R23BE_STAGE_IEEE80211_REGISTER)
-        return EBUSY;
+    /*
+     * Stop the running device in process context BEFORE releasing the
+     * registered net80211 interface, hard/soft IRQ or DMA ownership.
+     * Runtime unregister drains callouts, workqueue, BTC/H2C and
+     * verified hardware stop. On failure keep the PCI graph intact.
+     */
+    if (sc->sc_linux.stage >= R23BE_STAGE_IEEE80211_REGISTER) {
+        if (sc->sc_runtime == NULL)
+            return EBUSY;
+        error = rtwn8723be_runtime_unregister(sc);
+        if (error != 0 || sc->sc_runtime->net.registered)
+            return error != 0 ? error : EBUSY;
+    }
     rtwn8723be_native_probe_cleanup(sc);
     if (sc->sc_linux.stage != R23BE_STAGE_IDLE ||
         sc->sc_initial_pci_saved)
