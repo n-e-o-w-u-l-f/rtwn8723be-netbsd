@@ -66,7 +66,10 @@ def main() -> None:
     for name, expr in cases.items():
         body = function(src, name)
         assert "PCI_COMMAND_STATUS_REG) & PCI_COMMAND_MASK;" in body, name
-        assert body.count("PCI_COMMAND_STATUS_REG") == 2, name
+        # Match actual PCI operations, not their explanatory comment text.
+        assert body.count("pci_conf_read(") == 1, name
+        assert body.count("pci_conf_write(") == 1, name
+        assert body.count("PCI_COMMAND_STATUS_REG,") == 1, name
         assert "command |= " + expr + ";" in body, name
         assert ("pci_conf_write(sc->sc_pc, sc->sc_tag, PCI_COMMAND_STATUS_REG,"
                 in body), name
