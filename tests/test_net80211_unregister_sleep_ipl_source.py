@@ -12,7 +12,7 @@ runtime = (ROOT / "src/rtwn8723be_runtime.c").read_text(encoding="utf-8")
 
 def unregister_contract(source: str) -> bool:
     begin = "rtwn8723be_net80211_unregister(struct rtwn8723be_net80211 *n)\n{"
-    end = "rtwn8723be_net80211_input("
+    end = "\nint\nrtwn8723be_net80211_input("
     if source.count(begin) != 1 or source.count(end) != 1:
         return False
     body = source.split(begin, 1)[1].split(end, 1)[0]
