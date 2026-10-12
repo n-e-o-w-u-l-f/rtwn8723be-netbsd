@@ -52,8 +52,8 @@ assert 'socket.gethostname().startswith("hp-tpnw121")' in original, (
 
 # Negative controls: prove the contract detects the earlier unsafe config,
 # and rejects duplicate or reordered kernel driver directives.
-unsafe = rendered.replace("no i915drmkms*\\n", "", 1)
+unsafe = rendered.replace("no i915drmkms*\n", "", 1)
 assert unsafe != rendered and not contract_holds(unsafe)
-duplicate = rendered.replace("no i915drmkms*\\n", "no i915drmkms*\\nno i915drmkms*\\n", 1)
+duplicate = rendered.replace("no i915drmkms*\n", "no i915drmkms*\nno i915drmkms*\n", 1)
 assert duplicate != rendered and not contract_holds(duplicate)
 print("HP_RTL_KERNEL_CONFIG_I915_GUARD_SOURCE_PASS")
