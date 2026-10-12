@@ -40,8 +40,13 @@ for node in ast.walk(tree):
     if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
         assert node.func.attr not in (
             "write_text", "write_bytes", "unlink", "mkdir", "rmdir",
-            "rename", "replace", "chmod", "chown", "system", "Popen",
+            "rename", "replace", "chmod", "chown", "Popen",
         ), node.func.attr
+        # platform.system() is a read-only OS identity query.
+        # Only os.system() would start an unrestricted shell command.
+        if node.func.attr == "system":
+            assert not (isinstance(node.func.value, ast.Name) and
+                        node.func.value.id == "os"), "os.system"
 assert "command(\"/sbin/shutdown\"" not in source
 assert "command(\"/sbin/reboot\"" not in source
 assert "command(\"/sbin/savecore\"" not in source
