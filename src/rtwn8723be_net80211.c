@@ -40,12 +40,30 @@ rtwn8723be_n80211_ifinit(struct ifnet *ifp)
     if (n->methods.hw_start == NULL || n->methods.hw_stop == NULL ||
         n->methods.tx_start == NULL)
         return ENOSYS;
-    /* NetBSD ifconfig down/up must permit a clean restarted adapter. */
+    /*
+     * Probe has a live PCI hard/soft interrupt owner, whereas a verified
+     * STOPPED generation has deliberately disestablished all three IRQ
+     * resources.  Linux-order adapter_start() first resets DMA rings with
+     * IRQs absent, prepares BTC, and only then re-establishes PCI IRQ.
+     *
+     * Requiring sc_ih at STOPPED rejects every valid down/up restart with
+     * EAGAIN before that establish_irq callback can run.  Do not weaken
+     * the PROBED invariant or allow a partly quiesced STOPPED owner.
+     */
     if ((sc->sc_linux.stage != R23BE_STAGE_PROBED &&
         sc->sc_linux.stage != R23BE_STAGE_STOPPED) ||
-        !sc->sc_irq_dispatch_ready || sc->sc_ih == NULL ||
+        !sc->sc_irq_dispatch_ready ||
         !sc->sc_rings_allocated || !sc->sc_mapped)
         return EAGAIN;
+    if (sc->sc_linux.stage == R23BE_STAGE_PROBED) {
+        if (sc->sc_ih == NULL || sc->sc_soft_ih == NULL ||
+            sc->sc_pihp == NULL)
+            return EAGAIN;
+    } else {
+        if (sc->sc_irq_enabled || sc->sc_ih != NULL ||
+            sc->sc_soft_ih != NULL || sc->sc_pihp != NULL)
+            return EBUSY;
+    }
 
     /*
      * hw_start must complete Linux-order hw_init(), irq enable, RX config,
