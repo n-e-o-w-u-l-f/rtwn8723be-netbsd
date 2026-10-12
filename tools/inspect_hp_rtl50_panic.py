@@ -88,7 +88,7 @@ def inspect():
             if conf.is_file() and not conf.is_symlink():
                 values = [line[:250] for line in
                           conf.read_text(errors="replace").splitlines()
-                          if re.match(r"^\\s*(savecore|savecore_flags|savecore_dir)=", line)]
+                          if re.match(r"^\s*(savecore|savecore_flags|savecore_dir)=", line)]
                 if values:
                     report["savecore_configured"] = report["savecore_configured"] or {}
                     report["savecore_configured"][str(conf)] = values
@@ -97,7 +97,7 @@ def inspect():
     try:
         if CRASH.is_dir() and not CRASH.is_symlink():
             for entry in sorted(CRASH.iterdir(), key=lambda e: e.name)[:100]:
-                if not re.match(r"^(netbsd\\.|bounds$|minfree$|info\\.)", entry.name):
+                if not re.match(r"^(netbsd\.|bounds$|minfree$|info\.)", entry.name):
                     continue
                 report["crash_entries"].append(stat_only(entry))
         else:
