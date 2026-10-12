@@ -371,8 +371,15 @@ rtwn8723be_netbsd_pci_enable(void *arg)
     struct rtwn8723be_softc *sc = arg;
     pcireg_t command;
 
+    /*
+     * NetBSD PCI config accesses use 32-bit words. PCI_COMMAND_STATUS_REG
+     * combines writable command bits [15:0] with status bits [31:16],
+     * some of which are write-one-to-clear. Linux pci_enable_device()
+     * and pci_set_master() update the command without acknowledging
+     * unrelated status: use NetBSD's PCI_COMMAND_MASK before RMW.
+     */
     command = pci_conf_read(sc->sc_pc, sc->sc_tag,
-        PCI_COMMAND_STATUS_REG);
+        PCI_COMMAND_STATUS_REG) & PCI_COMMAND_MASK;
     command |= PCI_COMMAND_IO_ENABLE | PCI_COMMAND_MEM_ENABLE;
     pci_conf_write(sc->sc_pc, sc->sc_tag, PCI_COMMAND_STATUS_REG,
         command);
@@ -424,8 +431,15 @@ rtwn8723be_netbsd_pci_set_master(void *arg)
     struct rtwn8723be_softc *sc = arg;
     pcireg_t command;
 
+    /*
+     * NetBSD PCI config accesses use 32-bit words. PCI_COMMAND_STATUS_REG
+     * combines writable command bits [15:0] with status bits [31:16],
+     * some of which are write-one-to-clear. Linux pci_enable_device()
+     * and pci_set_master() update the command without acknowledging
+     * unrelated status: use NetBSD's PCI_COMMAND_MASK before RMW.
+     */
     command = pci_conf_read(sc->sc_pc, sc->sc_tag,
-        PCI_COMMAND_STATUS_REG);
+        PCI_COMMAND_STATUS_REG) & PCI_COMMAND_MASK;
     command |= PCI_COMMAND_MASTER_ENABLE;
     pci_conf_write(sc->sc_pc, sc->sc_tag, PCI_COMMAND_STATUS_REG,
         command);
