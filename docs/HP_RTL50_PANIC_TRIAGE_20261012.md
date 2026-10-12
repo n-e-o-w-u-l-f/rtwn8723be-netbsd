@@ -12,7 +12,7 @@ Date: 2026-10-12. Source of truth: WIP `wip/hp-rtl-runtime-48-merge-20261010`, n
 
 ## Immediate forensic gate: read only
 
-New program `tools/inspect_hp_rtl50_panic.py` captures the exact candidate and boot identities plus `/var/crash` filenames/sizes and `savecore` config, **without reading core memory, writing files, or triggering a reboot**. Python source-only regression `tests/test_hp_rtl50_panic_inventory_source.py` checks AST/regex/read-only contract. Both are COMMITTED; HP execution and native verification are **OPEN**.
+New program `tools/inspect_hp_rtl50_panic.py` captures the exact candidate and boot identities plus `/var/crash` filenames/sizes and `savecore` config, **without reading core memory, writing files, or triggering a reboot**. Python source-only regression `tests/test_hp_rtl50_panic_inventory_source.py` checks AST/regex/read-only contract. Both are COMMITTED. Independent host-side **pure-Python** test run passed `HP_RTL50_PANIC_INVENTORY_READ_ONLY_SOURCE_CONTRACT_OK`: both reconstructed test/collector files were byte-exact to GitHub blob SHA-1 `4169777ccc5f652f393e999e8c931c7a6e73ab41` and `bf6bd2699c2a328410b7eadbf610aadcfb21a61f`. The first test run caught a real false-positive guard (`platform.system()` vs `os.system()`); guard repaired and the exact regression rerun PASS. A direct collector execution on a NON-HP host refused as designed (exit 2). **Actual HP execution, recovered crashdump, C/native compile, physical root cause and new kernel link remain OPEN**.
 
 In NetBSD, DDB `trace` at the panic prompt, and a saved crash dump under `/var/crash` analyzed with the **matching** kernel image (ideally corresponding `netbsd.gdb`) are the authoritative fault evidence, not a later GENERIC/F77 dmesg alone.
 
