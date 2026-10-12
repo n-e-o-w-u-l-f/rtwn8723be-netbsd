@@ -71,4 +71,43 @@ for stage in (
 ):
     assert stage in ifstop
 assert "return EBUSY; /* An interrupted stop needs explicit recovery. */" in ifstop
+# A successful STOPPED generation owns NO hard/soft PCI IRQ handles.
+# Requiring a live hard IRQ in if_init would reject every clean restart.
+ifinit = net.split("static int\\nrtwn8723be_n80211_ifinit(struct ifnet *ifp)", 1)[1]
+ifinit = ifinit.split("static int\\nrtwn8723be_n80211_ifstop(", 1)[0]
+assert "sc->sc_linux.stage != R23BE_STAGE_PROBED" in ifinit
+assert "sc->sc_linux.stage != R23BE_STAGE_STOPPED" in ifinit
+assert "!sc->sc_irq_dispatch_ready" in ifinit
+assert "!sc->sc_rings_allocated || !sc->sc_mapped" in ifinit
+probed = ifinit.split("if (sc->sc_linux.stage == R23BE_STAGE_PROBED) {", 1)[1]
+probed, stopped = probed.split("} else {", 1)
+stopped = stopped.split("\\n    }", 1)[0]
+for owner in ("sc->sc_ih", "sc->sc_soft_ih", "sc->sc_pihp"):
+    assert owner + " == NULL" in probed, owner
+    assert owner + " != NULL" in stopped, owner
+assert "sc->sc_irq_enabled" in stopped
+assert "return EBUSY;" in stopped
+
+linux = (src / "rtwn8723be_linux_state.c").read_text()
+adapter_start = linux.split(
+    "rtwn8723be_linux_adapter_start(void *ctx,", 1)[1]
+adapter_start = adapter_start.split(
+    "rtwn8723be_linux_adapter_stop(void *ctx,", 1)[0]
+for callback in ("ops->reset_trx_ring", "ops->bt_prepare",
+                 "ops->establish_irq", "ops->enable_interrupt"):
+    assert callback in adapter_start
+assert adapter_start.index("ops->reset_trx_ring") < (
+    adapter_start.index("ops->bt_prepare") <
+    adapter_start.index("ops->establish_irq") <
+    adapter_start.index("ops->enable_interrupt"))
+
+pci = (src / "rtwn8723be_netbsd.c").read_text()
+irq_stop = pci.split(
+    "rtwn8723be_netbsd_disestablish_irq(struct rtwn8723be_softc *sc)", 1)[1]
+irq_stop = irq_stop.split("static void\\nrtwn8723be_netbsd_irq_mask_locked", 1)[0]
+for owner in ("sc->sc_ih", "sc->sc_soft_ih", "sc->sc_pihp"):
+    assert owner + " = NULL;" in irq_stop, owner
+
+print("RTL_NET80211_STOPPED_IRQ_RESTART_OWNER_SOURCE_PASS")
+
 print("RTL_PRESTART_UNREGISTER_AND_SHUTDOWN_FAILURE_SOURCE_PASS")
