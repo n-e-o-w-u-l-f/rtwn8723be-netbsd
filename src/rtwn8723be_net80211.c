@@ -307,13 +307,18 @@ rtwn8723be_net80211_unregister(struct rtwn8723be_net80211 *n)
         return 0;
     if (n->sc == NULL)
         return EIO;
-    s = splnet();
     ifp = &n->sc->sc_ec.ec_if;
+    /*
+     * The driver stop may drain workqueues, DMA, firmware and callouts.
+     * Never hold NetBSD's raised network IPL across a sleepable teardown.
+     * Match the native rtwn detach reference by protecting only the
+     * actual ieee80211_ifdetach()/if_detach() framework transition.
+     * Failed hardware stop must preserve the registered ifnet owner.
+     */
     error = rtwn8723be_n80211_ifstop(n);
-    if (error != 0) {
-        splx(s);
+    if (error != 0)
         return error; /* Retain registered resources on failed hardware stop. */
-    }
+    s = splnet();
     n->sc->sc_security_policy_valid = false;
     n->sc->sc_security_configured = false;
     n->sc->sc_hw_security_enabled = false;
