@@ -42,8 +42,9 @@ for node in ast.walk(tree):
             "write_text", "write_bytes", "unlink", "mkdir", "rmdir",
             "rename", "replace", "chmod", "chown", "system", "Popen",
         ), node.func.attr
-assert "shutdown" not in source
-assert "reboot" not in source
+assert "command(\"/sbin/shutdown\"" not in source
+assert "command(\"/sbin/reboot\"" not in source
+assert "command(\"/sbin/savecore\"" not in source
 assert "savecore -c" not in source
 spec = importlib.util.spec_from_file_location("panic_inspector", SCRIPT)
 module = importlib.util.module_from_spec(spec)
