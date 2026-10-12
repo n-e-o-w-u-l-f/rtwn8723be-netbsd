@@ -84,6 +84,7 @@ try:
     config.write_text('include "arch/amd64/conf/GENERIC"\n'
                       'ident "HP-RTL-NATIVE-20261005"\n'
                       'no rtwn*\n'
+                      'no i915drmkms*\n'
                       'rtwn8723be_native* at pci? dev ? function ?\n', encoding="utf-8")
     # Keep /usr/tools and its source-root-specific wrapper untouched.
     tools.mkdir(exist_ok=True)
