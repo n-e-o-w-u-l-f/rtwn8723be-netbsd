@@ -54,6 +54,27 @@ def stat_only(path):
     except OSError as exc:
         return {"path": str(path), "status": type(exc).__name__}
 
+def selected_kernel_artifacts(bootfile_result):
+    """Only hash local root-level NetBSD kernel images, never arbitrary paths.
+
+    kern.bootfile is a kernel-reported pathname, not proof of the selected
+    boot-menu entry. Preserve separate version, boot.cfg and dump evidence.
+    Avoid symlinks, directories, relative paths and broad globbing.
+    """
+    selected = [Path("/netbsd"), *ARTIFACTS]
+    reported = ""
+    if isinstance(bootfile_result, dict) and bootfile_result.get("exit") == 0:
+        reported = bootfile_result.get("stdout", "")
+    if isinstance(reported, str) and reported.startswith("/") and (
+            "\n" not in reported and "\r" not in reported):
+        candidate = Path(reported)
+        if candidate.parent == Path("/") and (
+                candidate.name == "netbsd" or
+                candidate.name.startswith("netbsd.")):
+            selected.append(candidate)
+    return tuple(dict.fromkeys(selected))
+
+
 def inspect():
     report = {
         "scope": "READ_ONLY_METADATA_ONLY_NOT_A_PANIC_BACKTRACE",
@@ -67,7 +88,7 @@ def inspect():
         "crash_entries": [],
         "boot_menu": [],
     }
-    for f in ARTIFACTS:
+    for f in selected_kernel_artifacts(report["bootfile"]):
         item = stat_only(f)
         if item["status"] == "REGULAR":
             try:
