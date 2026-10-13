@@ -15,7 +15,7 @@ EXPECTED = [
     'ident "HP-RTL-NATIVE-20261005"',
     'no rtwn*',
     'no i915drmkms*',
-    'rtwn8723be_native* at pci? dev ? function ?',
+    'rtwn8723be* at pci? dev ? function ?',
 ]
 
 
@@ -56,4 +56,19 @@ unsafe = rendered.replace("no i915drmkms*\n", "", 1)
 assert unsafe != rendered and not contract_holds(unsafe)
 duplicate = rendered.replace("no i915drmkms*\n", "no i915drmkms*\nno i915drmkms*\n", 1)
 assert duplicate != rendered and not contract_holds(duplicate)
+# NetBSD 11 device_xname includes the device-unit suffix and NUL byte.
+# Keep the long C attachment symbol and 50-unit source naming unchanged.
+manifest = (ROOT / "config/files.rtwn8723be_native").read_text(encoding="utf-8")
+attach_source = (ROOT / "src/rtwn8723be_native.c").read_text(encoding="utf-8")
+live_generator = (ROOT / "tools/configure_hp_live_native_50.py").read_text(encoding="utf-8")
+driver_name, cfattach_name = "rtwn8723be", "rtwn8723be_native"
+assert len(driver_name + "0") + 1 <= 16, "NetBSD DEVICE_XNAME_SIZE exceeded"
+assert len(cfattach_name + "0") + 1 > 16, "bad previous name not captured"
+assert manifest.count("device  rtwn8723be: ifnet, arp, wlan, firmload") == 1
+assert manifest.count("attach  rtwn8723be at pci with rtwn8723be_native") == 1
+assert "device  rtwn8723be_native:" not in manifest
+assert "CFATTACH_DECL_NEW(rtwn8723be_native," in attach_source
+assert live_generator.count("'rtwn8723be* at pci? dev ? function ?\\n'") == 1
+assert "'rtwn8723be_native* at pci? dev ? function ?\\n'" not in live_generator
+assert "rtwn8723be_native* at pci" not in original
 print("HP_RTL_KERNEL_CONFIG_I915_GUARD_SOURCE_PASS")
