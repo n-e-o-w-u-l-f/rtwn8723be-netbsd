@@ -10,8 +10,8 @@
 # Includes the source-derived core and portable modules. Callback closure
 # and hardware acceptance remain separate gates after a successful link.
 #
-device  rtwn8723be_native: ifnet, arp, wlan, firmload
-attach  rtwn8723be_native at pci
+device  rtwn8723be: ifnet, arp, wlan, firmload
+attach  rtwn8723be at pci with rtwn8723be_native
 file    dev/pci/rtwn8723be_native.c        rtwn8723be_native
 file    dev/pci/rtwn8723be_netbsd.c        rtwn8723be_native
 file    dev/pci/rtwn8723be_aspm_native.c   rtwn8723be_native
