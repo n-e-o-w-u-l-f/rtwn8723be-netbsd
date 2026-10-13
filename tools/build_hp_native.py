@@ -85,7 +85,7 @@ try:
                       'ident "HP-RTL-NATIVE-20261005"\n'
                       'no rtwn*\n'
                       'no i915drmkms*\n'
-                      'rtwn8723be_native* at pci? dev ? function ?\n', encoding="utf-8")
+                      'rtwn8723be* at pci? dev ? function ?\n', encoding="utf-8")
     # Keep /usr/tools and its source-root-specific wrapper untouched.
     tools.mkdir(exist_ok=True)
     (tools / "bin").mkdir(exist_ok=True)
