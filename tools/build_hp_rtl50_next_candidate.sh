@@ -51,6 +51,7 @@ grep -Fq 'if (error != 0)' "$ROOT/src/rtwn8723be_runtime.c"
 for testname in \
     test_irq_mutex_single_owner.py \
     test_hp_rtl50_source_snapshot_contract.py \
+    test_hp_native_kernel_config_source.py \
     test_runtime_sw_owner_order.py \
     test_runtime_rf_publication_order.py \
     test_btc_async_events_after_running.py \
