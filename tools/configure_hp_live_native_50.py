@@ -116,7 +116,7 @@ def main():
                           # syntax: no nouveau* at pci?.
                           # Fail closed if nbconfig rejects this exclusion.
                           'no nouveau* at pci?\n'
-                          'rtwn8723be_native* at pci? dev ? function ?\n')
+                          'rtwn8723be* at pci? dev ? function ?\n')
         p=subprocess.run([str(CONFIG),"-s",str(out/"sys"),"-b",str(out/"obj"),str(config)],
             text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=180)
         (out/"config.log").write_text(p.stdout)
