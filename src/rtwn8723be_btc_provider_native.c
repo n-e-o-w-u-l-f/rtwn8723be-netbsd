@@ -71,7 +71,7 @@ static void btc_mask1(void *b, u32 r, u32 mask, u8 v)
         old = rtwn8723be_read_1(btc_sc(b), r);
         for (shift = 0; shift < 8 && !(mask & (1U << shift)); shift++)
             ;
-        v = (u8)((old & ~mask) | (v << shift));
+        v = (u8)((old & ~mask) | ((v << shift) & mask));
     }
     rtwn8723be_write_1(btc_sc(b), r, v);
 }
