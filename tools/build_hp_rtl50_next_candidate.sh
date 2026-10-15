@@ -54,6 +54,7 @@ for testname in \
     test_hp_native_kernel_config_source.py \
     test_runtime_sw_owner_order.py \
     test_runtime_rf_publication_order.py \
+    test_btc_byte_mask_linux_parity.py \
     test_btc_async_events_after_running.py \
     test_reserved_beacon_native_source.py \
     test_failed_probe_net80211_rollback.py \
