@@ -15,14 +15,19 @@ shutdown = shutdown.split("rtwn8723be_runtime_start(struct rtwn8723be_softc *sc)
 unreg = r.split("rtwn8723be_runtime_unregister(struct rtwn8723be_softc *sc)", 1)[1]
 unreg = unreg.split("static int\nruntime_queue(", 1)[0]
 
-assert "if (error != 0 && r->first_error == 0)" in start
-assert "r->first_error = error;" in start
-assert start.index("runtime_jobs_drain(sc);") < start.index(
+# There are TWO 'r->transition = false' sites: normal success and
+# failed-start unwind. The initial test accidentally selected the normal
+# success site and therefore failed even for correctly ordered cleanup.
+assert start.count("\nfail:\n") == 1
+failed_start = start.split("\nfail:\n", 1)[1]
+assert "if (error != 0 && r->first_error == 0)" in failed_start
+assert "r->first_error = error;" in failed_start
+assert failed_start.index("runtime_jobs_drain(sc);") < failed_start.index(
     "cleanup = runtime_shutdown(sc, sc->sc_linux.started);")
-assert start.index("cleanup = runtime_shutdown(sc, sc->sc_linux.started);") < (
-    start.index("r->transition = false;\n    mutex_exit(&r->lifecycle_lock);"))
-assert "return cleanup != 0 ? cleanup : (error != 0 ? error : EIO);" in start
-assert "return error != 0 ? error : cleanup;" not in start
+assert failed_start.index("cleanup = runtime_shutdown(sc, sc->sc_linux.started);") < (
+    failed_start.index("r->transition = false;\n    mutex_exit(&r->lifecycle_lock);"))
+assert "return cleanup != 0 ? cleanup : (error != 0 ? error : EIO);" in failed_start
+assert "return error != 0 ? error : cleanup;" not in failed_start
 
 # Shutdown failure includes post-poweroff RX DMA / BTC / ASPM errors,
 # not just poweroff failure. Do not publish an unregistered ifnet after it.
