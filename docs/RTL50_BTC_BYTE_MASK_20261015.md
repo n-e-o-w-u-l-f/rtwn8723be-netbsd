@@ -1,6 +1,6 @@
 # RTL50 Bluetooth coexistence byte-mask parity — 2026-10-15
 
-Status: SOURCE_PATCH_PUBLISHED / MODEL_ORACLE_PASS / PYTHON_TEST_NOT_RUN / NATIVE_NOT_BUILT / HARDWARE_NOT_TESTED.
+Status: SOURCE_PATCH_PUBLISHED / LEGION_SOURCE_ONLY_16_PASS / NEGATIVE_ORACLE_PASS / HP_NATIVE_NOT_BUILT / HARDWARE_NOT_TESTED.
 
 ## Frozen reference and defect
 
@@ -28,10 +28,37 @@ No additional PCI/MMIO operations or hardware enable are introduced.
   verified blob `673c916ddffe4d2519f4b90023e94ef13ac00473`.
 
 Independent arithmetic-model verification passed 5,100 combinations.
-The *committed Python test has not yet run*. An independent clean source
-checkout attempted outside HP failed on DNS (`Could not resolve host:
-github.com`), not on test assertions. No native C compile or
-physical WLAN test has been executed for this changed source.
+The committed Python test **was executed** on Legion against the exact WIP
+Git HEAD `7a770a9afd150c2705f092cdbdc422861246c2f6` and returned
+`BTC_BYTE_MASK_SOURCE_ORACLE_OK: 5100 portable cases`, exit 0.
+
+A larger Legion source-only gate initially returned 14 PASS, one SKIP and
+one FAIL. The FAIL was a **test harness defect**, not a failed driver
+hardware rollback: `tests/test_runtime_start_shutdown_error_source.py`
+searched the first `r->transition = false` (normal-success branch)
+rather than the failed-start `fail:` branch, incorrectly asserting that
+cleanup must precede normal return. Commit
+`c7ef37c0fcaf321c1dcaf5b1b4487a21c9e348d3` now scopes those
+order checks to the unique `fail:` branch (verified test blob
+`2fd72473c3fc6c70b23059cc933719b3411d20d4`).
+
+A **second fresh Legion checkout at that exact commit** ran 16 selected
+pure-Python/source-contract checks, all PASS with exit 0; includes BTC
+masking, NetBSD config/i915 guard, PCI panic-inventory source, Net80211
+unregister, interrupt restart, DMA reset, BTC events, regulatory world
+policy, reserved beacon filters, pre-start reverse owners and start error
+precedence. The test fixture was also deliberately corrupted **only in
+the temporary checkout** to put `r->transition = false` before
+`runtime_shutdown()`: the regression rejected the incorrect order
+(expected failure), demonstrating a working negative gate. All temporary
+checkouts were deleted. **No native C compiler or HP kernel build** was
+invoked; no physical WLAN test followed.
+
+A read-only SSH attempt from SentinelX Legion to HP address
+`10.1.0.44` returned `No route to host`. This is a current **route
+failure**, not evidence of HP kernel identity or a permission to replace
+the existing fallback. The existing Legion project checkout was not
+changed or rebased.
 
 ## Next exact acceptance gates
 
