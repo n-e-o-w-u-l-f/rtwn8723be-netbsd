@@ -57,6 +57,7 @@ for testname in \
     test_btc_byte_mask_linux_parity.py \
     test_net80211_mgmt_be_independent_source.py \
     test_net80211_fragment_slots_source.py \
+    test_net80211_fragment_failclosed_source.py \
     test_btc_async_events_after_running.py \
     test_reserved_beacon_native_source.py \
     test_failed_probe_net80211_rollback.py \
