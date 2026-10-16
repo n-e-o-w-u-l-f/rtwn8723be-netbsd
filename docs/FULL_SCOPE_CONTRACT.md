@@ -2,6 +2,12 @@
 
 Status: IN_PROGRESS
 
+2026-10-16 TX preparation delta: ordinary and beacon encoders now build a
+private descriptor, checked OWN-clear before copying to the ring. Existing
+rollback retained. 25 source gates pass after repairing a stale negative-test
+anchor; initial failure retained. Whole-chain DMA transaction remains OPEN
+and fragmented TX stays disabled. See [descriptor staging](TX_DESCRIPTOR_STAGING_20261016.md).
+
 2026-10-16 fragmented TX safety restriction: multi-frame m_nextpkt chains
 are rejected before any publication until whole-chain DMA preparation exists.
 Single-frame TX path retained. 22 selected source-only gates PASS; native

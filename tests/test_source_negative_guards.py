@@ -122,12 +122,10 @@ CONTROLS = (
     (
         "src/rtwn8723be_net80211.c",
         "    ifp->if_percpuq = if_percpuq_create(ifp);\n"
-        "    KASSERT(ifp->if_percpuq != NULL);\n"
-        "    if_register(ifp);",
+        "    KASSERT(ifp->if_percpuq != NULL);",
         "    ifp->if_percpuq = if_percpuq_create(ifp);\n"
         "    if_detach(ifp); /* deliberately invalid before registration */\n"
-        "    KASSERT(ifp->if_percpuq != NULL);\n"
-        "    if_register(ifp);",
+        "    KASSERT(ifp->if_percpuq != NULL);",
         "unregistered ifnet cleanup or NetBSD attach order",
     ),
     (

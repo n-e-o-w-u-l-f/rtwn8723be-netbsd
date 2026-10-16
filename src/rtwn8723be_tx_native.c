@@ -76,7 +76,7 @@ rtwn8723be_tx_native_enqueue_owned(struct rtwn8723be_softc *sc,
     struct rtwn8723be_dma_slot *slot;
     struct rtwn8723be_tx_desc *desc;
     struct rtwn8723be_tx_params p;
-    struct rtwn8723be_tx_desc saved_desc;
+    struct rtwn8723be_tx_desc saved_desc, prepared_desc;
     bus_addr_t next;
     bus_size_t offset;
     unsigned int idx;
@@ -135,10 +135,11 @@ rtwn8723be_tx_native_enqueue_owned(struct rtwn8723be_softc *sc,
         return EBUSY;
     }
 
-    /* Any subsequent failure must undo partial encoder writes, re-sync
-     * the descriptor for DMA, and leave the caller's mbuf untouched.
+    /* Encode into private storage. Failures re-sync the original ring
+     * descriptor and leave the caller's mbuf/owner untouched.
      */
     saved_desc = *desc;
+    prepared_desc = saved_desc;
     error = bus_dmamap_load_mbuf(sc->sc_dmat, slot->map, m,
         BUS_DMA_NOWAIT | BUS_DMA_WRITE);
     if (error != 0)
@@ -170,13 +171,20 @@ rtwn8723be_tx_native_enqueue_owned(struct rtwn8723be_softc *sc,
     if (command)
         error = rtwn8723be_tx_encode_command(p.packet_len,
             p.buffer_dma, p.next_desc_dma,
-            (uint8_t *)desc, sizeof(*desc));
+            (uint8_t *)&prepared_desc, sizeof(prepared_desc));
     else
         error = rtwn8723be_tx_encode(&p,
-            (uint8_t *)desc, sizeof(*desc));
+            (uint8_t *)&prepared_desc, sizeof(prepared_desc));
+    if (error == 0 &&
+        (le32toh(prepared_desc.d[0]) & R23BE_TXD0_OWN) != 0)
+        error = EINVAL;
     if (error != 0)
         goto unload_map;
 
+    /* No encoder can partially modify the live DMA ring. This is still
+     * a single-frame commit; whole-chain prepare/commit remains gated.
+     */
+    *desc = prepared_desc;
     /* Ownership changes only after the packet's DMA mapping is valid. */
     bus_dmamap_sync(sc->sc_dmat, slot->map, 0,
         slot->map->dm_mapsize, BUS_DMASYNC_PREWRITE);
