@@ -70,8 +70,13 @@ def contract(datapath, header, producer):
     ]
     if not all(token in preflight for token in conditions):
         return False
-    order = [preflight.index(x) for x in conditions]
+    order = [preflight.index(x) for x in conditions[:-1]]
+    # The bounded-count loop has an earlier break on oversized chains;
+    # test the failure-path break separately, after ownership cleanup.
     if order != sorted(set(order)):
+        return False
+    if preflight.rindex("break;") <= preflight.index(
+            "ifp->if_flags |= IFF_OACTIVE;"):
         return False
     if "rtwn8723be_datapath_tx_check_slots(" not in preflight:
         return False
