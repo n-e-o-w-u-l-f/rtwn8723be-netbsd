@@ -868,7 +868,8 @@ rtwn8723be_net80211_tx_start(struct rtwn8723be_net80211_tx *tx,
 
             error = 0;
             for (frag = m; frag != NULL; frag = frag->m_nextpkt) {
-                if (needed == tx->sc->sc_tx_ring[RTWN8723BE_BE_QUEUE].count) {
+                if (needed == tx->sc->sc_tx_ring[RTWN8723BE_BE_QUEUE].count ||
+                    needed == RTWN8723BE_TX_BATCH_MAX) {
                     error = EFBIG;
                     break;
                 }
@@ -877,15 +878,8 @@ rtwn8723be_net80211_tx_start(struct rtwn8723be_net80211_tx *tx,
             if (error == 0)
                 error = rtwn8723be_datapath_tx_check_slots(tx->dp,
                     RTWN8723BE_BE_QUEUE, needed);
-            /*
-             * A later fragment's DMA load/encode can fail after an earlier
-             * descriptor has OWN set. Until all fragments can be prepared
-             * before publication, reject the entire MSDU even with free
-             * slots. Keep genuine busy/error diagnostics from preflight.
-             */
-            if (error == 0)
-                error = EOPNOTSUPP;
             if (error != 0) {
+                /* Nothing prepared or published: retain no node or mbufs. */
                 r23be_tx_free_frames(m);
                 ieee80211_free_node(ni);
                 if_statinc(ifp, if_oerrors);
@@ -893,8 +887,25 @@ rtwn8723be_net80211_tx_start(struct rtwn8723be_net80211_tx *tx,
                     ifp->if_flags |= IFF_OACTIVE;
                 break;
             }
+            /*
+             * The helper consumes every fragment (including failures).
+             * Its native batch publishes zero OWN descriptors on ANY map,
+             * encode, crypto or slot error. The caller still owns the
+             * original ni reference, while prepared fragments each own one
+             * additional node/report reference.
+             */
+            error = r23be_tx_submit_fragment_chain(tx, m, ni, special_kind);
+            ieee80211_free_node(ni);
+            if (error != 0) {
+                if_statinc(ifp, if_oerrors);
+                if (error == EBUSY)
+                    ifp->if_flags |= IFF_OACTIVE;
+            }
+            if ((ifp->if_flags & IFF_OACTIVE) != 0)
+                break;
+            continue;
         }
-        /* net80211 fragmentation chains packets with m_nextpkt, not m_next. */
+        /* Nonfragmented frame continues through the proven single-frame path. */
         while (m != NULL) {
             struct mbuf *next = m->m_nextpkt;
 
