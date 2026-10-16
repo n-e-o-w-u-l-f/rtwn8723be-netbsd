@@ -279,6 +279,12 @@ rtwn8723be_net80211_register(struct rtwn8723be_net80211 *n,
      */
     ifp->if_percpuq = if_percpuq_create(ifp);
     KASSERT(ifp->if_percpuq != NULL);
+    /*
+     * TX completion calls if_schedule_deferred_start().  Allocate its
+     * softint before publishing the interface; if_detach() drains and
+     * destroys it after the driver owner has stopped TX and IRQs.
+     */
+    if_deferred_start_init(ifp, NULL);
     if_register(ifp);
     ieee80211_media_init(ic, rtwn8723be_n80211_media_change,
         ieee80211_media_status);

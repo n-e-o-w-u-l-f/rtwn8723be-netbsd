@@ -2,6 +2,12 @@
 
 Status: IN_PROGRESS
 
+2026-10-16 TX source delta (COV-RTL-014/009): initialize the NetBSD deferred
+producer before ifnet publication, preventing the uninitialized scheduling
+path. Regression RED then GREEN, seven mutations rejected; 18 selected
+source-only gates PASS. Management-only wake after backpressure remains OPEN.
+No HP/native execution. See [TX evidence](NET80211_TX_DEFERRED_20261016.md).
+
 2026-10-16 RX/security source delta (COV-RTL-014/009): copied net80211
 mbufs now carry M_HASFCS when cached RCR_APPFCS is set, allowing the
 pinned NetBSD stack to remove CRC before crypto/decapsulation. New source
