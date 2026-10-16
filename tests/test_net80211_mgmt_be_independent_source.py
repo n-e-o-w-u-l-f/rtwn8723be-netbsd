@@ -85,21 +85,25 @@ admission_start = start.split("for (;;) {", 1)[1].split(
 
 # Fully enumerated behavioral policy, distinct from source assertions above.
 cases = 0
+recovered_mgmt = 0
 for running, enabled, oactive, mgmt_pending, mgmt_free, be_free in product(
         (False, True), repeat=6):
     can_start = running and enabled and (not oactive or mgmt_pending)
     selected = ("MGNT" if mgmt_pending else "BE") if can_start else None
     accepted = can_start and (mgmt_free if mgmt_pending else be_free)
+    # Former policy had a global IFF_OACTIVE gate and checked both rings.
+    old_accepted = (running and enabled and not oactive and
+                    mgmt_free and be_free)
     if running and enabled and mgmt_pending and mgmt_free:
         assert accepted and selected == "MGNT"  # BE cannot block MGNT.
+        if not old_accepted:
+            recovered_mgmt += 1
     if oactive and not mgmt_pending:
         assert not accepted
     if not running or not enabled:
         assert not accepted
     cases += 1
-
-# The previously broken policy required both rings to be free.
-assert not (True and False)  # MGNT free, BE full: old combined gate rejected.
+assert recovered_mgmt == 3  # BE full (two OACTIVE states), or stale OACTIVE.
 mutations = [
     (n80211, tx.replace("if (ic->ic_mgtq.ifq_head != NULL)",
                        "if (ic->ic_mgtq.ifq_head == NULL)", 1)),
@@ -123,4 +127,4 @@ for i, (bad_n80211, bad_tx) in enumerate(mutations):
 assert "rtwn8723be_datapath_tx_check(tx->dp, RTWN8723BE_MGNT_QUEUE);" not in admission_start
 assert "rtwn8723be_datapath_tx_check(tx->dp, RTWN8723BE_BE_QUEUE);" not in admission_start
 print(f"NET80211_MGMT_BE_INDEPENDENT_SOURCE_OK: {cases} policy combinations; "
-      f"{len(mutations)} rejected mutations; native hardware NOT_RUN")
+      f"{len(mutations)} rejected mutations; {recovered_mgmt} recovered MGNT cases; native hardware NOT_RUN")
