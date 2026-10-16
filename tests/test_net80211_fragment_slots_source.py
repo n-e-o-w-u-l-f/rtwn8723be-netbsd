@@ -97,6 +97,15 @@ h = (ROOT / "src/rtwn8723be_datapath.h").read_text()
 t = (ROOT / "src/rtwn8723be_net80211_tx.c").read_text()
 assert contract(d, h, t)
 
+def fragment_mutation(source, old, new):
+    """Mutate only the newly added preflight, never earlier TX branches."""
+    anchor = "if (m->m_nextpkt != NULL) {"
+    assert source.count(anchor) == 1
+    prefix, suffix = source.split(anchor, 1)
+    assert old in suffix
+    return prefix + anchor + suffix.replace(old, new, 1)
+
+
 mutants = [
     (d, h, t.replace("if (m->m_nextpkt != NULL)", "if (m->m_nextpkt == NULL)", 1)),
     (d, h, t.replace("RTWN8723BE_BE_QUEUE, needed);",
@@ -105,10 +114,12 @@ mutants = [
                      "for (frag = m; frag != NULL; frag = frag->m_next)", 1)),
     (d, h, t.replace("r23be_tx_free_frames(m);\n                ieee80211_free_node(ni);",
                      "ieee80211_free_node(ni);", 1)),
-    (d, h, t.replace("ieee80211_free_node(ni);\n                if_statinc(ifp, if_oerrors);",
-                     "if_statinc(ifp, if_oerrors);", 1)),
-    (d, h, t.replace("if (error == EBUSY)\n                    ifp->if_flags |= IFF_OACTIVE;",
-                     "if (error != EBUSY)\n                    ifp->if_flags |= IFF_OACTIVE;", 1)),
+    (d, h, fragment_mutation(t,
+        "ieee80211_free_node(ni);\n                if_statinc(ifp, if_oerrors);",
+        "if_statinc(ifp, if_oerrors);")),
+    (d, h, fragment_mutation(t,
+        "if (error == EBUSY)\n                    ifp->if_flags |= IFF_OACTIVE;",
+        "if (error != EBUSY)\n                    ifp->if_flags |= IFF_OACTIVE;")),
     (d.replace("if (ring->slot[idx].m != NULL)",
                "if (ring->slot[idx].m == NULL)", 1), h, t),
     (d.replace("else if (needed > ring->count)",
