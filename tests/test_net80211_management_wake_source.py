@@ -31,7 +31,9 @@ def contract(source):
             and complete.count("if_start_lock(ifp);") == 1
             and "bool restart_mgt = false;" in complete
             and "if (!tx->enabled ||" in start
-            and "(ifp->if_flags & (IFF_RUNNING | IFF_OACTIVE)) != IFF_RUNNING" in start
+            and "(ifp->if_flags & IFF_RUNNING) == 0" in start
+            and "ic->ic_mgtq.ifq_head == NULL" in start
+            and "if (ic->ic_mgtq.ifq_head != NULL)" in start
             and start.index("mutex_enter(&tx->producer_lock);") < start.index("if (!tx->enabled ||"))
 
 
