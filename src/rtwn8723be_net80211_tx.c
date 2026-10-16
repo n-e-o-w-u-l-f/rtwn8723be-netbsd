@@ -647,16 +647,33 @@ rtwn8723be_net80211_tx_start(struct rtwn8723be_net80211_tx *tx,
         return;
     mutex_enter(&tx->producer_lock);
     ic = &tx->sc->sc_ic;
-    if (!tx->enabled ||
-        (ifp->if_flags & (IFF_RUNNING | IFF_OACTIVE)) != IFF_RUNNING)
+    /*
+     * IFF_OACTIVE can describe BE-ring backpressure. A management frame
+     * must still reach its independent MGNT ring while BE is saturated.
+     * An empty management queue preserves the normal data-only stop.
+     */
+    if (!tx->enabled || (ifp->if_flags & IFF_RUNNING) == 0 ||
+        ((ifp->if_flags & IFF_OACTIVE) != 0 &&
+         ic->ic_mgtq.ifq_head == NULL))
         goto out;
     if (ic->ic_opmode != IEEE80211_M_STA)
         goto out;
     for (;;) {
-        /* Stop before dequeue: pending stack queues keep their references. */
-        error = rtwn8723be_datapath_tx_check(tx->dp, RTWN8723BE_MGNT_QUEUE);
-        if (error == 0)
-            error = rtwn8723be_datapath_tx_check(tx->dp, RTWN8723BE_BE_QUEUE);
+        /*
+         * Check only the queue about to be dequeued. The Linux rtlwifi
+         * DMA path maintains independent MGNT and BE descriptor rings.
+         * Requiring a free BE descriptor before management transmission
+         * can deadlock authentication/association under data pressure.
+         */
+        if (ic->ic_mgtq.ifq_head != NULL)
+            error = rtwn8723be_datapath_tx_check(tx->dp,
+                RTWN8723BE_MGNT_QUEUE);
+        else {
+            if (ic->ic_state != IEEE80211_S_RUN)
+                break;
+            error = rtwn8723be_datapath_tx_check(tx->dp,
+                RTWN8723BE_BE_QUEUE);
+        }
         if (error != 0) {
             if (error == EBUSY)
                 ifp->if_flags |= IFF_OACTIVE;
