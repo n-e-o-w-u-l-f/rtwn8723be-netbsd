@@ -77,7 +77,11 @@ int rtwn8723be_net80211_tx_fini(struct rtwn8723be_net80211_tx *);
 /* NetBSD rtwn_start ordering: management first, Ethernet framing next. */
 void rtwn8723be_net80211_tx_start(struct rtwn8723be_net80211_tx *,
     struct ifnet *);
-/* Datapath completion callback; schedules ifnet restart outside TX lock. */
+/*
+ * SOFTINT_NET datapath callback, outside datapath TX lock. Management wake
+ * calls if_start after dropping producer_lock; data-only wake is deferred.
+ * Owner must drain IRQ softint before unregister/free of this context.
+ */
 void rtwn8723be_net80211_tx_complete(void *, unsigned int, size_t);
 
 /* C2H v1 handler: retains special frames until DMA AND air result exist. */

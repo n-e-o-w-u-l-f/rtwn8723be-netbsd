@@ -1,0 +1,116 @@
+[
+  {
+    "test": "test_btc_byte_mask_linux_parity.py",
+    "exit_code": 0,
+    "stdout": "BTC_BYTE_MASK_SOURCE_ORACLE_OK: 5100 portable cases; no native/hardware test",
+    "stderr": ""
+  },
+  {
+    "test": "test_hp_native_kernel_config_source.py",
+    "exit_code": 0,
+    "stdout": "HP_RTL_KERNEL_CONFIG_I915_GUARD_SOURCE_PASS",
+    "stderr": ""
+  },
+  {
+    "test": "test_net80211_unregister_sleep_ipl_source.py",
+    "exit_code": 0,
+    "stdout": "RTL_NETBSD_NET80211_UNREGISTER_SLEEPABLE_IPL_SOURCE_PASS",
+    "stderr": ""
+  },
+  {
+    "test": "test_irq_shutdown_race_contract.py",
+    "exit_code": 0,
+    "stdout": "RTL_IRQ_HARD_SOFT_STOP_RACE_SOURCE_CONTRACT_OK negatives=4 owner-IPL_NET serialization=source-only full-native-IRQ-hardware=OPEN",
+    "stderr": ""
+  },
+  {
+    "test": "test_irq_mutex_single_owner.py",
+    "exit_code": 0,
+    "stdout": "RTL_IRQ_MUTEX_SINGLE_OWNER_SOURCE_PASS",
+    "stderr": ""
+  },
+  {
+    "test": "test_runtime_dma_reset_owner.py",
+    "exit_code": 0,
+    "stdout": "RTL_DMA_RESET_OWNER_GENERATION_SOURCE_PASS",
+    "stderr": ""
+  },
+  {
+    "test": "test_btc_async_events_after_running.py",
+    "exit_code": 0,
+    "stdout": "RTL_BTC_ASYNC_EVENTS_AFTER_RUNNING_SOURCE_PASS",
+    "stderr": ""
+  },
+  {
+    "test": "test_wip_world_regdomain_glue.py",
+    "exit_code": 0,
+    "stdout": "RTL_WORLD_REGDOMAIN_CORE_IFNET_SINGLE_OWNER_SOURCE_PASS",
+    "stderr": ""
+  },
+  {
+    "test": "test_reserved_beacon_native_source.py",
+    "exit_code": 0,
+    "stdout": "RTL_BEACON_RESERVED_NATIVE_SOURCE_PASS",
+    "stderr": ""
+  },
+  {
+    "test": "test_wip_reverse_owner_prestart.py",
+    "exit_code": 0,
+    "stdout": "RTL_WIP_START_REVERSE_OWNER_PREFLIGHT_SOURCE_PASS",
+    "stderr": ""
+  },
+  {
+    "test": "test_runtime_start_shutdown_error_source.py",
+    "exit_code": 0,
+    "stdout": "RTL_START_FAILURE_SHUTDOWN_PRECEDENCE_SOURCE_PASS",
+    "stderr": ""
+  },
+  {
+    "test": "test_netbsd_pci_command_status_w1c.py",
+    "exit_code": 0,
+    "stdout": "NETBSD_PCI_COMMAND_STATUS_W1C_SOURCE_AND_MODEL_PASS 50",
+    "stderr": ""
+  },
+  {
+    "test": "test_rx_management_filter_native.py",
+    "exit_code": 0,
+    "stdout": "RTL_MANAGEMENT_BEACON_RX_FILTER_SOURCE_ORDER_PASS",
+    "stderr": ""
+  },
+  {
+    "test": "test_runtime_sw_owner_order.py",
+    "exit_code": 0,
+    "stdout": "RTL_RUNTIME_SW_OWNER_ORDER_SOURCE_PASS",
+    "stderr": ""
+  },
+  {
+    "test": "test_probe_unstarted_and_failed_shutdown_gates.py",
+    "exit_code": 0,
+    "stdout": "RTL_NET80211_STOPPED_IRQ_RESTART_OWNER_SOURCE_PASS\nRTL_PRESTART_UNREGISTER_AND_SHUTDOWN_FAILURE_SOURCE_PASS",
+    "stderr": ""
+  },
+  {
+    "test": "test_rf_calibration_pre_dm_source.py",
+    "exit_code": 0,
+    "stdout": "RTL_RF_CALIBRATION_BEFORE_DM_OWNER_ORDER_SOURCE_PASS",
+    "stderr": ""
+  },
+  {
+    "test": "test_net80211_rx_fcs_source.py",
+    "exit_code": 0,
+    "stdout": "RTL_NET80211_RX_FCS_SOURCE_PASS: appended-FCS contract; 7 rejected mutations",
+    "stderr": ""
+  },
+  {
+    "test": "test_net80211_deferred_start_source.py",
+    "exit_code": 0,
+    "stdout": "NET80211_DEFERRED_START_SOURCE_PASS: lifetime ordering; 7 rejected mutations",
+    "stderr": ""
+  },
+  {
+    "test": "test_net80211_management_wake_source.py",
+    "exit_code": 0,
+    "stdout": "NET80211_MANAGEMENT_WAKE_SOURCE_PASS: restart/lock contracts; 7 rejected mutations",
+    "stderr": ""
+  }
+]

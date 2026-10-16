@@ -2,6 +2,13 @@
 
 Status: IN_PROGRESS
 
+2026-10-16 management TX source delta (COV-RTL-014/009): completion now
+restarts pending ic_mgtq directly at splnet after producer-lock release,
+using if_start_lock; Ethernet-only completion retains deferred start.
+This addresses the previously recorded management-only wake gap in source.
+Native execution and full-port acceptance remain OPEN.
+See [management wake evidence](NET80211_MGMT_WAKE_20261016.md).
+
 2026-10-16 TX source delta (COV-RTL-014/009): initialize the NetBSD deferred
 producer before ifnet publication, preventing the uninitialized scheduling
 path. Regression RED then GREEN, seven mutations rejected; 18 selected

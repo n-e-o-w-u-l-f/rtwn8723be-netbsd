@@ -732,15 +732,30 @@ rtwn8723be_net80211_tx_complete(void *arg, unsigned int qid, size_t count)
 {
     struct rtwn8723be_net80211_tx *tx = arg;
     struct ifnet *ifp;
+    bool restart_mgt = false;
+    int s;
 
     if (tx == NULL || !tx->prepared || count == 0 ||
         qid >= RTWN8723BE_TX_QUEUE_COUNT)
         return;
+    s = splnet();
     mutex_enter(&tx->producer_lock);
     ifp = &tx->sc->sc_ec.ec_if;
     if (tx->enabled && (ifp->if_flags & IFF_RUNNING) != 0) {
         ifp->if_flags &= ~IFF_OACTIVE;
-        if_schedule_deferred_start(ifp);
+        restart_mgt = tx->sc->sc_ic.ic_mgtq.ifq_head != NULL;
+        if (!restart_mgt)
+            if_schedule_deferred_start(ifp);
     }
     mutex_exit(&tx->producer_lock);
+    /*
+     * The deferred helper skips an empty Ethernet if_snd even when
+     * ic_mgtq is nonempty. Like frozen rtwn_softintr, restart at splnet
+     * from this SOFTINT_NET callback, after releasing both TX locks.
+     * if_start rechecks running/enabled under producer_lock. IRQ rundown
+     * drains this callback before detach can release the TX context.
+     */
+    if (restart_mgt)
+        if_start_lock(ifp);
+    splx(s);
 }
