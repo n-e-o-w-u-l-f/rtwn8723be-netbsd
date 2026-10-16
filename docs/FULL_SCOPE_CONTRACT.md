@@ -2,6 +2,12 @@
 
 Status: IN_PROGRESS
 
+2026-10-16 fragmented TX safety restriction: multi-frame m_nextpkt chains
+are rejected before any publication until whole-chain DMA preparation exists.
+Single-frame TX path retained. 22 selected source-only gates PASS; native
+fragmentation/full WLAN acceptance OPEN. This is not fragmentation parity.
+See [fail-closed evidence](NET80211_FRAGMENT_FAILCLOSED_20261016.md).
+
 2026-10-16 management TX source delta (COV-RTL-014/009): completion now
 restarts pending ic_mgtq directly at splnet after producer-lock release,
 using if_start_lock; Ethernet-only completion retains deferred start.

@@ -725,8 +725,8 @@ rtwn8723be_net80211_tx_start(struct rtwn8723be_net80211_tx *tx,
          *
          * No fragment has been published yet. Require consecutive free
          * producer slots for this whole chain, or dispose of the complete
-         * MSDU and its one original node reference. Do not claim atomic
-         * DMA mapping: a later per-fragment map/encode may still fail.
+         * MSDU and its one original node reference. Slot admission is
+         * diagnostic only until whole-chain DMA preparation is atomic.
          */
         if (m->m_nextpkt != NULL) {
             struct mbuf *frag;
@@ -743,6 +743,14 @@ rtwn8723be_net80211_tx_start(struct rtwn8723be_net80211_tx *tx,
             if (error == 0)
                 error = rtwn8723be_datapath_tx_check_slots(tx->dp,
                     RTWN8723BE_BE_QUEUE, needed);
+            /*
+             * A later fragment's DMA load/encode can fail after an earlier
+             * descriptor has OWN set. Until all fragments can be prepared
+             * before publication, reject the entire MSDU even with free
+             * slots. Keep genuine busy/error diagnostics from preflight.
+             */
+            if (error == 0)
+                error = EOPNOTSUPP;
             if (error != 0) {
                 r23be_tx_free_frames(m);
                 ieee80211_free_node(ni);
