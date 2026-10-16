@@ -718,6 +718,40 @@ rtwn8723be_net80211_tx_start(struct rtwn8723be_net80211_tx *tx,
                 continue;
             }
         }
+        /*
+         * NetBSD ieee80211_encap() may return a complete fragmented MSDU
+         * linked through m_nextpkt. The single-descriptor admission check
+         * above cannot protect its later fragments against BE saturation.
+         *
+         * No fragment has been published yet. Require consecutive free
+         * producer slots for this whole chain, or dispose of the complete
+         * MSDU and its one original node reference. Do not claim atomic
+         * DMA mapping: a later per-fragment map/encode may still fail.
+         */
+        if (m->m_nextpkt != NULL) {
+            struct mbuf *frag;
+            unsigned int needed = 0;
+
+            error = 0;
+            for (frag = m; frag != NULL; frag = frag->m_nextpkt) {
+                if (needed == tx->sc->sc_tx_ring[RTWN8723BE_BE_QUEUE].count) {
+                    error = EFBIG;
+                    break;
+                }
+                needed++;
+            }
+            if (error == 0)
+                error = rtwn8723be_datapath_tx_check_slots(tx->dp,
+                    RTWN8723BE_BE_QUEUE, needed);
+            if (error != 0) {
+                r23be_tx_free_frames(m);
+                ieee80211_free_node(ni);
+                if_statinc(ifp, if_oerrors);
+                if (error == EBUSY)
+                    ifp->if_flags |= IFF_OACTIVE;
+                break;
+            }
+        }
         /* net80211 fragmentation chains packets with m_nextpkt, not m_next. */
         while (m != NULL) {
             struct mbuf *next = m->m_nextpkt;
