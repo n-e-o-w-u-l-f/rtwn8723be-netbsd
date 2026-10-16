@@ -202,6 +202,8 @@ rtwn8723be_datapath_tx_check_slots(struct rtwn8723be_datapath *dp,
     unsigned int qid, unsigned int needed)
 {
     struct rtwn8723be_tx_ring *ring;
+    struct rtwn8723be_tx_desc *descs;
+    bus_size_t offset;
     unsigned int idx, i;
     int error = 0;
 
@@ -213,18 +215,45 @@ rtwn8723be_datapath_tx_check_slots(struct rtwn8723be_datapath *dp,
     if (!dp->tx_enabled || !dp->sc->sc_linux.started ||
         !dp->sc->sc_linux.fw_ready)
         error = EAGAIN;
-    else if (ring->count == 0 || ring->slot == NULL ||
-        ring->producer >= ring->count || ring->consumer >= ring->count)
+    else if (!dp->sc->sc_mapped || !dp->sc->sc_rings_allocated ||
+        dp->sc->sc_dmat == NULL || !dp->sc->sc_dma_32bit ||
+        ring->count == 0 || ring->slot == NULL ||
+        ring->producer >= ring->count || ring->consumer >= ring->count ||
+        ring->desc_dma.kva == NULL || ring->desc_dma.map == NULL ||
+        ring->desc_dma.size < (bus_size_t)ring->count *
+            sizeof(struct rtwn8723be_tx_desc) ||
+        !rtwn8723be_dma32_range_valid(
+            ring->desc_dma.paddr, ring->desc_dma.size))
         error = EIO;
     else if (needed > ring->count)
         error = EFBIG;
     else {
+        descs = ring->desc_dma.kva;
         idx = ring->producer;
         for (i = 0; i < needed; i++) {
             if (ring->slot[idx].m != NULL) {
                 error = EBUSY;
                 break;
             }
+            if (ring->slot[idx].map == NULL) {
+                error = EIO;
+                break;
+            }
+            /*
+             * A descriptor may still belong to the device despite an
+             * unpublished NULL mbuf slot. Match the exact OWN gate in
+             * rtwn8723be_tx_native_enqueue_owned BEFORE publishing any
+             * fragment, with paired CPU/device descriptor DMA sync.
+             */
+            offset = (bus_size_t)idx * sizeof(*descs);
+            rtwn8723be_f16_1_dma_sync_for_cpu(dp->sc->sc_dmat,
+                &ring->desc_dma, offset, sizeof(*descs));
+            if ((le32toh(descs[idx].d[0]) & R23BE_TXD0_OWN) != 0)
+                error = EBUSY;
+            rtwn8723be_f16_1_dma_sync_for_device(dp->sc->sc_dmat,
+                &ring->desc_dma, offset, sizeof(*descs));
+            if (error != 0)
+                break;
             idx++;
             if (idx == ring->count)
                 idx = 0;
