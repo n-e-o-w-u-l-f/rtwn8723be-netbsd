@@ -191,6 +191,38 @@ rtwn8723be_datapath_enqueue_owned_notify(struct rtwn8723be_datapath *dp,
     return error;
 }
 
+int
+rtwn8723be_datapath_enqueue_batch_notify(struct rtwn8723be_datapath *dp,
+    const struct rtwn8723be_tx_batch_frame *frames, unsigned int count,
+    void (*accepted)(void *, const struct mbuf *), void *accepted_arg)
+{
+    unsigned int i;
+    int error;
+
+    if (dp == NULL || !dp->prepared || dp->sc == NULL ||
+        frames == NULL || count == 0 || count > RTWN8723BE_TX_BATCH_MAX)
+        return EINVAL;
+    /* Stop/reclaim/other producers share this lock. It also serializes
+     * the per-device scratch storage across the entire native operation.
+     */
+    mutex_enter(&dp->tx_lock);
+    if (!dp->tx_enabled || !dp->sc->sc_linux.started ||
+        dp->sc->sc_linux.stage != R23BE_STAGE_RUNNING ||
+        !dp->sc->sc_linux.fw_ready)
+        error = EAGAIN;
+    else
+        error = rtwn8723be_tx_native_enqueue_batch(dp->sc,
+            frames, count, &dp->batch_workspace);
+    /* DMA acceptance is not an air ACK. No callback sees a failed batch;
+     * reclaim cannot release any successful packet until this lock drops.
+     */
+    if (error == 0 && accepted != NULL)
+        for (i = 0; i < count; i++)
+            accepted(accepted_arg, frames[i].m);
+    mutex_exit(&dp->tx_lock);
+    return error;
+}
+
 /*
  * Admission for an entire already-encapsulated m_nextpkt fragment chain.
  * Producer holds producer_lock and the only BE queue producer is serialized

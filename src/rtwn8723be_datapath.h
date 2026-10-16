@@ -21,6 +21,10 @@ struct rtwn8723be_datapath {
     struct rtwn8723be_softc *sc;
     struct rtwn8723be_rx_dispatch rx;
     kmutex_t tx_lock;
+    /* Per-device scratch, serialized by tx_lock; no ownership survives a
+     * batch return. Embedded in the heap-allocated runtime, not TX stack.
+     */
+    struct rtwn8723be_tx_batch_workspace batch_workspace;
     bool prepared;
     bool tx_enabled;
     int rx_error;
@@ -60,6 +64,16 @@ int rtwn8723be_datapath_enqueue_owned(struct rtwn8723be_datapath *,
 int rtwn8723be_datapath_enqueue_owned_notify(struct rtwn8723be_datapath *,
     unsigned int, struct mbuf *, const struct rtwn8723be_tx_params *, bool,
     void *, void (*)(void *, struct mbuf *, bool),
+    void (*)(void *, const struct mbuf *), void *);
+/* BE-only batch of already encrypted/linearized frames. Same owner-transfer
+ * rule as native batch: all on success, none on failure. After success,
+ * accepted borrows each mbuf under tx_lock, before reclaim can free it;
+ * it must not free/retain packets, reenter TX, or change frame storage.
+ * Caller excludes unprepare and retains frame-array storage for the call.
+ * This is not yet connected to net80211's fail-closed fragment producer.
+ */
+int rtwn8723be_datapath_enqueue_batch_notify(struct rtwn8723be_datapath *,
+    const struct rtwn8723be_tx_batch_frame *, unsigned int,
     void (*)(void *, const struct mbuf *), void *);
 int rtwn8723be_datapath_tx_check(struct rtwn8723be_datapath *, unsigned int);
 /*

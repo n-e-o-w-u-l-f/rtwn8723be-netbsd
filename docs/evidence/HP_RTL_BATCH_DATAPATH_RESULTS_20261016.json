@@ -1,0 +1,164 @@
+[
+  {
+    "test": "test_btc_byte_mask_linux_parity.py",
+    "exit_code": 0,
+    "stdout": "BTC_BYTE_MASK_SOURCE_ORACLE_OK: 5100 portable cases; no native/hardware test",
+    "stderr": ""
+  },
+  {
+    "test": "test_hp_native_kernel_config_source.py",
+    "exit_code": 0,
+    "stdout": "HP_RTL_KERNEL_CONFIG_I915_GUARD_SOURCE_PASS",
+    "stderr": ""
+  },
+  {
+    "test": "test_net80211_unregister_sleep_ipl_source.py",
+    "exit_code": 0,
+    "stdout": "RTL_NETBSD_NET80211_UNREGISTER_SLEEPABLE_IPL_SOURCE_PASS",
+    "stderr": ""
+  },
+  {
+    "test": "test_irq_shutdown_race_contract.py",
+    "exit_code": 0,
+    "stdout": "RTL_IRQ_HARD_SOFT_STOP_RACE_SOURCE_CONTRACT_OK negatives=4 owner-IPL_NET serialization=source-only full-native-IRQ-hardware=OPEN",
+    "stderr": ""
+  },
+  {
+    "test": "test_irq_mutex_single_owner.py",
+    "exit_code": 0,
+    "stdout": "RTL_IRQ_MUTEX_SINGLE_OWNER_SOURCE_PASS",
+    "stderr": ""
+  },
+  {
+    "test": "test_runtime_dma_reset_owner.py",
+    "exit_code": 0,
+    "stdout": "RTL_DMA_RESET_OWNER_GENERATION_SOURCE_PASS",
+    "stderr": ""
+  },
+  {
+    "test": "test_btc_async_events_after_running.py",
+    "exit_code": 0,
+    "stdout": "RTL_BTC_ASYNC_EVENTS_AFTER_RUNNING_SOURCE_PASS",
+    "stderr": ""
+  },
+  {
+    "test": "test_wip_world_regdomain_glue.py",
+    "exit_code": 0,
+    "stdout": "RTL_WORLD_REGDOMAIN_CORE_IFNET_SINGLE_OWNER_SOURCE_PASS",
+    "stderr": ""
+  },
+  {
+    "test": "test_reserved_beacon_native_source.py",
+    "exit_code": 0,
+    "stdout": "RTL_BEACON_RESERVED_NATIVE_SOURCE_PASS",
+    "stderr": ""
+  },
+  {
+    "test": "test_wip_reverse_owner_prestart.py",
+    "exit_code": 0,
+    "stdout": "RTL_WIP_START_REVERSE_OWNER_PREFLIGHT_SOURCE_PASS",
+    "stderr": ""
+  },
+  {
+    "test": "test_runtime_start_shutdown_error_source.py",
+    "exit_code": 0,
+    "stdout": "RTL_START_FAILURE_SHUTDOWN_PRECEDENCE_SOURCE_PASS",
+    "stderr": ""
+  },
+  {
+    "test": "test_netbsd_pci_command_status_w1c.py",
+    "exit_code": 0,
+    "stdout": "NETBSD_PCI_COMMAND_STATUS_W1C_SOURCE_AND_MODEL_PASS 50",
+    "stderr": ""
+  },
+  {
+    "test": "test_rx_management_filter_native.py",
+    "exit_code": 0,
+    "stdout": "RTL_MANAGEMENT_BEACON_RX_FILTER_SOURCE_ORDER_PASS",
+    "stderr": ""
+  },
+  {
+    "test": "test_runtime_sw_owner_order.py",
+    "exit_code": 0,
+    "stdout": "RTL_RUNTIME_SW_OWNER_ORDER_SOURCE_PASS",
+    "stderr": ""
+  },
+  {
+    "test": "test_probe_unstarted_and_failed_shutdown_gates.py",
+    "exit_code": 0,
+    "stdout": "RTL_NET80211_STOPPED_IRQ_RESTART_OWNER_SOURCE_PASS\nRTL_PRESTART_UNREGISTER_AND_SHUTDOWN_FAILURE_SOURCE_PASS",
+    "stderr": ""
+  },
+  {
+    "test": "test_rf_calibration_pre_dm_source.py",
+    "exit_code": 0,
+    "stdout": "RTL_RF_CALIBRATION_BEFORE_DM_OWNER_ORDER_SOURCE_PASS",
+    "stderr": ""
+  },
+  {
+    "test": "test_net80211_rx_fcs_source.py",
+    "exit_code": 0,
+    "stdout": "RTL_NET80211_RX_FCS_SOURCE_PASS: appended-FCS contract; 7 rejected mutations",
+    "stderr": ""
+  },
+  {
+    "test": "test_net80211_deferred_start_source.py",
+    "exit_code": 0,
+    "stdout": "NET80211_DEFERRED_START_SOURCE_PASS: lifetime ordering; 7 rejected mutations",
+    "stderr": ""
+  },
+  {
+    "test": "test_net80211_management_wake_source.py",
+    "exit_code": 0,
+    "stdout": "NET80211_MANAGEMENT_WAKE_SOURCE_PASS: restart/lock contracts; 7 rejected mutations",
+    "stderr": ""
+  },
+  {
+    "test": "test_net80211_mgmt_be_independent_source.py",
+    "exit_code": 0,
+    "stdout": "NET80211_MGMT_BE_INDEPENDENT_SOURCE_OK: 64 policy combinations; 7 rejected mutations; 3 recovered MGNT cases; native hardware NOT_RUN",
+    "stderr": ""
+  },
+  {
+    "test": "test_net80211_fragment_slots_source.py",
+    "exit_code": 0,
+    "stdout": "NET80211_FRAGMENT_SLOTS_SOURCE_PASS: 15 rejected mutations, 37552 ring model cases; no native/hardware test",
+    "stderr": ""
+  },
+  {
+    "test": "test_net80211_fragment_failclosed_source.py",
+    "exit_code": 0,
+    "stdout": "FRAGMENT_FAILCLOSED_SOURCE_PASS: no multi-fragment publication; 7 rejected mutations",
+    "stderr": ""
+  },
+  {
+    "test": "test_tx_descriptor_staging_source.py",
+    "exit_code": 0,
+    "stdout": "TX_DESCRIPTOR_STAGING_SOURCE_PASS: private encoders/OWN/rollback; 7 rejected mutations",
+    "stderr": ""
+  },
+  {
+    "test": "test_port_closure_inventory.py",
+    "exit_code": 0,
+    "stdout": "DECLARED=53 BOUND=53 MISSING=0\nPROBE=\nSTART=\nSTOP=\nNATIVE_C_OBJECTS=50\nTX_POWER_PG_IN_NATIVE_BUILD=true\nGUARDED_CALLBACKS_WITH_OPEN_OWNER=rf_calibration,hw_disable\nBTC_ALGORITHMS_BUILT=1ant,2ant; BTC_FULL_PROVIDER_LIFETIME=OPEN\nCALLBACK_AND_PG_CLOSURE=OPEN",
+    "stderr": ""
+  },
+  {
+    "test": "test_source_negative_guards.py",
+    "exit_code": 0,
+    "stdout": "NEGATIVE_CONTROL_1=REJECTED TX completion accepts invalid DMA subregion tag\nNEGATIVE_CONTROL_2=REJECTED TX completion may free corrupt payload DMA map\nNEGATIVE_CONTROL_3=REJECTED RX drain accepts non-32-bit DMA tag\nNEGATIVE_CONTROL_4=REJECTED BTC RF_1T1R readiness accepts phantom path B\nNEGATIVE_CONTROL_5=REJECTED RX delivery count lost after partial queue drain\nNEGATIVE_CONTROL_6=REJECTED invalid RX slot returns before DMA re-sync\nNEGATIVE_CONTROL_7=REJECTED BTC RF provider permits nonexistent PHY path\nNEGATIVE_CONTROL_8=REJECTED native TX must restore descriptor before error return\nNEGATIVE_CONTROL_9=REJECTED DMA32 validator missing 4-GiB boundary/overflow check\nNEGATIVE_CONTROL_10=REJECTED descriptor DMA mapping omits complete 32-bit span\nNEGATIVE_CONTROL_11=REJECTED native RX DMA slot published without full span check\nNEGATIVE_CONTROL_12=REJECTED native TX may publish truncated 32-bit DMA\nNEGATIVE_CONTROL_13=REJECTED software WPA2 station capability/policy incomplete\nNEGATIVE_CONTROL_14=REJECTED unregistered ifnet cleanup or NetBSD attach order\nNEGATIVE_CONTROL_15=REJECTED unsafe IDLE or post-registration probe cleanup\nNEGATIVE_CONTROL_16=REJECTED software WPA2 branch must not program HW cipher\nNEGATIVE_CONTROL_17=REJECTED PCI snapshot failure leaks RF-PS lock\nSOURCE_NEGATIVE_CONTROLS=PASS",
+    "stderr": ""
+  },
+  {
+    "test": "test_tx_batch_source.py",
+    "exit_code": 0,
+    "stdout": "TX_BATCH_SOURCE_PASS: 8 rejected mutations; 11136 ownership model cases; native NOT_RUN",
+    "stderr": ""
+  },
+  {
+    "test": "test_datapath_batch_source.py",
+    "exit_code": 0,
+    "stdout": "DATAPATH_BATCH_SOURCE_PASS: 8 mutations; 192 policy cases; native NOT_RUN",
+    "stderr": ""
+  }
+]

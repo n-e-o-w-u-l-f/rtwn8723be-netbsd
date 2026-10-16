@@ -2,6 +2,12 @@
 
 Status: IN_PROGRESS
 
+2026-10-16 batch datapath delta: runtime-embedded workspace and serialized
+BE batch enqueue/notification API added. Running/firmware gate and callbacks
+remain under the shared TX lock. 27 source gates/192 new policy cases PASS.
+Net80211 fragment preparation and native validation OPEN; restriction retained.
+See [datapath integration](BATCH_DATAPATH_20261016.md).
+
 2026-10-16 additive BE batch primitive: up to16 maps/private descriptors
 prepared before owner/OWN publication, reverse map unwind on failure,
 caller-provided workspace and TX serialization. Not wired to net80211;
