@@ -62,9 +62,12 @@ def contract(datapath, header, producer):
     )
     if not all(token in gate for token in own_sequence):
         return False
-    own_positions = [gate.index(x) for x in own_sequence]
-    if own_positions != sorted(set(own_positions)):
-        return False
+    search_from = 0
+    for token in own_sequence:
+        where = gate.find(token, search_from)
+        if where < 0:
+            return False
+        search_from = where + len(token)
     dma_guards = (
         "!dp->sc->sc_mapped", "!dp->sc->sc_rings_allocated",
         "dp->sc->sc_dmat == NULL", "!dp->sc->sc_dma_32bit",
