@@ -2,6 +2,12 @@
 
 Status: IN_PROGRESS
 
+2026-10-17 frame preparation delta: existing single-frame TX now uses explicit
+crypto/linearization/parameter/owner preparation, followed by publication or
+central prepared-owner abort. Preparation algorithm preserved byte-for-byte.
+28 source gates PASS; all-frame integration/native validation OPEN and fragment
+restriction retained. See [frame preparation](TX_FRAME_PREPARE_20261017.md).
+
 2026-10-16 batch datapath delta: runtime-embedded workspace and serialized
 BE batch enqueue/notification API added. Running/firmware gate and callbacks
 remain under the shared TX lock. 27 source gates/192 new policy cases PASS.

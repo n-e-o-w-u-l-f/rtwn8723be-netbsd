@@ -441,22 +441,35 @@ fail:
     return NULL;
 }
 
-int
-rtwn8723be_net80211_tx_frame(struct rtwn8723be_net80211_tx *tx,
-    struct mbuf *m, struct ieee80211_node *ni, uint8_t special_kind)
+/* Private preparation owner. Caller holds producer_lock throughout prepare,
+ * publication or abort. Failure consumes input mbuf/node; success returns
+ * the final (possibly replaced) mbuf and its node/report ownership here.
+ * Preparing a frame does not load DMA, notify acceptance or publish OWN.
+ */
+struct r23be_tx_prepared_frame {
+    struct rtwn8723be_tx_batch_frame frame;
+    struct rtwn8723be_tx_report_ticket *ticket;
+    unsigned int qid;
+};
+
+static int
+r23be_tx_prepare_frame(struct rtwn8723be_net80211_tx *tx,
+    struct mbuf *m, struct ieee80211_node *ni, uint8_t special_kind,
+    struct r23be_tx_prepared_frame *prepared)
 {
     struct ieee80211com *ic;
     struct ieee80211_frame *wh;
     struct ieee80211_key *key;
     struct rtwn8723be_tx_params p;
     struct rtwn8723be_tx_report_ticket *ticket = NULL;
-    struct r23be_tx_notify notify;
     uint8_t type, subtype, rate, protection_rate;
     bool is_null;
     bool eapol = special_kind == RTWN8723BE_TX_SPECIAL_EAPOL;
     unsigned int qid;
     uint16_t seq;
     int error = EINVAL;
+
+    memset(prepared, 0, sizeof(*prepared));
 
     if (m == NULL || ni == NULL || tx == NULL || !tx->prepared ||
         !tx->enabled || tx->sc == NULL ||
@@ -573,24 +586,13 @@ rtwn8723be_net80211_tx_frame(struct rtwn8723be_net80211_tx *tx,
         p.special_report = true;
         p.report_sequence = ticket->sequence;
     }
-    notify.tx = tx;
-    notify.special_kind = special_kind;
-    error = rtwn8723be_datapath_enqueue_owned_notify(tx->dp, qid, m, &p,
-        false, ticket != NULL ? (void *)ticket : (void *)ni,
-        ticket != NULL ? r23be_tx_report_dma_release : r23be_tx_node_release,
-        r23be_tx_accepted, &notify);
-    if (error != 0) {
-        if (ticket != NULL) {
-            r23be_tx_report_enqueue_failed(ticket, m);
-            return error;
-        }
-        goto fail;
-    }
-    if (ticket != NULL) {
-        mutex_enter(&tx->report_lock);
-        tx->reports_sent++;
-        mutex_exit(&tx->report_lock);
-    }
+    prepared->frame.m = m;
+    prepared->frame.params = p;
+    prepared->frame.owner = ticket != NULL ? (void *)ticket : (void *)ni;
+    prepared->frame.release =
+        ticket != NULL ? r23be_tx_report_dma_release : r23be_tx_node_release;
+    prepared->ticket = ticket;
+    prepared->qid = qid;
     return 0;
 fail:
     if (m != NULL)
@@ -598,6 +600,51 @@ fail:
     if (ni != NULL)
         ieee80211_free_node(ni);
     return error;
+}
+
+/* Only for an unpublished prepared frame; consumes its one owned reference.
+ * Clearing the record makes a second local abort harmless. DMA success must
+ * instead transfer this record's ownership to the ring, never call abort.
+ */
+static void
+r23be_tx_abort_prepared(struct r23be_tx_prepared_frame *prepared)
+{
+    if (prepared->frame.m == NULL)
+        return;
+    if (prepared->ticket != NULL)
+        r23be_tx_report_enqueue_failed(prepared->ticket, prepared->frame.m);
+    else
+        prepared->frame.release(prepared->frame.owner, prepared->frame.m, false);
+    memset(prepared, 0, sizeof(*prepared));
+}
+
+int
+rtwn8723be_net80211_tx_frame(struct rtwn8723be_net80211_tx *tx,
+    struct mbuf *m, struct ieee80211_node *ni, uint8_t special_kind)
+{
+    struct r23be_tx_prepared_frame prepared;
+    struct r23be_tx_notify notify;
+    int error;
+
+    error = r23be_tx_prepare_frame(tx, m, ni, special_kind, &prepared);
+    if (error != 0)
+        return error; /* Preparation already consumed the original inputs. */
+    notify.tx = tx;
+    notify.special_kind = special_kind;
+    error = rtwn8723be_datapath_enqueue_owned_notify(tx->dp,
+        prepared.qid, prepared.frame.m, &prepared.frame.params, false,
+        prepared.frame.owner, prepared.frame.release, r23be_tx_accepted, &notify);
+    if (error != 0) {
+        r23be_tx_abort_prepared(&prepared);
+        return error;
+    }
+    /* The ring now owns the prepared mbuf and node/report reference. */
+    if (prepared.ticket != NULL) {
+        mutex_enter(&tx->report_lock);
+        tx->reports_sent++;
+        mutex_exit(&tx->report_lock);
+    }
+    return 0;
 }
 
 /* Identify special Ethernet traffic before software encryption obscures it. */
