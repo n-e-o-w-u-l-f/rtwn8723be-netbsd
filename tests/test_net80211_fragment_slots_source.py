@@ -86,7 +86,8 @@ def contract(datapath, header, producer):
         return False
     conditions = [
         "for (frag = m; frag != NULL; frag = frag->m_nextpkt)",
-        "if (needed == tx->sc->sc_tx_ring[RTWN8723BE_BE_QUEUE].count)",
+        "if (needed == tx->sc->sc_tx_ring[RTWN8723BE_BE_QUEUE].count ||",
+        "needed == RTWN8723BE_TX_BATCH_MAX)",
         "error = EFBIG;",
         "needed++;",
         "if (error == 0)",
@@ -140,6 +141,9 @@ def fragment_mutation(source, old, new):
 
 mutants = [
     (d, h, t.replace("if (m->m_nextpkt != NULL)", "if (m->m_nextpkt == NULL)", 1)),
+    (d, h, fragment_mutation(t,
+        "needed == RTWN8723BE_TX_BATCH_MAX)",
+        "needed != RTWN8723BE_TX_BATCH_MAX)")),
     (d, h, t.replace("RTWN8723BE_BE_QUEUE, needed);",
                      "RTWN8723BE_MGNT_QUEUE, needed);", 1)),
     (d, h, t.replace("for (frag = m; frag != NULL; frag = frag->m_nextpkt)",
