@@ -2,6 +2,14 @@
 
 Status: IN_PROGRESS
 
+2026-10-16 RX/security source delta (COV-RTL-014/009): copied net80211
+mbufs now carry M_HASFCS when cached RCR_APPFCS is set, allowing the
+pinned NetBSD stack to remove CRC before crypto/decapsulation. New source
+contract RED on old source, GREEN with seven rejected mutations; 17
+selected source-only gates PASS including 5,100 BTC cases. No compiler,
+HP source update, build, install or WLAN test. Full/native acceptance OPEN.
+See [FCS evidence](NET80211_RX_FCS_20261016.md).
+
 Latest HP checkpoint (2026-10-06): both complete frozen BTC algorithm bodies
 now own per-device DM/STA and all20 histories. Native copied-event workqueue
 and resource/stop/error broker implemented and compiled, but actual27 OS

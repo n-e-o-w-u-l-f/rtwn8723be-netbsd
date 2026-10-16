@@ -352,6 +352,13 @@ rtwn8723be_net80211_input(struct rtwn8723be_net80211 *n,
         &n->sc->sc_ec.ec_if);
     if (m == NULL)
         return ENOBUFS;
+    /*
+     * Linux RCR_APPFCS (bit 31) includes the trailing CRC in RX length.
+     * NetBSD ieee80211_input strips it before crypto only for M_HASFCS.
+     * Mark the private copy, leaving the borrowed DMA buffer untouched.
+     */
+    if ((n->sc->sc_receive_config & (1U << 31)) != 0)
+        m->m_flags |= M_HASFCS;
     ic = &n->sc->sc_ic;
     s = splnet();
     ni = ieee80211_find_rxnode(ic,
