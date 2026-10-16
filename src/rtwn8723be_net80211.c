@@ -123,8 +123,17 @@ rtwn8723be_n80211_ifstart(struct ifnet *ifp)
     struct rtwn8723be_net80211 *n = ifp->if_softc;
 
     if (n == NULL || !n->registered ||
-        (ifp->if_flags & (IFF_RUNNING | IFF_OACTIVE)) != IFF_RUNNING ||
+        (ifp->if_flags & IFF_RUNNING) == 0 ||
         n->methods.tx_start == NULL)
+        return;
+    /*
+     * OACTIVE records shared ifnet backpressure, not the availability of
+     * the independent management descriptor ring. Forward a queued
+     * management frame to the producer even if BE was blocked. Data-only
+     * starts remain suppressed until the completion callback wakes them.
+     */
+    if ((ifp->if_flags & IFF_OACTIVE) != 0 &&
+        n->sc->sc_ic.ic_mgtq.ifq_head == NULL)
         return;
     /* Real 802.11 framing/TX node lifetime is owned by the HW method. */
     n->methods.tx_start(n->sc, ifp);
