@@ -618,6 +618,93 @@ r23be_tx_abort_prepared(struct r23be_tx_prepared_frame *prepared)
     memset(prepared, 0, sizeof(*prepared));
 }
 
+/*
+ * All-or-none net80211 fragment handoff. The producer owns its original
+ * node reference; each prepared fragment acquires exactly one additional
+ * reference or an EAPOL report ticket. This function consumes the complete
+ * m_nextpkt chain on EVERY return but never consumes the producer's ni.
+ *
+ * Scratch arrays live in the heap-allocated TX runtime; producer_lock
+ * excludes a second batch and DP tx_lock excludes IRQ reclaim while the
+ * native batch maps/descriptors transition into device ownership.
+ */
+static int
+r23be_tx_submit_fragment_chain(struct rtwn8723be_net80211_tx *tx,
+    struct mbuf *chain, struct ieee80211_node *ni, uint8_t special_kind)
+{
+    struct r23be_tx_prepared_frame prepared;
+    struct r23be_tx_notify notify;
+    struct mbuf *m, *next;
+    unsigned int count = 0, i;
+    int error = 0;
+
+    for (m = chain; m != NULL; m = next) {
+        if (count == RTWN8723BE_TX_BATCH_MAX) {
+            r23be_tx_free_frames(m);
+            error = EFBIG;
+            goto abort;
+        }
+        next = m->m_nextpkt;
+        m->m_nextpkt = NULL;
+        bpf_mtap3(tx->sc->sc_ic.ic_rawbpf, m, BPF_D_OUT);
+        error = r23be_tx_prepare_frame(tx, m, ieee80211_ref_node(ni),
+            special_kind, &prepared);
+        if (error != 0) {
+            /* prepare_frame consumed m and its newly held node reference. */
+            r23be_tx_free_frames(next);
+            goto abort;
+        }
+        if (prepared.qid != RTWN8723BE_BE_QUEUE) {
+            r23be_tx_abort_prepared(&prepared);
+            r23be_tx_free_frames(next);
+            error = EOPNOTSUPP;
+            goto abort;
+        }
+        tx->batch_frames[count] = prepared.frame;
+        tx->batch_tickets[count] = prepared.ticket;
+        count++;
+    }
+
+    notify.tx = tx;
+    notify.special_kind = special_kind;
+    error = rtwn8723be_datapath_enqueue_batch_notify(tx->dp,
+        tx->batch_frames, count, r23be_tx_accepted, &notify);
+    if (error != 0)
+        goto abort;
+
+    /* Success transfers EVERY mbuf/node/ticket to the ring atomically. */
+    for (i = 0; i < count; i++) {
+        if (tx->batch_tickets[i] != NULL) {
+            mutex_enter(&tx->report_lock);
+            tx->reports_sent++;
+            mutex_exit(&tx->report_lock);
+        }
+        memset(&tx->batch_frames[i], 0, sizeof(tx->batch_frames[i]));
+        tx->batch_tickets[i] = NULL;
+    }
+    return 0;
+
+abort:
+    /* Failed native batch published nothing and retained all owners.
+     * Unwind only prepared frames; the failing frame and remaining chain
+     * were already consumed by the preparation-error branch above.
+     */
+    while (count != 0) {
+        count--;
+        if (tx->batch_tickets[count] != NULL)
+            r23be_tx_report_enqueue_failed(tx->batch_tickets[count],
+                tx->batch_frames[count].m);
+        else
+            tx->batch_frames[count].release(
+                tx->batch_frames[count].owner,
+                tx->batch_frames[count].m, false);
+        memset(&tx->batch_frames[count], 0,
+            sizeof(tx->batch_frames[count]));
+        tx->batch_tickets[count] = NULL;
+    }
+    return error;
+}
+
 int
 rtwn8723be_net80211_tx_frame(struct rtwn8723be_net80211_tx *tx,
     struct mbuf *m, struct ieee80211_node *ni, uint8_t special_kind)
