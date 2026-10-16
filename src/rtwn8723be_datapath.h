@@ -62,5 +62,12 @@ int rtwn8723be_datapath_enqueue_owned_notify(struct rtwn8723be_datapath *,
     void *, void (*)(void *, struct mbuf *, bool),
     void (*)(void *, const struct mbuf *), void *);
 int rtwn8723be_datapath_tx_check(struct rtwn8723be_datapath *, unsigned int);
+/*
+ * Preflight a fragmented MSDU while the sole ifnet producer holds its lock.
+ * Verifies contiguous CPU-owned BE slots; this is NOT a reservation or a
+ * guarantee that every later per-fragment DMA load/encode will succeed.
+ */
+int rtwn8723be_datapath_tx_check_slots(struct rtwn8723be_datapath *,
+    unsigned int, unsigned int);
 
 #endif
