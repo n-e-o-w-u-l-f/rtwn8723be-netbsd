@@ -190,6 +190,50 @@ rtwn8723be_datapath_enqueue_owned_notify(struct rtwn8723be_datapath *dp,
     return error;
 }
 
+/*
+ * Admission for an entire already-encapsulated m_nextpkt fragment chain.
+ * Producer holds producer_lock and the only BE queue producer is serialized
+ * with the reclaim softint by tx_lock.  This bounded scan is conservative:
+ * a CPU-owned slot blocks admission; it does not pre-map DMA buffers, reserve
+ * descriptors, or promise that later bus_dmamap_load_mbuf cannot fail.
+ */
+int
+rtwn8723be_datapath_tx_check_slots(struct rtwn8723be_datapath *dp,
+    unsigned int qid, unsigned int needed)
+{
+    struct rtwn8723be_tx_ring *ring;
+    unsigned int idx, i;
+    int error = 0;
+
+    if (dp == NULL || !dp->prepared || dp->sc == NULL ||
+        qid >= RTWN8723BE_TX_QUEUE_COUNT || needed == 0)
+        return EINVAL;
+    mutex_enter(&dp->tx_lock);
+    ring = &dp->sc->sc_tx_ring[qid];
+    if (!dp->tx_enabled || !dp->sc->sc_linux.started ||
+        !dp->sc->sc_linux.fw_ready)
+        error = EAGAIN;
+    else if (ring->count == 0 || ring->slot == NULL ||
+        ring->producer >= ring->count || ring->consumer >= ring->count)
+        error = EIO;
+    else if (needed > ring->count)
+        error = EFBIG;
+    else {
+        idx = ring->producer;
+        for (i = 0; i < needed; i++) {
+            if (ring->slot[idx].m != NULL) {
+                error = EBUSY;
+                break;
+            }
+            idx++;
+            if (idx == ring->count)
+                idx = 0;
+        }
+    }
+    mutex_exit(&dp->tx_lock);
+    return error;
+}
+
 int
 rtwn8723be_datapath_tx_check(struct rtwn8723be_datapath *dp,
     unsigned int qid)
