@@ -216,6 +216,152 @@ restore_desc:
     return error;
 }
 
+
+/* Caller holds the same TX lock used by single enqueue, reclaim and stop.
+ * Preparation changes only unloaded packet maps and private descriptors.
+ * Once publication starts, no operation returning an error remains.
+ */
+int
+rtwn8723be_tx_native_enqueue_batch(struct rtwn8723be_softc *sc,
+    const struct rtwn8723be_tx_batch_frame *frames, unsigned int count,
+    struct rtwn8723be_tx_batch_workspace *workspace)
+{
+    struct rtwn8723be_tx_ring *ring;
+    struct rtwn8723be_tx_desc *descs;
+    struct rtwn8723be_dma_slot *slot;
+    struct rtwn8723be_tx_params p;
+    const struct rtwn8723be_tx_batch_frame *f;
+    bus_size_t offset, bytes;
+    unsigned int start, idx, i, j, loaded = 0;
+    int error;
+
+    if (sc == NULL || frames == NULL || workspace == NULL ||
+        count == 0 || count > RTWN8723BE_TX_BATCH_MAX)
+        return EINVAL;
+    if (!sc->sc_mapped || !sc->sc_rings_allocated ||
+        !sc->sc_dma_32bit || sc->sc_dmat == NULL)
+        return ENXIO;
+    ring = &sc->sc_tx_ring[RTWN8723BE_BE_QUEUE];
+    if (ring->count == 0 || ring->slot == NULL ||
+        ring->producer >= ring->count || ring->consumer >= ring->count ||
+        ring->desc_dma.kva == NULL || ring->desc_dma.map == NULL)
+        return EIO;
+    if (count > ring->count)
+        return EFBIG;
+    bytes = (bus_size_t)ring->count * sizeof(*descs);
+    if (ring->desc_dma.size < bytes ||
+        ring->desc_dma.map->dm_mapsize < bytes ||
+        !rtwn8723be_dma32_range_valid(ring->desc_dma.paddr, bytes))
+        return EIO;
+    descs = ring->desc_dma.kva;
+    start = ring->producer;
+
+    /* Reject aliases and invalid owners before loading even the first map. */
+    for (i = 0; i < count; i++) {
+        f = &frames[i];
+        if (f->m == NULL || (f->m->m_flags & M_PKTHDR) == 0 ||
+            f->m->m_next != NULL || f->m->m_nextpkt != NULL ||
+            f->m->m_len != f->m->m_pkthdr.len ||
+            f->m->m_pkthdr.len <= 0 ||
+            f->m->m_pkthdr.len > RTWN8723BE_RX_BUFFER_SIZE ||
+            f->params.buffer_len != f->m->m_pkthdr.len ||
+            f->params.fw_queue != RTWN8723BE_TX_FW_BE ||
+            ((f->owner == NULL) != (f->release == NULL)))
+            return EINVAL;
+        for (j = 0; j < i; j++)
+            if (frames[j].m == f->m)
+                return EINVAL;
+    }
+    for (i = 0; i < count; i++) {
+        idx = (start + i) % ring->count;
+        slot = &ring->slot[idx];
+        f = &frames[i];
+        if (slot->m != NULL) {
+            error = EBUSY;
+            goto abort;
+        }
+        if (slot->map == NULL || slot->map->dm_mapsize != 0 ||
+            slot->tx_owner != NULL || slot->tx_release != NULL) {
+            error = EIO;
+            goto abort;
+        }
+        offset = (bus_size_t)idx * sizeof(*descs);
+        rtwn8723be_f16_1_dma_sync_for_cpu(sc->sc_dmat,
+            &ring->desc_dma, offset, sizeof(*descs));
+        error = (le32toh(descs[idx].d[0]) & R23BE_TXD0_OWN) != 0 ?
+            EBUSY : 0;
+        rtwn8723be_f16_1_dma_sync_for_device(sc->sc_dmat,
+            &ring->desc_dma, offset, sizeof(*descs));
+        if (error != 0)
+            goto abort;
+        error = bus_dmamap_load_mbuf(sc->sc_dmat, slot->map, f->m,
+            BUS_DMA_NOWAIT | BUS_DMA_WRITE);
+        if (error != 0)
+            goto abort;
+        loaded++;
+        if (slot->map->dm_nsegs != 1 ||
+            slot->map->dm_mapsize != (bus_size_t)f->params.buffer_len ||
+            slot->map->dm_segs[0].ds_len < (bus_size_t)f->params.buffer_len ||
+            !rtwn8723be_dma32_range_valid(slot->map->dm_segs[0].ds_addr,
+                (bus_size_t)f->params.buffer_len)) {
+            error = EFBIG;
+            goto abort;
+        }
+        p = f->params;
+        p.buffer_dma = (uint32_t)slot->map->dm_segs[0].ds_addr;
+        p.next_desc_dma = (uint32_t)(ring->desc_dma.paddr +
+            (bus_addr_t)(((idx + 1U) % ring->count) * sizeof(*descs)));
+        error = rtwn8723be_tx_encode(&p,
+            (uint8_t *)&workspace->desc[i], sizeof(workspace->desc[i]));
+        if (error == 0 &&
+            (le32toh(workspace->desc[i].d[0]) & R23BE_TXD0_OWN) != 0)
+            error = EINVAL;
+        if (error != 0)
+            goto abort;
+    }
+
+    /* All fallible preparation succeeded. Publish packet/owner metadata
+     * for the entire batch before handing any descriptor to the device.
+     */
+    for (i = 0; i < count; i++) {
+        idx = (start + i) % ring->count;
+        slot = &ring->slot[idx];
+        f = &frames[i];
+        bus_dmamap_sync(sc->sc_dmat, slot->map, 0,
+            slot->map->dm_mapsize, BUS_DMASYNC_PREWRITE);
+        offset = (bus_size_t)idx * sizeof(*descs);
+        rtwn8723be_f16_1_dma_sync_for_cpu(sc->sc_dmat,
+            &ring->desc_dma, offset, sizeof(*descs));
+        descs[idx] = workspace->desc[i];
+        slot->tx_owner = f->owner;
+        slot->tx_release = f->release;
+        slot->m = f->m;
+    }
+    membar_producer();
+    for (i = 0; i < count; i++) {
+        idx = (start + i) % ring->count;
+        descs[idx].d[0] = htole32(le32toh(descs[idx].d[0]) | R23BE_TXD0_OWN);
+        rtwn8723be_f16_1_dma_sync_for_device(sc->sc_dmat,
+            &ring->desc_dma, (bus_size_t)idx * sizeof(*descs), sizeof(*descs));
+    }
+    ring->producer = (start + count) % ring->count;
+    rtwn8723be_write_2(sc, R23BE_REG_PCIE_CTRL_REG,
+        (uint16_t)(1U << RTWN8723BE_BE_QUEUE));
+    return 0;
+
+abort:
+    /* No packet PREWRITE, slot transfer, descriptor write or OWN yet.
+     * Only successfully loaded maps are ours to unload, in reverse order.
+     * The caller still owns all mbufs and all node/report references.
+     */
+    while (loaded != 0) {
+        loaded--;
+        idx = (start + loaded) % ring->count;
+        bus_dmamap_unload(sc->sc_dmat, ring->slot[idx].map);
+    }
+    return error;
+}
+
 int
 rtwn8723be_tx_native_reclaim(struct rtwn8723be_softc *sc,
     unsigned int qid, size_t *reclaimed)

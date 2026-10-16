@@ -29,6 +29,29 @@ int rtwn8723be_tx_native_enqueue_owned(struct rtwn8723be_softc *,
     const struct rtwn8723be_tx_params *, bool command,
     void *, void (*)(void *, struct mbuf *, bool));
 
+/* Bounded preparation primitive; not yet wired to net80211 fragmentation.
+ * The caller holds the TX lock across this entire synchronous operation,
+ * supplies distinct already encrypted/linearized mbufs (m_nextpkt detached),
+ * and retains all mbuf/node/report ownership on failure. Success transfers
+ * every entry to the ring. No callback is invoked during preparation/abort.
+ * Workspace must be caller-owned storage, not a large kernel-stack array;
+ * it must not alias ring/frame storage or be shared by concurrent calls.
+ * This bound is an adapter limit, not a claim of arbitrary batch support.
+ */
+#define RTWN8723BE_TX_BATCH_MAX 16U
+struct rtwn8723be_tx_batch_frame {
+    struct mbuf *m;
+    struct rtwn8723be_tx_params params;
+    void *owner;
+    void (*release)(void *, struct mbuf *, bool);
+};
+struct rtwn8723be_tx_batch_workspace {
+    struct rtwn8723be_tx_desc desc[RTWN8723BE_TX_BATCH_MAX];
+};
+int rtwn8723be_tx_native_enqueue_batch(struct rtwn8723be_softc *,
+    const struct rtwn8723be_tx_batch_frame *, unsigned int,
+    struct rtwn8723be_tx_batch_workspace *);
+
 /*
  * Reclaim completed OWN-cleared descriptors, release bus_dmamaps/mbufs,
  * and report completion count; caller holds the same TX lock.

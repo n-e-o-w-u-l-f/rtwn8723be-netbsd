@@ -2,6 +2,12 @@
 
 Status: IN_PROGRESS
 
+2026-10-16 additive BE batch primitive: up to16 maps/private descriptors
+prepared before owner/OWN publication, reverse map unwind on failure,
+caller-provided workspace and TX serialization. Not wired to net80211;
+fragment restriction retained. 26 source gates and11136 ownership-model
+cases PASS; native validation OPEN. See [batch evidence](TX_BATCH_PREPARE_20261016.md).
+
 2026-10-16 TX preparation delta: ordinary and beacon encoders now build a
 private descriptor, checked OWN-clear before copying to the ring. Existing
 rollback retained. 25 source gates pass after repairing a stale negative-test
