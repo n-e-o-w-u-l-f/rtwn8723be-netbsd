@@ -106,7 +106,7 @@ def contract(source, header, native, datapath):
         "BUS_DMA_NOWAIT | BUS_DMA_WRITE);",
         "loaded++;",
         "error = rtwn8723be_tx_encode(&p,",
-        "/*" if False else "if (error != 0)",
+        "if (error != 0)",
         "BUS_DMASYNC_PREWRITE);",
         "descs[idx] = workspace->desc[i];",
         "slot->m = f->m;",
