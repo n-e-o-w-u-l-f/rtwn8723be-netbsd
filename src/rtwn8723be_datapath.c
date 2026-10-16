@@ -11,6 +11,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/mutex.h>
+#include <sys/endian.h>
 
 #include "rtwn8723be_datapath.h"
 
