@@ -46,6 +46,35 @@ def contract(datapath, header, producer):
             gate.index("if (ring->slot[idx].m != NULL)") <
             gate.index("mutex_exit(&dp->tx_lock);")):
         return False
+    # Native enqueue rejects a hardware-owned descriptor even if its
+    # mbuf slot appears empty. Preflight must use identical DMA sync/OWN
+    # checks for *every* candidate slot before the first fragment.
+    own_sequence = (
+        "if (ring->slot[idx].m != NULL)",
+        "if (ring->slot[idx].map == NULL)",
+        "offset = (bus_size_t)idx * sizeof(*descs);",
+        "rtwn8723be_f16_1_dma_sync_for_cpu(dp->sc->sc_dmat,",
+        "if ((le32toh(descs[idx].d[0]) & R23BE_TXD0_OWN) != 0)",
+        "error = EBUSY;",
+        "rtwn8723be_f16_1_dma_sync_for_device(dp->sc->sc_dmat,",
+        "if (error != 0)",
+        "idx++;",
+    )
+    if not all(token in gate for token in own_sequence):
+        return False
+    own_positions = [gate.index(x) for x in own_sequence]
+    if own_positions != sorted(set(own_positions)):
+        return False
+    dma_guards = (
+        "!dp->sc->sc_mapped", "!dp->sc->sc_rings_allocated",
+        "dp->sc->sc_dmat == NULL", "!dp->sc->sc_dma_32bit",
+        "ring->desc_dma.kva == NULL", "ring->desc_dma.map == NULL",
+        "ring->desc_dma.size < (bus_size_t)ring->count *",
+        "!rtwn8723be_dma32_range_valid(",
+        "else if (needed > ring->count)"
+    )
+    if not all(x in gate for x in dma_guards):
+        return False
 
     try:
         preflight = start.split("if (m->m_nextpkt != NULL) {", 1)[1].split(
@@ -126,6 +155,14 @@ mutants = [
                "else if (needed < ring->count)", 1), h, t),
     (d.replace("if (idx == ring->count)", "if (idx != ring->count)", 1), h, t),
     (d, h.replace("int rtwn8723be_datapath_tx_check_slots(", "int missing_check_slots(", 1), t),
+    (d.replace("if (ring->slot[idx].map == NULL)",
+               "if (ring->slot[idx].map != NULL)", 1), h, t),
+    (d.replace("R23BE_TXD0_OWN) != 0)", "R23BE_TXD0_OWN) == 0)", 1), h, t),
+    (d.replace("rtwn8723be_f16_1_dma_sync_for_cpu(dp->sc->sc_dmat,",
+               "rtwn8723be_f16_1_dma_sync_for_device(dp->sc->sc_dmat,", 1), h, t),
+    (d.replace("rtwn8723be_f16_1_dma_sync_for_device(dp->sc->sc_dmat,",
+               "rtwn8723be_f16_1_dma_sync_for_cpu(dp->sc->sc_dmat,", 1), h, t),
+    (d.replace("ring->desc_dma.map == NULL", "ring->desc_dma.map != NULL", 1), h, t),
 ]
 for i, mutation in enumerate(mutants):
     assert mutation != (d, h, t), i
