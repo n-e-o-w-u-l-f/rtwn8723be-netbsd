@@ -48,6 +48,13 @@ struct rtwn8723be_net80211_tx {
     uint8_t next_sequence;
     unsigned int pending_reports;
     struct rtwn8723be_tx_report_ticket report[RTWN8723BE_TX_REPORT_SLOTS];
+    /*
+     * Temporary chain preparation is serialized by producer_lock and lives
+     * in the heap-owned runtime, not in a large kernel stack array.  On
+     * batch success the PCI ring takes every frame; on failure none.
+     */
+    struct rtwn8723be_tx_batch_frame batch_frames[RTWN8723BE_TX_BATCH_MAX];
+    struct rtwn8723be_tx_report_ticket *batch_tickets[RTWN8723BE_TX_BATCH_MAX];
     uint64_t reports_sent;
     uint64_t reports_acked;
     uint64_t reports_failed;
