@@ -61,7 +61,12 @@ def translate_includes(text: str) -> tuple[str, list[dict], list[dict]]:
                                     "include": name, "action": "MANUAL"})
                 else:
                     replacement = HEADER_MAP[name]
-                    line = m.group(1) + "<" + replacement + ">" + m.group(3)
+                    # The regex dollar anchor stops *before* the final
+                    # LF; reconstruct it explicitly or two #include lines
+                    # silently concatenate into invalid NetBSD C.
+                    newline = "\n" if line.endswith("\n") else ""
+                    line = (m.group(1) + "<" + replacement + ">" +
+                            m.group(3) + newline)
                     changes.append({"line": number, "from": name, "to": replacement})
             elif name.startswith(("linux/", "asm/")):
                 hazards.append({"line": number, "type": "LINUX_KERNEL_ABI",
