@@ -196,7 +196,7 @@ fw_faults = [
         '#define RTWN8723BE_FIRMWARE_ALT_FILE   "rtl8723befw.bin"',
         '#define RTWN8723BE_FIRMWARE_ALT_FILE   "rtl8723befw_BAD.bin"', 1)),
     (netbsd.replace("firmware_read(fwh, 0, image, image_len)",
-                    "skip_firmware_read(fwh, 0, image, image_len)", 1),
+                    "omit_firmware_image_read(fwh, 0, image, image_len)", 1),
      firmware_constants),
     (netbsd.replace("rtwn8723be_netbsd_bt_preload_firmware(sc)",
                     "skip_btc_preload_firmware(sc)", 1), firmware_constants),
