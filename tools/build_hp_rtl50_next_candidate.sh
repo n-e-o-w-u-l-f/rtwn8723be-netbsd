@@ -45,6 +45,16 @@ SHORT=$(printf '%s' "$HEAD" | cut -c1-12)
 case "$SHORT" in
     *[!0-9a-f]*|"") echo "REFUSED: Git SHA invalid" >&2; exit 2 ;;
 esac
+# Hard dependency requested by the user: NO HP kernel build until i915drmkms
+# explicitly releases a finished, KMS-verified combined-kernel candidate.
+# Read-only validation of a Git-tracked artifact in the canonical i915 repo;
+# absent, stale, partial or forged evidence MUST fail closed.
+I915_REPO=${RTL_I915_RELEASE_REPO:-"$WORK/i915-cherryview-braswell-netbsd"}
+"$PYTHON" -B "$ROOT/tools/check_i915_kernel_release.py" \
+    --i915-repo "$I915_REPO" --rtl-head "$HEAD" || {
+    echo "REFUSED: i915drmkms has not released the HP kernel build" >&2
+    exit 2
+}
 # Must include the newer checked RX-filter patch and real lifetime fences.
 grep -Fq 'R23BE_REG_RXFLTMAP0, 0xffff' "$ROOT/src/rtwn8723be_netbsd.c"
 grep -Fq 'if (error != 0)' "$ROOT/src/rtwn8723be_runtime.c"
@@ -89,6 +99,12 @@ do
     "$PYTHON" -B "$ROOT/tests/$testname"
 done
 
+# Refuse approval revocation or repository drift during preflight.
+"$PYTHON" -B "$ROOT/tools/check_i915_kernel_release.py" \
+    --i915-repo "$I915_REPO" --rtl-head "$HEAD" || {
+    echo "REFUSED: i915 release changed during HP native preflight" >&2
+    exit 2
+}
 OUT="$WORK/rtl-kconfig-live-$SHORT"
 if [ -e "$OUT" ] || [ -L "$OUT" ]; then
     echo "REFUSED: immutable owner output already exists: $OUT" >&2
