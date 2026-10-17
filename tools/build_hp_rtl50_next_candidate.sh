@@ -83,6 +83,7 @@ for testname in \
     test_linux_lifecycle_stop.py \
     test_probe_unstarted_and_failed_shutdown_gates.py \
     test_rx_management_filter_native.py \
+    test_kernel_source_integrity.py \
     test_wip_world_regdomain_glue.py
 do
     "$PYTHON" -B "$ROOT/tests/$testname"
