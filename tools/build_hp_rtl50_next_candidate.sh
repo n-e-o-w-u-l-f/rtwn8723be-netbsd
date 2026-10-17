@@ -62,6 +62,8 @@ for testname in \
     test_tx_batch_source.py \
     test_datapath_batch_source.py \
     test_net80211_management_wake_source.py \
+    test_linux_netbsd_driver_order_source.py \
+    test_port_closure_inventory.py \
     test_btc_async_events_after_running.py \
     test_reserved_beacon_native_source.py \
     test_failed_probe_net80211_rollback.py \
