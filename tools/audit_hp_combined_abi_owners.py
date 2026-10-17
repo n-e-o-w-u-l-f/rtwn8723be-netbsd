@@ -116,6 +116,17 @@ def audit(rtltext: str, netbsd: dict[str, str],
     if missing_direct:
         raise ValueError("declared exact i915 C owners absent: " +
                          ", ".join(sorted(missing_direct)[:6]))
+    # A listed source does NOT mean it is selected by its Kconfig predicate.
+    # Every exact Linux active i915 file must use the actual native i915
+    # PCI selector, never intelfb/ttm/drmkms or an invented disabled token.
+    invalid_selectors = [
+        e for e in native if e["path"] in direct and
+        (e["owner"] != "i915" or e["selector"] != "i915drmkms")
+    ]
+    if invalid_selectors:
+        raise ValueError("i915 exact source present but wrong NetBSD "
+                         "compilation selector: " +
+                         ", ".join(e["path"] for e in invalid_selectors[:6]))
     classes = dict(sorted(Counter(e["class"] for e in reference).items()))
     sem = dict(sorted(Counter(e["semantic"] for e in reference).items()))
     if classes != {"ACTIVE_OVERRIDE_OR_MOVED": 13,
