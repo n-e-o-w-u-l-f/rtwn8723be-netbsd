@@ -35,9 +35,19 @@ Strict `--require-closure` correctly returned **exit 1** for still-guarded runti
 
 **New source gate:** `tests/test_linux_netbsd_driver_order_source.py`, which enforces Linux-derived start, stop, probe and hw-init stage order together with NetBSD IRQ/drain and guard invariants. It ran on Legion at SHA `2f0a0e4fc4cbc8227a7d0cb701cd7e5ac1f65acd` and returned 0, including **15 deliberately injected negative mutations**: ten callback/lifecycle/owner checks and five firmware selection/read/ready checks. The first test-only false negative (PCI-ring callback not verified) was fixed in `6e98dd0`; a second mutation-token substring false negative was fixed in `2f0a0e4`. Exactly seven SHA-verified files participated in the final test. No native driver build was run.
 
-**Manifest check:** exact GitHub WIP tree checked at SHA `6fab624ea9fdb739b6408c1e6d667fd32a2be629`: 50/50 `config/files.rtwn8723be_native` C source paths present, zero duplicates, zero missing units, and both new source tests present. All source-only preflight gates are selected by `tools/build_hp_rtl50_next_candidate.sh` (**30** test names total at that commit).
+**Manifest check:** exact GitHub WIP tree checked at SHA `6fab624ea9fdb739b6408c1e6d667fd32a2be629`: 50/50 `config/files.rtwn8723be_native` C source paths present, zero duplicates, zero missing units, and both new source tests present. The guarded HP-only builder `tools/build_hp_rtl50_next_candidate.sh` now selects **36 distinct tests** (commit `43837bf`); 33 source-only Python gates were executed successfully on Legion at that exact SHA, and three compiled native C gates remain HP-only.
 
 **Firmware identity checked:** frozen Linux primary `rtlwifi/rtl8723befw_36.bin`, fallback `rtlwifi/rtl8723befw.bin`. NetBSD `firmware_open(9)` maps these to driver-specific `if_rtwn8723be` and file names `rtl8723befw_36.bin` / `rtl8723befw.bin`, preserving primary/fallback order. `firmware_read` → header parser → Bluetooth pre-load → MCU download → H2C ready were source verified. Presence/read permissions of actual installed HP firmware files remain **NOT_OBSERVED**.
+
+## Stage-2 source-only readiness (2026-10-17)
+
+At verified experimental Git HEAD `43837bfccc091ada327966ce9be79cc41bf660d3`, the entire WIP was cloned temporarily on the existing free Legion runner. `git rev-parse HEAD` matched that full SHA, `/bin/sh -n` parsed the HP-only build wrapper, and all **36 selected test files** were present and unique. Of these, **33/33 source-only Python scripts actually ran and returned exit 0**. The three intentionally unrun files `test_calibration.py`, `test_calibration_native.py` and `test_linux_lifecycle_stop.py` invoke native C compilers and remain reserved exclusively for authorized HP NetBSD execution.
+
+The new `test_kernel_source_integrity.py` was repaired from the stale 42-source assumption to verify exactly **50 unique** native C units. Its actual stdout reported `native_units=50 reachable_project_files=113 scanned_files=114` (exit 0). Previously missing source-only gates for IRQ stop races, panic inventory, deferred net80211 producer, RX FCS, TX descriptor staging, and sleepable detach now appear in the mandatory launcher, and a duplicate port-closure inventory call was eliminated.
+
+Evidence: `evidence/RTL50_STAGE2_36_GATES_SOURCE_VERIFICATION_20261017.json`, source-only implementation/test commits `5bb60cf`, `6df4f59` and `43837bf`.
+
+**These are source-only results.** All hardware-requiring runtime guards, C ABI checks, native NetBSD compile/link, actual firmware existence on HP, F77 fresh boot identity, WPA2 and physical RF remain OPEN. Prior HP source update external safety denial remains binding.
 
 ## Current native blockers — do not paper over them
 
@@ -50,7 +60,7 @@ Strict `--require-closure` correctly returned **exit 1** for still-guarded runti
 
 **Stage 1 — source/evidence closure (this continuation):** collect actual Linux/NetBSD function order, run callback inventory and strict variant, add the sequence regression and immutable 50-unit Git-tree check; publish/update full evidence and governance. Result can be completed without HP access.
 
-**Stage 2 — native-preflight readiness:** only on a *legitimately authorized* HP source state, verify exact WIP SHA, clean checkout, real active F77, fallback kernel, native `/root/netbsd-src-ref`, compiler version, space and both C-based calibration tests + lifecycle test. Re-run all 30 HP source gates, snapshot identity and dependency owner graph. Never use paid runners or build on Legion.
+**Stage 2 — native-preflight readiness:** only on a *legitimately authorized* HP source state, verify exact WIP SHA, clean checkout, real active F77, fallback kernel, native `/root/netbsd-src-ref`, compiler version, space and both C-based calibration tests + lifecycle test. Re-run all 36 HP source/native gates, snapshot identity and dependency owner graph. Never use paid runners or build on Legion.
 
 **Stage 3 — one HP-only full kernel link:** invoke the repo-provided `tools/build_hp_rtl50_next_candidate.sh` only after Stage 2 GO. Script creates an immutable snapshot, performs a single 50-C-unit NetBSD `dependall` and checks `netbsd` ELF, kernel identity `HP-RTL50-<SHA12>-SAFE-GENFB`, manifest/source SHA, `what` and sha256; it **must not** install, set the boot default, reboot or touch F77. Record actual build result and fix any new compiler/link error in a single coordinated pass.
 
