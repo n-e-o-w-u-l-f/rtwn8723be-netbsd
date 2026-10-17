@@ -132,5 +132,14 @@ assert builder.count(gate) == 2, "i915 gate must guard preflight and staging"
 assert builder.index(gate) < builder.index("for testname in")
 assert builder.index(gate, builder.index(gate) + 1) < builder.index('OUT="$WORK/')
 assert "I915_REPO=" in builder
+# Legacy --target kernel path must obey the exact same project-owned gate
+# before even making an output directory. Compilation-only 'objects' stays
+# a separate target and is not evidence for a released combined kernel.
+legacy = (ROOT / "tools/build_hp_native.py").read_text()
+assert 'if args.target == "kernel":' in legacy
+assert 'tools/check_i915_kernel_release.py' in legacy
+assert legacy.index('if args.target == "kernel":') < legacy.index("obj.mkdir(")
+assert legacy.index('tools/check_i915_kernel_release.py') < legacy.index("obj.mkdir(")
 print(f"I915_KERNEL_BUILD_RELEASE_GATE_PASS: {cases} synthetic release "
-      "and rejection cases; dual shell guard; no HP/kernel execution")
+      "and rejection cases; dual shell guard plus legacy kernel guard;"
+      " no HP/kernel execution")
