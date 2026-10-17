@@ -58,7 +58,17 @@ case "$OUTPUT" in /*) ;; *)
 [ ! -e "$OUTPUT" ] && [ ! -L "$OUTPUT" ] || {
  echo "REFUSED: cannot overwrite output" >&2; exit 2; }
 
-# The first sanctioned mutation writes a NEW private source/object snapshot.
+# All 38 RTL source/native regressions plus combined Kconfig and final
+# linker-map tests are mandatory. Never run the RTL-only builder itself.
+"$PYTHON" -B "$ROOT/tools/run_hp_combined_preflight_tests.py" --run || {
+ echo "REFUSED: combined native/source regression gate failed" >&2; exit 2; }
+# Revalidate the i915 owner decision after a potentially lengthy test run.
+"$PYTHON" -B "$ROOT/tools/check_i915_kernel_release.py" \
+ --i915-repo "$I915" --rtl-head "$RTL_SHA" || {
+ echo "WAIT_FOR_I915_RELEASE: i915 authorization changed during preflight" >&2
+ exit 2
+}
+# First permanent output mutation is a NEW private source/object snapshot.
 "$PYTHON" -B "$ROOT/tools/configure_hp_combined_i915_rtl.py" \
  --rtl-repo "$ROOT" --i915-repo "$I915" \
  --netbsd-src "$NETBSD" --output "$OUTPUT" || exit 2
