@@ -259,31 +259,41 @@ def verify_make_objects(obj_text: str, rtl: list[str], i915: list[str]) -> dict:
 
 
 def mirror(base: Path, target: Path, replacements: dict[str, bytes], rel: str = "") -> None:
-    if base.is_dir() and not base.is_symlink():
-        target.mkdir(mode=0o700)
-        keys = list(replacements)
-        for entry in base.iterdir():
-            sub = (rel + "/" if rel else "") + entry.name
-            if sub in replacements or any(k.startswith(sub + "/") for k in keys):
-                mirror(entry, target / entry.name, replacements, sub)
-            else:
-                (target / entry.name).symlink_to(entry)
-        # Catch additions that do not exist in frozen NetBSD reference.
-        for key in keys:
-            if (rel and not key.startswith(rel + "/")) or not key:
-                continue
-            child = key[len(rel)+1:] if rel else key
-            name = child.split("/", 1)[0]
-            if not (target / name).exists() and not (target / name).is_symlink():
-                src = base / name
-                mirror(src, target / name, replacements,
-                       rel + "/" + name if rel else name)
-    elif rel in replacements:
+    """Copy only changed files; symlink untouched pinned NetBSD references.
+
+    Permit genuinely NEW intermediate directories supplied by the i915
+    owner, but never follow/overwrite a symlink on a replacement path.
+    """
+    if rel in replacements:
+        if base.exists() and (base.is_dir() or base.is_symlink()):
+            refuse("replacement collides with source directory/symlink " + rel)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(replacements[rel])
+        return
+    active = [key for key in replacements if not rel or key.startswith(rel + "/")]
+    if base.is_symlink() or (base.exists() and not base.is_dir()):
+        refuse("unsafe source-tree ancestor: " + rel)
+    if base.is_dir():
+        names = {p.name for p in base.iterdir()}
+    elif active:
+        names = set()  # A new native directory supplied by i915 overlays.
     else:
-        refuse("source-mirror file missing: " + rel)
-
+        refuse("missing source-tree path: " + rel)
+    target.mkdir(mode=0o700, parents=True, exist_ok=False)
+    for key in active:
+        remaining = key[len(rel) + 1:] if rel else key
+        if remaining:
+            names.add(remaining.split("/", 1)[0])
+    for name in sorted(names):
+        sub = (rel + "/" if rel else "") + name
+        original = base / name
+        child = target / name
+        if sub in replacements or any(k.startswith(sub + "/") for k in replacements):
+            mirror(original, child, replacements, sub)
+        else:
+            if not original.exists() and not original.is_symlink():
+                refuse("missing unchanged pinned source file " + sub)
+            child.symlink_to(original)
 
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
