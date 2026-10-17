@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 from configure_hp_combined_i915_rtl import (
     FLAGS, I915_CLOSURE, I915_FILES, canonical_relative, effective_config,
     i915_closure, mirror, render_config, rtl_inventory, validate_i915_filelist,
-    verify_make_objects,
+    validate_selected_filelists, verify_make_objects,
 )
 
 
@@ -110,11 +110,14 @@ with tempfile.TemporaryDirectory(prefix="rtl-combined-source-contract-") as tmp:
                       "".join(row["linux_source"] +
                               "\tUNRESOLVED_NO_BASENAME\t\tUNREVIEWED\n"
                               for row in rows))
+    drm_files = "sys/external/bsd/drm2/drm/files.drmkms"
+    drm_lines = "file " + names[-1][4:] + " drmkms\n"
     overlay = []
-    for name in names + [I915_FILES]:
+    for name in names + [I915_FILES, drm_files]:
         file = i915 / "native_overlay" / name
         file.parent.mkdir(parents=True, exist_ok=True)
         file.write_text(native_lines if name == I915_FILES
+                        else drm_lines if name == drm_files
                         else "/* synthetic i915 source */\nint synthetic() {return 1;}\n")
         overlay.append({
             "source":"native_overlay/" + name,
@@ -125,6 +128,11 @@ with tempfile.TemporaryDirectory(prefix="rtl-combined-source-contract-") as tmp:
         "schema":1, "validated_i915_source_sha":ancestor,
         "verified_subsystems":{k:"PASS" for k in FLAGS},
         "linux_323_units":rows, "selected_i915_sources":names,
+        "native_filelist_owners":[
+            {"source":path,
+             "filelist":I915_FILES if path != names[-1] else drm_files,
+             "selector":"i915drmkms" if path != names[-1] else "drmkms"}
+            for path in names],
         "source_overlays":overlay,
     }
     cp = i915 / I915_CLOSURE
@@ -134,6 +142,10 @@ with tempfile.TemporaryDirectory(prefix="rtl-combined-source-contract-") as tmp:
     assert validated["linux_323_mapped"] == 323
     assert validated["source_owner_count"] == 3
     assert I915_FILES in validated["files"]
+    validate_selected_filelists(validated, {
+        path:file.read_bytes() for path,(file,_) in validated["files"].items()
+    }, root)
+    assert validated["filelist_owners"][names[-1]]["selector"] == "drmkms"
     contract["linux_323_units"] = rows[:-1]
     cp.write_text(json.dumps(contract))
     refused(lambda: i915_closure(i915, ancestor), "322-of-323 mapping")
@@ -151,6 +163,13 @@ with tempfile.TemporaryDirectory(prefix="rtl-combined-source-contract-") as tmp:
     cp.write_text(json.dumps(contract))
     refused(lambda: i915_closure(i915, ancestor), "unselected GPU DRM source")
     contract["selected_i915_sources"] = names
+    contract["native_filelist_owners"][-1]["selector"] = "i915drmkms"
+    cp.write_text(json.dumps(contract))
+    refused(lambda: validate_selected_filelists(
+        i915_closure(i915, ancestor),
+        {path:file.read_bytes() for path,(file,_) in validated["files"].items()},
+        root), "wrong DRM/TTM device selection")
+    contract["native_filelist_owners"][-1]["selector"] = "drmkms"
     cp.write_text(json.dumps(contract))
 
     # A source tree may contain older NetBSD dirs but not newer i915 modern
