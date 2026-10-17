@@ -158,6 +158,29 @@ def i915_closure(repo: Path, i915_sha: str) -> dict:
         refuse("i915 semantic mapping not included in selected kernel owner graph")
     if not any("/i915/" in p or "/i915drm/" in p for p in selected):
         refuse("no real native i915 C owner")
+    # Different kernel subsystems are selected by distinct NetBSD
+    # files.i915drmkms / files.drmkms / files.ttm definitions. Never
+    # mislabel TTM/DRM objects as selected by the i915-only device.
+    owners = data.get("native_filelist_owners")
+    if not isinstance(owners, list) or len(owners) != len(selected):
+        refuse("missing source-to-NetBSD-filelist object ownership")
+    owner_map = {}
+    for ent in owners:
+        if not isinstance(ent, dict):
+            refuse("invalid native source owner")
+        source = canonical_relative(ent.get("source"))
+        owner = canonical_relative(ent.get("filelist"))
+        selector = ent.get("selector")
+        if (not owner.startswith("sys/") or
+                "/files." not in owner or
+                not isinstance(selector, str) or
+                not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", selector)):
+            refuse("invalid NetBSD filelist/device owner")
+        if source in owner_map:
+            refuse("duplicate source to filelist ownership")
+        owner_map[source] = {"filelist":owner, "selector":selector}
+    if set(owner_map) != set(selected):
+        refuse("native object/filelist owner graph is incomplete")
     for p in ("sys/external/bsd/drm2/i915drm/i915_pci_autoconf.c",):
         if p not in selected:
             refuse("missing PCI i915 auto-configuration C owner: " + p)
@@ -189,7 +212,7 @@ def i915_closure(repo: Path, i915_sha: str) -> dict:
         refuse("i915 overlay has no native implementation")
     return {"sha":i915_sha, "source_owner_count":len(selected),
             "linux_323_mapped":len(rows), "selected":selected,
-            "files":files, "raw":data}
+            "filelist_owners":owner_map, "files":files, "raw":data}
 
 
 def selected_i915_objects(selected: list[str]) -> set[str]:
@@ -214,6 +237,30 @@ def validate_i915_filelist(text: str, expected: list[str]) -> None:
     if not set(expected).issubset(active):
         refuse("i915 selected filelist omits DRM/native source owners: " +
                str(len(set(expected) - active)))
+
+
+def validate_selected_filelists(closure: dict, source_files: dict[str, bytes],
+                                base_sys: Path) -> None:
+    """Require exact selected C source path AND NetBSD compilation predicate."""
+    groups = {}
+    for source, ent in closure["filelist_owners"].items():
+        groups.setdefault(ent["filelist"], []).append((source, ent["selector"]))
+    for filelist, entries in groups.items():
+        if filelist in source_files:
+            raw = source_files[filelist]
+        else:
+            file = base_sys / filelist
+            if not file.is_file() or file.is_symlink():
+                refuse("missing NetBSD DRM/TTM source selector " + filelist)
+            raw = file.read_bytes()
+        text = raw.decode("utf-8")
+        for source, selector in entries:
+            target = source[4:]
+            pattern = (r"^\s*file\s+" + re.escape(target) +
+                       r"\s+" + re.escape(selector) + r"(?:\s|$)")
+            if not re.search(pattern, text, re.M):
+                refuse("selected native source missing from " + filelist +
+                       ": " + source + " owner=" + selector)
 
 
 def render_config(generic: str, rtl_short: str, i915_short: str) -> tuple[str, str]:
@@ -378,7 +425,10 @@ def main() -> int:
             if selected not in replacements and not (src / selected).is_file():
                 refuse("missing native GPU/DRM/TTM source: " + selected)
         filelist = replacements[I915_FILES].decode()
-        validate_i915_filelist(filelist, closure["selected"])
+        validate_i915_filelist(filelist, [
+            p for p in closure["selected"]
+            if closure["filelist_owners"][p]["filelist"] == I915_FILES])
+        validate_selected_filelists(closure, replacements, src)
         cfgpath = "sys/arch/amd64/conf/" + identity
         replacements[cfgpath] = cfg.encode()
         # All validation above is read-only. The first mutation is a new,
