@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-17",
+  "project": "HP-RTL8723BE",
+  "branch": "wip/hp-rtl-runtime-48-merge-20261010",
+  "linux_reference": "torvalds/linux@fd179f8a05be3ccae366b9b96e176b51fbe54aab",
+  "netbsd_reference": "NetBSD/src@03d918f6d0e81fa05b8f1160eca0628ad39988a6",
+  "inventory_source_head": "e8d6a439af0c354565227d51ba7148a5ca4056b4",
+  "inventory_runtime": {
+    "host": "Legion",
+    "scope": "GitHub blobs imported to temporary source-only fixture, automatically deleted",
+    "git_sha_verified_files": 22,
+    "standard_exit": 0,
+    "strict_require_closure_exit": 1,
+    "declared": 53,
+    "bound": 53,
+    "missing": 0,
+    "probe_missing": [],
+    "start_missing": [],
+    "stop_missing": [],
+    "native_c_objects": 50,
+    "tx_power_pg_in_build": true,
+    "guarded_lifecycle_owners": [
+      "rf_calibration",
+      "hw_disable"
+    ],
+    "btc_algorithms": [
+      "1ant",
+      "2ant"
+    ],
+    "btc_full_provider_lifetime": "OPEN",
+    "callback_and_power_gate_closure": "OPEN"
+  },
+  "source_tree_check": {
+    "head": "6fab624ea9fdb739b6408c1e6d667fd32a2be629",
+    "manifest_c_files": 50,
+    "missing_source_files": 0,
+    "duplicate_source_files": 0,
+    "tree_truncated": false
+  },
+  "linux_sequence_audit": {
+    "pinned_reference_functions": [
+      "rtlwifi/pci.c::rtl_pci_start",
+      "rtlwifi/rtl8723be/hw.c::rtl8723be_hw_init",
+      "rtlwifi/pci.c::rtl_pci_stop",
+      "rtlwifi/pci.c::rtl_pci_probe",
+      "rtlwifi/rtl8723be/sw.c::rtl8723be_init_sw_vars"
+    ],
+    "netbsd_counterparts": [
+      "rtwn8723be_linux_probe",
+      "rtwn8723be_linux_hw_init",
+      "rtwn8723be_linux_adapter_start",
+      "rtwn8723be_linux_adapter_stop",
+      "rtwn8723be_runtime_start",
+      "runtime_shutdown"
+    ],
+    "probe_start_hw_stop_order_checked": true,
+    "intentional_os_specific_difference": "NetBSD explicitly reestablishes masked CPU PCI IRQ between drained TX/RX ring reset and enable_interrupt; Linux does not require this exact callback because its IRQ lifetime differs.",
+    "firmware_primary_linux": "rtlwifi/rtl8723befw_36.bin",
+    "firmware_alt_linux": "rtlwifi/rtl8723befw.bin",
+    "firmware_primary_netbsd": "if_rtwn8723be/rtl8723befw_36.bin",
+    "firmware_alt_netbsd": "if_rtwn8723be/rtl8723befw.bin",
+    "firmware_file_on_hp_verified": false,
+    "wpa2_hardware_verified": false
+  },
+  "parity_test": {
+    "path": "tests/test_linux_netbsd_driver_order_source.py",
+    "pass_source_sha": "2f0a0e4fc4cbc8227a7d0cb701cd7e5ac1f65acd",
+    "sha_verified_files": 7,
+    "exit_code": 0,
+    "negative_mutations_rejected": 15,
+    "source_only": true,
+    "known_test_corrections": [
+      "PCI ring callback identity added instead of stage-only assertion (commit 6e98dd0)",
+      "firmware_read negative mutation renamed to remove false-positive substring (commit 2f0a0e4)"
+    ]
+  },
+  "previous_source_python": {
+    "distinct_tests_pass": 24,
+    "exact_source_head": "662adce3d47c64f7125a89f58d8286813d061f1b",
+    "evidence": "evidence/HP_RTL_PYTHON_SOURCE_GATES_20261017.json"
+  },
+  "build_script": "tools/build_hp_rtl50_next_candidate.sh",
+  "build_script_commit": "6fab624ea9fdb739b6408c1e6d667fd32a2be629",
+  "selected_source_gates": 30,
+  "testing_off_hp": "source-only Python tests, not compiler/kernel builds",
+  "native_netbsd_kernel_build": "NOT_RUN",
+  "native_lifecycle_c": "NOT_RUN_ON_HP",
+  "native_calibration_c": "NOT_RUN_ON_HP",
+  "physical_rx_association_wpa2_ip_pm": "NOT_RUN",
+  "prior_hp_fast_forward": "BLOCKED_PLATFORM_SAFETY_NO_RETRY",
+  "hp_f77_boot": "HISTORICAL_LAST_OBSERVED_NOT_RECHECKED",
+  "incomplete_runtime": [
+    "rf_calibration real IQK/LCK",
+    "hw_disable poweroff owner and RF change rollback",
+    "BTC H2C/C2H full lifetime",
+    "PCI DMA RX/TX IRQ hardware timing",
+    "actual WPA2/EAPOL air TX and RX",
+    "firmware installed on HP",
+    "Kernel C ABI compile/link",
+    "i915 KMS port separate project"
+  ],
+  "three_stage_delivery": [
+    {
+      "stage": 1,
+      "scope": "source-only closure, reference sequence, regression and 50-unit tree; completed here",
+      "status": "SOURCE_ONLY_PASS_STRICT_RUNTIME_OPEN"
+    },
+    {
+      "stage": 2,
+      "scope": "when legitimately authorized, HP F77/source/firmware/toolchain/rollback preflight; run native C calibration and lifecycle tests; correct compiler gaps",
+      "status": "BLOCKED_BY_PRIOR_EXTERNAL_BOUNDARY"
+    },
+    {
+      "stage": 3,
+      "scope": "HP-only 50-unit immutable source kernel dependall and ELF identity/sha256 verification, no install/boot changes",
+      "status": "NOT_RUN_UNTIL_STAGE_2_GO"
+    }
+  ],
+  "notes": "No paid CI, no HP mutation. Stage 3 cannot be truthfully guaranteed after three prompts unless prior external HP source-update safety boundary genuinely changes."
+}
