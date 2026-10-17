@@ -108,6 +108,10 @@ def contract(linux_state, runtime, calibration, disable):
         return False
     return (
         in_order(p, *PROBE)
+        and "R23BE_STAGE_PCI_RINGS, ops->init_pci_rings" in p
+        and "R23BE_STAGE_BUS_MASTER, ops->pci_set_master" in p
+        and "R23BE_STAGE_RFKILL, ops->init_rfkill" in p
+        and "R23BE_STAGE_IRQ_ESTABLISH, ops->establish_irq" in p
         and in_order(h, *HW)
         and in_order(s, *START)
         and in_order(t, *STOP)
