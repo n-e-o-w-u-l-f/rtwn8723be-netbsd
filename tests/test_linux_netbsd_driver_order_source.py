@@ -94,7 +94,8 @@ SHUTDOWN = (
 )
 
 
-def contract(linux_state, runtime, calibration, disable):
+def contract(linux_state, runtime, calibration, disable,
+             netbsd, firmware_constants):
     try:
         p = body(linux_state, "rtwn8723be_linux_probe")
         h = body(linux_state, "rtwn8723be_linux_hw_init")
@@ -104,10 +105,24 @@ def contract(linux_state, runtime, calibration, disable):
         d = body(runtime, "runtime_shutdown")
         c = body(calibration, "cal_native_phase")
         cd = body(disable, "disable_native_phase")
+        fw = body(netbsd, "rtwn8723be_netbsd_download_firmware")
     except AssertionError:
         return False
     return (
         in_order(p, *PROBE)
+        # Match frozen Linux rtl8723be/sw.c primary and alternate firmware
+        # byte names, while honoring NetBSD firmload(9) driver directory.
+        and '#define RTWN8723BE_FIRMWARE_NAME       "rtlwifi/rtl8723befw_36.bin"' in firmware_constants
+        and '#define RTWN8723BE_FIRMWARE_FILE       "rtl8723befw_36.bin"' in firmware_constants
+        and '#define RTWN8723BE_FIRMWARE_ALT_FILE   "rtl8723befw.bin"' in firmware_constants
+        and in_order(fw, "RTWN8723BE_FIRMWARE_FILE, &fwh);",
+                     "RTWN8723BE_FIRMWARE_ALT_FILE, &fwh);",
+                     "firmware_get_size(fwh)", "firmware_malloc(image_len)",
+                     "firmware_read(fwh, 0, image, image_len)",
+                     "firmware_close(fwh)", "rtwn8723be_fw_image_parse(image",
+                     "rtwn8723be_netbsd_bt_preload_firmware(sc)",
+                     "rtwn8723be_fw_download(sc->sc_st, sc->sc_sh,",
+                     "rtwn8723be_h2c_native_fw_ready(sc)")
         and "R23BE_STAGE_PCI_RINGS, ops->init_pci_rings" in p
         and "R23BE_STAGE_BUS_MASTER, ops->pci_set_master" in p
         and "R23BE_STAGE_RFKILL, ops->init_rfkill" in p
@@ -139,7 +154,9 @@ state = (ROOT / "src/rtwn8723be_linux_state.c").read_text()
 runtime = (ROOT / "src/rtwn8723be_runtime.c").read_text()
 cal = (ROOT / "src/rtwn8723be_calibration_native.c").read_text()
 disable = (ROOT / "src/rtwn8723be_hw_disable_native.c").read_text()
-assert contract(state, runtime, cal, disable), (
+netbsd = (ROOT / "src/rtwn8723be_netbsd.c").read_text()
+firmware_constants = (ROOT / "src/rtwn8723be_f16_1.h").read_text()
+assert contract(state, runtime, cal, disable, netbsd, firmware_constants), (
     "Linux-reference sequence/NetBSD hardware-owner contract changed"
 )
 
@@ -166,8 +183,29 @@ mutations = [
      disable.replace("rtwn8723be_netbsd_rf_change_owned(sc)",
                      "true")),
 ]
+# Mutations of the actual firmware loader: reject changed image identity,
+# fallback order, read/parse and MCU H2C-ready transition before DMA RX.
 for i, changed in enumerate(mutations):
     assert changed != (state, runtime, cal, disable), i
-    assert not contract(*changed), i
-print(f"LINUX_NETBSD_SEQUENCE_SOURCE_PASS: {len(mutations)} negative mutations;"
-      " probe/hw/start/stop/runtime/guard order; kernel NOT_RUN")
+    assert not contract(*changed, netbsd, firmware_constants), i
+fw_faults = [
+    (netbsd, firmware_constants.replace(
+        '#define RTWN8723BE_FIRMWARE_FILE       "rtl8723befw_36.bin"',
+        '#define RTWN8723BE_FIRMWARE_FILE       "rtl8723befw_BAD.bin"', 1)),
+    (netbsd, firmware_constants.replace(
+        '#define RTWN8723BE_FIRMWARE_ALT_FILE   "rtl8723befw.bin"',
+        '#define RTWN8723BE_FIRMWARE_ALT_FILE   "rtl8723befw_BAD.bin"', 1)),
+    (netbsd.replace("firmware_read(fwh, 0, image, image_len)",
+                    "skip_firmware_read(fwh, 0, image, image_len)", 1),
+     firmware_constants),
+    (netbsd.replace("rtwn8723be_netbsd_bt_preload_firmware(sc)",
+                    "skip_btc_preload_firmware(sc)", 1), firmware_constants),
+    (netbsd.replace("rtwn8723be_h2c_native_fw_ready(sc)",
+                    "skip_firmware_ready(sc)", 1), firmware_constants),
+]
+for i, (nf, cfg) in enumerate(fw_faults):
+    assert (nf, cfg) != (netbsd, firmware_constants), i
+    assert not contract(state, runtime, cal, disable, nf, cfg), i
+print(f"LINUX_NETBSD_SEQUENCE_SOURCE_PASS: "
+      f"{len(mutations) + len(fw_faults)} rejected mutations;"
+      " probe/hw/start/stop/runtime/firmware/guard order; kernel NOT_RUN")
