@@ -16,12 +16,15 @@ LIBC = re.compile(
 )
 INCLUDE = re.compile(r'^#\s*include\s*"([^"]+)"', re.M)
 manifest = (ROOT / "config/files.rtwn8723be_native").read_text()
-native = set(re.findall(
+native_units = re.findall(
     r"^file\s+dev/pci/(rtwn8723be\w+\.c)\s+rtwn8723be_native\s*$",
     manifest, re.M,
-))
-# Manifest source count must include the newer native TX DMA owner.
-assert len(native) == 42
+)
+# The current experimental HP configuration owns fifty distinct native C
+# translation units, including TX, runtime, DMA, PHY, firmware and BTC.
+assert len(native_units) == 50, "native manifest must select 50 C units"
+native = set(native_units)
+assert len(native) == len(native_units), "duplicate native C units in manifest"
 assert {"rtwn8723be_bb_native.c", "rtwn8723be_txpwr_pg.c",
         "rtwn8723be_rf_channel_state.c", "rtwn8723be_calibration.c",
         "rtwn8723be_calibration_native.c", "rtwn8723be_thermal.c",
