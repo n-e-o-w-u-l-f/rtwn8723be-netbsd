@@ -8,6 +8,7 @@ import argparse
 import datetime
 import hashlib
 import json
+import os
 from pathlib import Path
 import platform
 import re
@@ -32,6 +33,22 @@ if (tree.name != "netbsd-native" or obj.parent != workspace or
         not (workspace / "native-stage.status").read_text().startswith("DONE ")):
     sys.exit("REFUSED: expected the separately prepared native source/object workspace")
 tools = workspace / "native-tools"
+# The old isolated native kernel entrypoint is subject to the SAME user
+# decision as the newer 50-C-unit builder. Gate BEFORE any staging or
+# filesystem mutation, including before creating objdir/status.json.
+if args.target == "kernel":
+    rtl_head = subprocess.run(
+        ["git", "-C", str(ROOT), "rev-parse", "HEAD"],
+        check=True, capture_output=True, text=True, timeout=15,
+    ).stdout.strip()
+    i915_repo = Path(os.environ.get(
+        "RTL_I915_RELEASE_REPO",
+        str(ROOT.parent / "i915-cherryview-braswell-netbsd"),
+    ))
+    subprocess.run([
+        sys.executable, "-B", str(ROOT / "tools/check_i915_kernel_release.py"),
+        "--i915-repo", str(i915_repo), "--rtl-head", rtl_head,
+    ], check=True, timeout=30)
 obj.mkdir(exist_ok=True)
 report = obj / (args.target + "-status.json")
 state = {"state": "RUNNING", "host": socket.gethostname(), "target": args.target,
