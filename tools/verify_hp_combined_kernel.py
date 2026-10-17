@@ -68,6 +68,36 @@ def verify_ownership(source: dict, obj_output: str) -> dict:
     return result
 
 
+def verify_link_map_owners(maptext: str, rtl: list[str],
+                           i915: list[str]) -> dict:
+    """Require EVERY selected compiled object name in the full LD map.
+
+    The NetBSD object graph check tests generated OBJS. This separate gate
+    proves the complete final linker map, not a partial ld -r or an i915/RTL
+    token in unrelated text. Unknown/unowned objects are not silently used
+    as replacements for missing known owners.
+    """
+    if not maptext.strip():
+        refuse("empty final kernel linker map")
+    present = set(re.findall(
+        r"(?<![A-Za-z0-9_.-])(?:[A-Za-z0-9_+./-]*/)?"
+        r"([A-Za-z_][A-Za-z0-9_.-]*\.o)(?![A-Za-z0-9_.-])", maptext))
+    required_rtl = {Path(unit).stem + ".o" for unit in rtl}
+    required_i915 = selected_i915_objects(i915)
+    if len(required_rtl) != 50:
+        refuse("incomplete RTL native kernel object manifest")
+    if required_rtl & required_i915:
+        refuse("combined PCI object ownership collision")
+    missing_rtl = sorted(required_rtl - present)
+    missing_i915 = sorted(required_i915 - present)
+    if missing_rtl or missing_i915:
+        refuse("final full-link map missing driver objects: "
+               "RTL=" + ",".join(missing_rtl[:8]) +
+               " GPU_DRM=" + ",".join(missing_i915[:8]))
+    return {"map_rtl_objects_verified": len(required_rtl),
+            "map_gpu_drm_objects_verified": len(required_i915)}
+
+
 def verify_elf(output: Path, manifest: dict, objects: dict) -> dict:
     kernel = output / "obj/netbsd"
     if not kernel.is_file() or kernel.is_symlink() or kernel.stat().st_size < 8192:
@@ -82,15 +112,13 @@ def verify_elf(output: Path, manifest: dict, objects: dict) -> dict:
     if not mapfile.is_file() or mapfile.stat().st_size < 200:
         refuse("full LD map absent - partial link cannot be called combined")
     maptext = mapfile.read_text(errors="replace")
-    rtlname = Path(manifest["rtl_native_units"][0]).stem + ".o"
-    required_gpu = selected_i915_objects(manifest["i915_selected_native"])
-    if rtlname not in maptext or not any(name in maptext for name in required_gpu):
-        refuse("both driver families not present in final linked map")
+    map_owners = verify_link_map_owners(
+        maptext, manifest["rtl_native_units"], manifest["i915_selected_native"])
     return {"file":file_result.strip(), "what":what[-3000:],
             "sha256":hashlib.sha256(kernel.read_bytes()).hexdigest(),
             "bytes":kernel.stat().st_size,
             "map_sha256":hashlib.sha256(mapfile.read_bytes()).hexdigest(),
-            **objects}
+            **objects, **map_owners}
 
 
 def main() -> int:
