@@ -32,6 +32,17 @@ def contract(source):
                 "bus_dmamap_unload(sc->sc_dmat, ring->slot[idx].map);"]
     if not all(t in b for t in required):
         return False
+    # The first producer descriptor is exposed ONLY after the tail's OWN
+    # bits are synced for device DMA. Forward OWN order is unsafe when the
+    # device consumes an already-running BE queue concurrently.
+    own_region = b.split("membar_producer();", 1)[1].split(
+        "ring->producer =", 1)[0]
+    if not re.search(r"for\\s*\\(i = count; i != 0;\\s*\\)\\s*\\{\\s*"
+                     r"i--;\\s*idx = \\(start \\+ i\\) % ring->count;", own_region):
+        return False
+    if own_region.count("R23BE_TXD0_OWN") != 1 or own_region.count(
+            "rtwn8723be_f16_1_dma_sync_for_device(") != 1:
+        return False
     pub = b.index("BUS_DMASYNC_PREWRITE);")
     abort = b.index("abort:")
     if "goto abort;" in b[pub:abort] or "return error;" in b[pub:abort]:
@@ -57,7 +68,11 @@ mutants = [batch.replace("count > RTWN8723BE_TX_BATCH_MAX", "false", 1),
            batch.replace("bus_dmamap_unload(sc->sc_dmat, ring->slot[idx].map);", "", 1),
            batch.replace("slot->map->dm_mapsize != 0", "false", 1),
            batch.replace("BUS_DMASYNC_PREWRITE);", "BUS_DMASYNC_PREWRITE);\n    goto abort;", 1),
-           batch.replace("membar_producer();", "", 1)]
+           batch.replace("membar_producer();", "", 1),
+           batch.replace("for (i = count; i != 0; ) {",
+                         "for (i = 0; i < count; i++) {", 1),
+           batch.replace("i--;\n        idx = (start + i) % ring->count;",
+                         "idx = (start + i) % ring->count;", 1)]
 for i, mutation in enumerate(mutants):
     assert mutation != batch and not contract(prefix + "\nrtwn8723be_tx_native_enqueue_batch(" + mutation), i
 
@@ -84,4 +99,24 @@ for count in range(1, 17):
                     assert len(unloaded) == expected and not published
                     assert unloaded == [(start + j) % 16 for j in reversed(range(expected))]
                 cases += 1
-print(f"TX_BATCH_SOURCE_PASS: 8 rejected mutations; {cases} ownership model cases; native NOT_RUN")
+# A running queue may examine the head while publishing a new batch.
+# Until every later descriptor is OWN, the head MUST remain CPU-owned;
+# this is true even when descriptor indices wrap around.
+publication_cases = 0
+for ring_count in (2, 4, 8, 16):
+    for start in range(ring_count):
+        for count in range(1, ring_count + 1):
+            expected = {(start + i) % ring_count for i in range(count)}
+            owned = set()
+            for offset in reversed(range(count)):
+                owned.add((start + offset) % ring_count)
+                assert start not in owned or owned == expected
+                publication_cases += 1
+# Negative oracle: a forward release makes the head OWN while tail is not.
+assert any(
+    {(start + i) % 4 for i in range(1)} !=
+    {(start + i) % 4 for i in range(count)}
+    for start in range(4) for count in range(2, 5)
+)
+print(f"TX_BATCH_SOURCE_PASS: 10 rejected mutations; {cases} ownership model cases; "
+      f"{publication_cases} reverse-OWN publication states; native NOT_RUN")
