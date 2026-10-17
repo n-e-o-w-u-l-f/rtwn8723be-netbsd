@@ -49,9 +49,7 @@ def contract(source):
 
 def mutate_single_frame(source, old, new):
     """The fragment-batch helper now has its own abort; target the single-frame one."""
-    marker = "\\nrtwn8723be_net80211_tx_frame("
-    # The source string is split at the exact function definition.
-    marker = marker.replace("\\\\n", "\\n")
+    marker = chr(10) + "rtwn8723be_net80211_tx_frame("
     assert source.count(marker) == 1
     prefix, tail = source.split(marker, 1)
     assert old in tail
