@@ -338,7 +338,15 @@ rtwn8723be_tx_native_enqueue_batch(struct rtwn8723be_softc *sc,
         slot->m = f->m;
     }
     membar_producer();
-    for (i = 0; i < count; i++) {
+    /*
+     * Publish the tail first and the producer/head descriptor last.
+     * The device may be consuming this BE ring concurrently: exposing
+     * the first fragment before later OWN bits are visible could let it
+     * encounter a not-yet-owned descriptor midway through the MSDU.
+     * The final doorbell remains after the entire chain is device-owned.
+     */
+    for (i = count; i != 0; ) {
+        i--;
         idx = (start + i) % ring->count;
         descs[idx].d[0] = htole32(le32toh(descs[idx].d[0]) | R23BE_TXD0_OWN);
         rtwn8723be_f16_1_dma_sync_for_device(sc->sc_dmat,
