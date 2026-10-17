@@ -33,9 +33,11 @@ CALLBACK_AND_PG_CLOSURE=OPEN
 ```
 Strict `--require-closure` correctly returned **exit 1** for still-guarded runtime functions. Do NOT force it green by deleting the guards; strict closure is an *operational readiness gate*, not a prerequisite for a safe kernel **link**.
 
-**New source gate:** `tests/test_linux_netbsd_driver_order_source.py`, which enforces Linux-derived start, stop, probe and hw-init stage order together with NetBSD IRQ/drain and guard invariants. It ran on Legion at SHA `6e98dd0d7f04d49988b9609e039c6f0824f56513` and returned 0, including **10 deliberately injected negative mutations**. An initial test-only false negative on the PCI ring callback binding was fixed (commit `6e98dd0`).
+**New source gate:** `tests/test_linux_netbsd_driver_order_source.py`, which enforces Linux-derived start, stop, probe and hw-init stage order together with NetBSD IRQ/drain and guard invariants. It ran on Legion at SHA `2f0a0e4fc4cbc8227a7d0cb701cd7e5ac1f65acd` and returned 0, including **15 deliberately injected negative mutations**: ten callback/lifecycle/owner checks and five firmware selection/read/ready checks. The first test-only false negative (PCI-ring callback not verified) was fixed in `6e98dd0`; a second mutation-token substring false negative was fixed in `2f0a0e4`. Exactly seven SHA-verified files participated in the final test. No native driver build was run.
 
 **Manifest check:** exact GitHub WIP tree checked at SHA `6fab624ea9fdb739b6408c1e6d667fd32a2be629`: 50/50 `config/files.rtwn8723be_native` C source paths present, zero duplicates, zero missing units, and both new source tests present. All source-only preflight gates are selected by `tools/build_hp_rtl50_next_candidate.sh` (**30** test names total at that commit).
+
+**Firmware identity checked:** frozen Linux primary `rtlwifi/rtl8723befw_36.bin`, fallback `rtlwifi/rtl8723befw.bin`. NetBSD `firmware_open(9)` maps these to driver-specific `if_rtwn8723be` and file names `rtl8723befw_36.bin` / `rtl8723befw.bin`, preserving primary/fallback order. `firmware_read` → header parser → Bluetooth pre-load → MCU download → H2C ready were source verified. Presence/read permissions of actual installed HP firmware files remain **NOT_OBSERVED**.
 
 ## Current native blockers — do not paper over them
 
