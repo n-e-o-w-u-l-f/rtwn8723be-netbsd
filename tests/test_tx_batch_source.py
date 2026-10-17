@@ -37,8 +37,8 @@ def contract(source):
     # device consumes an already-running BE queue concurrently.
     own_region = b.split("membar_producer();", 1)[1].split(
         "ring->producer =", 1)[0]
-    if not re.search(r"for\\s*\\(i = count; i != 0;\\s*\\)\\s*\\{\\s*"
-                     r"i--;\\s*idx = \\(start \\+ i\\) % ring->count;", own_region):
+    if not re.search(r"for\s*\(i = count; i != 0;\s*\)\s*\{\s*"
+                     r"i--;\s*idx = \(start \+ i\) % ring->count;", own_region):
         return False
     if own_region.count("R23BE_TXD0_OWN") != 1 or own_region.count(
             "rtwn8723be_f16_1_dma_sync_for_device(") != 1:
