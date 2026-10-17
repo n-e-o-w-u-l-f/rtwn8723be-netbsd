@@ -116,6 +116,18 @@ def i915_closure(repo: Path, i915_sha: str) -> dict:
     rows = data.get("linux_323_units")
     if not isinstance(rows, list) or len(rows) != 323:
         refuse("exactly 323 Linux active semantic mappings are required")
+    # Bind all 323 row identities to the i915-owner's *actual* frozen
+    # Linux reference inventory. Count-only synthetic names are not proof.
+    inventory = repo / "docs/I915-STRUCTURAL-COVERAGE.tsv"
+    if not inventory.is_file() or inventory.is_symlink():
+        refuse("pinned i915 Linux-323 inventory missing")
+    matrix = inventory.read_text().splitlines()
+    if not matrix or matrix[0].split("\t")[:2] != [
+            "linux_source", "structural_class"]:
+        refuse("i915 pinned structural inventory header invalid")
+    exact_linux = [line.split("\t")[0] for line in matrix[1:]]
+    if len(exact_linux) != 323 or len(set(exact_linux)) != 323:
+        refuse("i915 frozen 323 Linux source identity list corrupt")
     source_map, mapped = set(), set()
     for row in rows:
         if not isinstance(row, dict):
@@ -134,6 +146,8 @@ def i915_closure(repo: Path, i915_sha: str) -> dict:
             mapped.add(native)
         if not isinstance(row.get("evidence"), str) or len(row["evidence"].strip()) < 12:
             refuse("missing per-unit behavioral evidence " + key)
+    if source_map != set(exact_linux):
+        refuse("i915 closure does not map exact 323 frozen Linux sources")
     selected = data.get("selected_i915_sources")
     if not isinstance(selected, list) or len(selected) < 3 or len(set(selected)) != len(selected):
         refuse("missing selected native i915/DRM/TTM source closure")
