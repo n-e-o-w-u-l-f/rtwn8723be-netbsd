@@ -62,6 +62,12 @@ for testname in \
     test_tx_batch_source.py \
     test_datapath_batch_source.py \
     test_net80211_management_wake_source.py \
+    test_hp_rtl50_panic_inventory_source.py \
+    test_irq_shutdown_race_contract.py \
+    test_net80211_deferred_start_source.py \
+    test_net80211_rx_fcs_source.py \
+    test_tx_descriptor_staging_source.py \
+    test_net80211_unregister_sleep_ipl_source.py \
     test_linux_netbsd_driver_order_source.py \
     test_port_closure_inventory.py \
     test_btc_async_events_after_running.py \
@@ -77,8 +83,7 @@ for testname in \
     test_linux_lifecycle_stop.py \
     test_probe_unstarted_and_failed_shutdown_gates.py \
     test_rx_management_filter_native.py \
-    test_wip_world_regdomain_glue.py \
-    test_port_closure_inventory.py
+    test_wip_world_regdomain_glue.py
 do
     "$PYTHON" -B "$ROOT/tests/$testname"
 done
