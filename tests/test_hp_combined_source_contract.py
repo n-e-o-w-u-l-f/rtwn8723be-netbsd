@@ -104,6 +104,12 @@ with tempfile.TemporaryDirectory(prefix="rtl-combined-source-contract-") as tmp:
         "native_sources":[names[i % len(names)]],
         "evidence":"Synthetic behavioral mapping only for policy testing.",
     } for i in range(323)]
+    matrix = i915 / "docs/I915-STRUCTURAL-COVERAGE.tsv"
+    matrix.parent.mkdir(parents=True, exist_ok=True)
+    matrix.write_text("linux_source\tstructural_class\tnetbsd_evidence\tsemantic_state\n" +
+                      "".join(row["linux_source"] +
+                              "\tUNRESOLVED_NO_BASENAME\t\tUNREVIEWED\n"
+                              for row in rows))
     overlay = []
     for name in names + [I915_FILES]:
         file = i915 / "native_overlay" / name
@@ -131,6 +137,11 @@ with tempfile.TemporaryDirectory(prefix="rtl-combined-source-contract-") as tmp:
     contract["linux_323_units"] = rows[:-1]
     cp.write_text(json.dumps(contract))
     refused(lambda: i915_closure(i915, ancestor), "322-of-323 mapping")
+    contract["linux_323_units"] = [dict(row) for row in rows]
+    contract["linux_323_units"][0]["linux_source"] = "drivers/gpu/drm/i915/fake.c"
+    cp.write_text(json.dumps(contract))
+    refused(lambda: i915_closure(i915, ancestor),
+            "323 counts correct but wrong frozen source identity")
     contract["linux_323_units"] = rows
     contract["verified_subsystems"]["symbol_provider_closure"] = "OPEN"
     cp.write_text(json.dumps(contract))
