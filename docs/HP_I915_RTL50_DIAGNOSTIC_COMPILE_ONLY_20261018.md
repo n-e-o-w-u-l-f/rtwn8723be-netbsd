@@ -140,6 +140,22 @@ The nonrelease private i915+RTL50 source stage now applies existing i915 owner `
 
 On operational Legion: frozen NetBSD source-extracted C11/UBSan 5 cases, five mutation refusals, and actual git apply/reverse PASS; full private RTL50 pinned source-stage PASS with five independent tamper/drift/precondition rejections. Final private `intel_dp.c` SHA256 `712c7364f821320af523b140881cb64b00092e664c07706b7b8e884d57f6aecc` recorded in all dependent manifest SHA fields. Off-HP builder refusal, diff/shell/Python syntax PASS. **No HP native compile, kernel link/install/boot, complete Linux323 source/DRM/TTM closure, KMS or WLAN/WPA2 proof.** [i915 owner evidence](https://github.com/n-e-o-w-u-l-f/i915-cherryview-braswell-netbsd/blob/work/hp-native-drm-stage-replay-20261015/docs/HP_I915_EDP_DPCD_SHORT_READ_20261018.md).
 
+## Native DRM VBlank core + 0018 staged from pinned NetBSD (2026-10-18)
+
+The existing **private, nonrelease source mirror** now includes all five VBlank runtime-owner paths, in addition to its 50 RTL C units, G01–G09/G08 trace paths and Cherryview AUX/DPCD patches:
+
+- `sys/external/bsd/drm2/dist/drm/drm_vblank.c`: original pinned NetBSD SHA256 `06434bfc9f6693a1b61069c5c0e839b24671a5ba4d826fb001b0a897ceac206e` → private overlaid SHA256 `5b6d2d601dbf1abea11a9fd35f90cdf670ceb360657acd495fd5ca4bd4981090`.
+- `sys/external/bsd/drm2/dist/include/drm/drm_vblank.h`: core work-field additions;
+- `sys/external/bsd/drm2/drm/files.drmkms`: selects the worker's translated C object;
+- `sys/external/bsd/drm2/dist/drm/drm_vblank_work.c`: pinned i915-owned native worker, SHA256 `fe31c46d491a4b93589d6c8308895266de22ee66913864ddde8b1234c29b12be`;
+- `sys/external/bsd/drm2/dist/include/drm/drm_vblank_work.h`: pinned API header SHA256 `f01168bf73570113b94cf07a2c424dd3c4cfcc4061db6c4f984f4c518e8e008d`.
+
+The consumer applies two immutable i915-owned patches only in a **temporary copied NetBSD DRM tree**: core VBlank hooks SHA256 `0acc6a3e68a9276a734752b78d4e07d725efafc84ebc2bacaa11a0825832d919`, followed by the independent reference-pointer guard `0018` SHA256 `2a4cc2546abd9e9e7be38a7e972d619a49991a1f02cff8333cacc35db9a1dd0f`. Both patches are re-applied with genuine `git apply --check` and `git apply`, reversed, and the original three source bytes restored exactly. The worker's NetBSD system dependencies `include/drm/drm_wait_netbsd.h` and `include/drm_trace.h` are now explicitly presence- and SHA-bound to the frozen source, without copying unrelated headers into the owner project.
+
+**Executed on Legion:** `VBLANK_0018_RTL50_G08_CHV_NONRELEASE_SOURCE_STAGE_PASS`, `I915_VBLANK_0018_STAGING_12_NEGATIVE_CASES_PASS` and `VBLANK_0018_OFF_HP_DIAG_BUILDER_FAIL_CLOSED_PASS`. The **12 negative controls** cover three corrupted native core inputs, four changed i915 owner inputs/patches, one symlinked owner hook, and four missing/corrupted NetBSD header dependencies. All five new files are materialized (not symlinks) in the private source mirror and have their hashes in `diagnostic-source-manifest.json`. Unmodified frozen input files and the existing 14 G08 trace marks are preserved. `kernel_build=NOT_RUN`, `eligible_for_install=false`, `eligible_for_boot=false` and `i915_full_323_semantic_closure=NOT_VERIFIED` remain mandatory.
+
+**Open native limits:** New VBlank `SCHED_RR` vs Linux `SCHED_FIFO` deadline parity, NetBSD compiler `-Werror` for the *composed* core/worker, DRM internal `drm_trace.h` ABI and actual GPU interrupt timing are **not tested here**. This represents SOURCE STAGING, not a successful HP compile or functional KMS/RTL.
+
 ## Next actions
 
 1. Establish a genuinely permitted direct HP command executor,
@@ -147,13 +163,15 @@ On operational Legion: frozen NetBSD source-extracted C11/UBSan 5 cases, five mu
    state without changing boot selections.
 2. Independently resolve the blocked persistent test publication
    through legitimate provider support/permissions; do not evade.
-3. On HP execute build-only native command; capture first
-   `nbconfig`/compiler/undefined-symbol failure and fix true
-   NetBSD ABI/DRM/PCI issues in source, with PRE/POST evidence.
-4. Continue modern 323-unit i915 semantic closure in the i915
-   producer; this diagnostic source build does NOT waive it.
-5. Only after real full production source/physical gate and
-   independently verified early-recovery path consider a
-   nondefault manual test boot of a separate kernel.
+3. **First complete all 323 i915 semantic owner/source rows** with
+   DRM/TTM and native ABI dependencies in the i915 producer. This
+   staged private diagnostic source alone does not authorize a build.
+4. **After 323 source closure and legitimate HP access**, execute
+   only the separately authorized native compile/link diagnostics and
+   resolve actual `nbconfig`, C ABI, IRQ and undefined-symbol errors.
+5. Verify kernel-independent recovery and keep standard `/netbsd`
+   unchanged; install an isolated test kernel only after gate acceptance.
+   The **user tests the installed kernel** before physical KMS/WLAN
+   validation.
 
 Source: https://www.netbsd.org/docs/guide/en/chap-build.html
