@@ -28,7 +28,8 @@ from hp_i915_boot_trace_overlay import (
 )
 from hp_i915_native_vblank_overlay import (
     PINNED as VBLANK_PINNED, PINNED_DEPENDENCIES as VBLANK_DEPENDENCIES,
-    NETBSD_CORE as VBLANK_CORE, build_vblank_private_core,
+    NETBSD_CORE as VBLANK_CORE, NATIVE_WORKER as VBLANK_WORKER,
+    build_vblank_private_core,
 )
 
 NETBSD_PIN = "03d918f6d0e81fa05b8f1160eca0628ad39988a6"
@@ -39,6 +40,11 @@ REQUIRED_BUILTIN = (
     "sys/external/bsd/drm2/i915drm/i915_module.c",
     "sys/external/bsd/drm2/i915drm/i915_pci_autoconf.c",
 )
+# In this specific VBlank-enabled private source variant, both original
+# native drm_vblank.o and the new drm_vblank_work.o must appear in OBJS
+# and in the final private link map; a source-filelist match alone is not
+# proof the object was selected and linked.
+REQUIRED_DRM_VBLANK = (VBLANK_CORE, VBLANK_WORKER)
 MAGIC = "HP-DIAGNOSTIC-COMPILE-ONLY"
 STATUS = "STAGED_DIAGNOSTIC_NONRELEASE_NO_KERNEL_BUILD"
 
@@ -178,7 +184,8 @@ def prepare(src: Path, rtl: Path, i915: Path, out: Path,
         "RTL_SHA": rtl_sha, "I915_SHA": gpu_sha,
         "NETBSD_SHA": NETBSD_PIN,
         "config": "source/" + cfgpath, "rtl_native_units": rtl_units,
-        "required_native_i915_sources": list(REQUIRED_BUILTIN),
+        "required_native_i915_sources":
+            list(REQUIRED_BUILTIN) + list(REQUIRED_DRM_VBLANK),
         "source_sha256": {k:digest(v) for k,v in sorted(replacements.items())},
         **trace_meta, **dp_meta, **chv_meta, **aux_meta, **edp_meta,
         **vblank_meta,
