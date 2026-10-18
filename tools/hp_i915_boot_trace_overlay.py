@@ -328,3 +328,85 @@ def build_chv_hardware_fixes(
         "i915_chv_dp_g08_blocks_preserved": 14,
         "i915_chv_semantic_parity_323_proven": False,
     }
+
+
+# Existing i915-owner candidate 0013: without an installed and runtime-enabled
+# IRQ, an early eDP AUX wait must poll rather than enter the IRQ-only wait.
+AUX_IRQ_PATCH = "candidates/0013-i915-edp-aux-poll-when-irqs-disabled-netbsd11.patch"
+AUX_IRQ_PATCH_SHA256 = (
+    "3806db3f9ef738d1d1d79b3adc96237ea9e3cdf1f43fc4ec4c9ddeb0f591f997"
+)
+AUX_IRQ_OLD = "\tif (!cold) {\n"
+AUX_IRQ_NEW = (
+    "\tif (!cold && i915->drm.irq_enabled &&\n"
+    "\t    i915->runtime_pm.irqs_enabled) {\n"
+)
+
+
+def _aux_irq_checked_patch(i915_repo: Path, source: bytes) -> bytes:
+    """Apply only the pinned producer's 0013 inside the real AUX wait."""
+    path = i915_repo / AUX_IRQ_PATCH
+    if not path.is_file() or path.is_symlink():
+        refuse("AUX_IRQ_OWNER_PATCH_MISSING")
+    patch = path.read_bytes()
+    if hashlib.sha256(patch).hexdigest() != AUX_IRQ_PATCH_SHA256:
+        refuse("AUX_IRQ_OWNER_PATCH_SHA_MISMATCH")
+    original = source.decode("utf-8")
+    start = "static u32\nintel_dp_aux_wait_done("
+    stop = "static u32 g4x_get_aux_clock_divider("
+    if original.count(start) != 1 or original.count(stop) != 1:
+        refuse("AUX_IRQ_WAIT_BOUNDARY_DRIFT")
+    i = original.index(start)
+    j = original.index(stop, i)
+    block = original[i:j]
+    if ("#ifdef __NetBSD__\n" + AUX_IRQ_OLD) not in block:
+        refuse("AUX_IRQ_NETBSD_BRANCH_DRIFT")
+    if block.count(AUX_IRQ_OLD) != 1 or AUX_IRQ_NEW in block:
+        refuse("AUX_IRQ_DUPLICATE_OR_BRANCH_DRIFT")
+    if "done = wait_for_atomic(C, timeout_ms) == 0;" not in block:
+        refuse("AUX_IRQ_ATOMIC_FALLBACK_MISSING")
+    expected = (original[:i] + block.replace(AUX_IRQ_OLD, AUX_IRQ_NEW, 1)
+                + original[j:]).encode("utf-8")
+    with tempfile.TemporaryDirectory(prefix="hp-i915-aux-irq-source-") as tmp:
+        root = Path(tmp)
+        target = root / I915_DP_PATH
+        target.parent.mkdir(parents=True)
+        target.write_bytes(source)
+        for action in (["--check"], []):
+            try:
+                proc = subprocess.run(
+                    ["git", "apply", *action, str(path)], cwd=root,
+                    capture_output=True, timeout=20, check=False)
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                refuse("AUX_IRQ_PATCH_TOOL_FAILURE_" + type(exc).__name__)
+            if proc.returncode:
+                refuse("AUX_IRQ_CONTEXT_CONFLICT_OR_DRIFT")
+        changed = target.read_bytes()
+    if changed != expected:
+        refuse("AUX_IRQ_UNRELATED_DRIVER_CHANGE")
+    return changed
+
+
+def build_aux_irq_private_overlay(
+    i915_repo: Path, g08_chv_traced_dp: bytes
+) -> tuple[bytes, dict]:
+    """Append 0013 to 0004+0039, preserve exact G08 traces and precharge."""
+    text = g08_chv_traced_dp.decode("utf-8")
+    bare, count = G08_GUARD.subn("", text)
+    if count != 14:
+        refuse("AUX_IRQ_G08_TRACE_COUNT_DRIFT")
+    verify_g08_overlay(bare.encode("utf-8"), g08_chv_traced_dp)
+    bare_patched = _aux_irq_checked_patch(i915_repo, bare.encode("utf-8"))
+    final = _aux_irq_checked_patch(i915_repo, g08_chv_traced_dp)
+    verify_g08_overlay(bare_patched, final)
+    if b"(3 << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT)" not in final:
+        refuse("AUX_IRQ_PRECHARGE_LOST")
+    return final, {
+        "i915_aux_irq_state": "VERIFIED_PINNED_IRQ_UNAVAILABLE_POLL_PRIVATE_OVERLAY",
+        "i915_aux_irq_patch_sha256": AUX_IRQ_PATCH_SHA256,
+        "i915_aux_irq_input_sha256": hashlib.sha256(
+            g08_chv_traced_dp).hexdigest(),
+        "i915_aux_irq_output_sha256": hashlib.sha256(final).hexdigest(),
+        "i915_aux_irq_g08_blocks_preserved": 14,
+        "i915_aux_irq_full_323_semantic_closure": False,
+    }
