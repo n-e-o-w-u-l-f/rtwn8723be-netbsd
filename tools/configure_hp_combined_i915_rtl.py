@@ -278,8 +278,8 @@ def render_config(generic: str, rtl_short: str, i915_short: str) -> tuple[str, s
                    ("DDB_TEE_MSGBUF", "1"),
                    ("MSGBUFSIZE", "262144"))
     for key, wanted in diagnostics:
-        match = re.findall(r"^\\s*options\\s+" + re.escape(key) +
-                           r"(?:\\s*=\\s*([^\\s#]+))?(?:\\s*(?:#.*)?)?$",
+        match = re.findall(r"^\s*options\s+" + re.escape(key) +
+                           r"(?:\s*=\s*([^\s#]+))?(?:\s*(?:#.*)?)?$",
                            generic, re.M)
         if match:
             if len(match) != 1 or (wanted is not None and match[0] != wanted):
