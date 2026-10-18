@@ -27,8 +27,8 @@ from hp_i915_boot_trace_overlay import (
     build_aux_irq_private_overlay, build_edp_dpcd_private_overlay,
 )
 from hp_i915_native_vblank_overlay import (
-    PINNED as VBLANK_PINNED, NETBSD_CORE as VBLANK_CORE,
-    build_vblank_private_core,
+    PINNED as VBLANK_PINNED, PINNED_DEPENDENCIES as VBLANK_DEPENDENCIES,
+    NETBSD_CORE as VBLANK_CORE, build_vblank_private_core,
 )
 
 NETBSD_PIN = "03d918f6d0e81fa05b8f1160eca0628ad39988a6"
@@ -150,8 +150,17 @@ def prepare(src: Path, rtl: Path, i915: Path, out: Path,
     native_drm_list = require_file(src, "sys/external/bsd/drm2/drm/files.drmkms")
     if b"file\texternal/bsd/drm2/dist/drm/drm_vblank.c\tdrmkms" not in native_drm_list:
         refuse("native DRM file list does not select VBlank core")
+    # Require the genuine frozen NetBSD declarations consumed by the
+    # provider. Missing/deviating headers make a source-only stage invalid.
+    vblank_dependencies = {}
+    for name, required_sha in VBLANK_DEPENDENCIES.items():
+        found_sha = digest(require_file(src, name))
+        if found_sha != required_sha:
+            refuse("VBlank native dependency source drift " + name)
+        vblank_dependencies[name] = found_sha
     vblank_source = {name: require_file(src, name) for name in VBLANK_PINNED}
     vblank_files, vblank_meta = build_vblank_private_core(i915, vblank_source)
+    vblank_meta["i915_drm_vblank_pinned_dependencies_sha256"] = vblank_dependencies
     if VBLANK_CORE not in vblank_files:
         refuse("missing pinned native VBlank core after overlay")
     if any(name in replacements for name in vblank_files):
