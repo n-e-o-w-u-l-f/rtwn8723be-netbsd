@@ -111,6 +111,17 @@ or physical KMS/WPA2 test occurred.** The direct HP RDC command
 quota remained provider-reported 0% on the last check; no separately
 callable direct Tailscale executor was available here.
 
+## Cherryview hardware-order fixes in private diagnostic source (2026-10-18)
+
+RTL WIP `edc591fd6a22cfd7ba44d9709e2ceb1e5b0f2d24` now SHA-pins and applies **existing i915-owner patches**, without modifying either frozen NetBSD source file:
+
+- `0002`: `display/intel_display_power.c` defers the `DISPLAY_PHY_CONTROL` write from `chv_phy_control_init` to the Cherryview pipe power-well `.sync_hw` callback. Frozen source SHA256 `07b4d1fb…13993f730`; owner patch SHA256 `e75157d7…18823905`.
+- `0004`: `display/intel_dp.c` selects **three 2-µs precharge units** for pre-SKL AUX instead of five. Frozen source SHA256 `7f79318f…29db0141`; owner patch SHA256 `9fe5facc…228662ee`.
+
+The latter is applied to both pristine and G08-traced frozen source in separate temporary directories. Removing 14 G08 traces from the final DP source still reproduces byte-for-byte the **hardware-fixed** nontraced source; the G01–G09 18 prints are preserved independently. The private manifest binds the two owner patch hashes, 3 original C file hashes and final overlay hashes; both corrected native display C files are selected by the frozen NetBSD `files.i915drmkms` owner.
+
+**Executed on Legion:** full private stage **PASS** with 50 native RTL C units, both CHV corrections and 18+14 guarded trace prints; frozen originals unchanged, final SHA values verified. Six negative cases correctly refused (mutated DP input, mutated power input, tampered patch, two missing NetBSD selectors, off-HP build). Shell syntax PASS. This is nonrelease source instrumentation and two source-level hardware sequence changes, **not** full 323 semantic parity, not a native HP compile/link, and not KMS/WPA2 acceptance. No production release gate, kernel, default boot entry or recovery image was changed.
+
 ## G08 producer overlay integrated (2026-10-18)
 
 RTL WIP `867714f724610abe2816f09d8fa8ab67ecf6f7f5` now stages **both** exact i915 owner patches in separate private files: `0038` -> `i915_drv.c` (G01–G09, 18 prints) and `0039` -> `display/intel_dp.c` (G08 AUX/DPCD, Cherryview PHY/PLL, eDP panel and link, 14 prints). The latter is required by the native `files.i915drmkms` selector. Both original and staged SHA256 digests and patch hashes are bound to the private diagnostic manifest. The pinned NetBSD source is unchanged.
