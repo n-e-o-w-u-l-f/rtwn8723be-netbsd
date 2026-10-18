@@ -85,9 +85,11 @@ phase FULL_KERNEL_DIAGNOSTIC_COMPILE
   exit 2
 }
 phase CHECK_PRIVATE_ELF_AND_SOURCE
-"$PYTHON" -B - "$OUTPUT" >>"$LOG" 2>&1 <<'PY'
+"$PYTHON" -B - "$ROOT" "$OUTPUT" >>"$LOG" 2>&1 <<'PY'
 import hashlib,json,pathlib,struct,sys
-out=pathlib.Path(sys.argv[1])
+root,out=map(pathlib.Path,sys.argv[1:])
+sys.path.insert(0,str(root/"tools"))
+from verify_hp_combined_kernel import verify_link_map_owners
 manifest=json.loads((out/"diagnostic-source-manifest.json").read_text())
 if manifest["eligible_for_boot"] or manifest["eligible_for_install"] or not manifest["no_release_authorization"]:
     raise RuntimeError("diagnostic output was mislabeled as release")
@@ -101,6 +103,13 @@ if not elf.is_file() or elf.is_symlink():
 with elf.open("rb") as f: header=f.read(64)
 if len(header)<64 or header[:5]!=b"\x7fELF\x02" or header[5]!=1 or struct.unpack("<H",header[18:20])[0]!=62:
     raise RuntimeError("not amd64 ELF64 kernel")
+linkmap=out/"obj/netbsd.map"
+if not linkmap.is_file() or linkmap.is_symlink() or linkmap.stat().st_size<200:
+    raise RuntimeError("final ELF map missing, diagnostic link not verified")
+map_proof=verify_link_map_owners(
+    linkmap.read_text(errors="replace"),
+    manifest["rtl_native_units"], manifest["required_native_i915_sources"])
+print("DIAGNOSTIC_FINAL_MAP_PROOF",map_proof)
 print("DIAGNOSTIC_UNRELEASED_ELF_SHA256",hashlib.sha256(elf.read_bytes()).hexdigest())
 PY
 phase DIAGNOSTIC_KERNEL_LINKED_NOT_RELEASED_NOT_INSTALLED
