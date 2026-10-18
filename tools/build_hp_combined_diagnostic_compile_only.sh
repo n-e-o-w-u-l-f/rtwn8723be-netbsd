@@ -67,14 +67,17 @@ import json,pathlib,sys
 root,out=map(pathlib.Path,sys.argv[1:])
 sys.path.insert(0,str(root/"tools"))
 from configure_hp_combined_i915_rtl import verify_make_objects
-from stage_hp_combined_diagnostic_source import REQUIRED_BUILTIN, STATUS
+from stage_hp_combined_diagnostic_source import REQUIRED_BUILTIN, REQUIRED_DRM_VBLANK, STATUS
 data=json.loads((out/"diagnostic-source-manifest.json").read_text())
 if data["status"] != STATUS or data["eligible_for_install"] or data["eligible_for_boot"]:
     raise RuntimeError("diagnostic-only status no longer valid")
 obj=(out/"native-objects.txt").read_text()
-result=verify_make_objects(obj,data["rtl_native_units"],list(REQUIRED_BUILTIN))
-if result["rtl_objects"] != 50 or result["gpu_and_drm_objects"] != 3:
-    raise RuntimeError("missing native i915 + RTL50 objects")
+required=list(REQUIRED_BUILTIN)+list(REQUIRED_DRM_VBLANK)
+if data["required_native_i915_sources"] != required:
+    raise RuntimeError("staged i915/DRM VBlank owner list differs from native gate")
+result=verify_make_objects(obj,data["rtl_native_units"],required)
+if result["rtl_objects"] != 50 or result["gpu_and_drm_objects"] != 5:
+    raise RuntimeError("missing i915, VBlank core/worker or RTL50 native objects")
 print("DIAGNOSTIC_GENERATED_NATIVE_OBJECT_GRAPH_PASS",result)
 PY
 # Don't treat preprocessor/compilation faults as permission to install.
