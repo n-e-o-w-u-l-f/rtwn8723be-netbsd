@@ -26,6 +26,15 @@ PINNED = {
     NETBSD_HEADER: "41a6574745795608b43bec288f04f0ae622271e604ff8b6e6d894e754acc37a9",
     NETBSD_FILELIST: "e507627bf8a6219ff38a79a2c6cebc98b1ee61540d354ce0eb15d2ee77785cb3",
 }
+# Headers consumed by the worker and DRM core, inherited unchanged from the
+# frozen NetBSD source tree rather than silently supplied by the host.
+PINNED_DEPENDENCIES = {
+    "sys/external/bsd/drm2/include/drm/drm_wait_netbsd.h":
+        "8630611df53db86e97889a7da1a3b6707e9339db805c2471de269875bdbd8d96",
+    "sys/external/bsd/drm2/include/drm_trace.h":
+        "ea4b78e89fa0615ce58af5fffb25076108ae3c5c5b09029b5e3e27fc42ae65ce",
+}
+
 OWNER_SHA = {
     CORE_HOOKS: "0acc6a3e68a9276a734752b78d4e07d725efafc84ebc2bacaa11a0825832d919",
     REF_BOUNDS: "2a4cc2546abd9e9e7be38a7e972d619a49991a1f02cff8333cacc35db9a1dd0f",
