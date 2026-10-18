@@ -87,8 +87,8 @@ def prepare(src: Path, rtl: Path, i915: Path, out: Path,
     for unit in REQUIRED_BUILTIN:
         if unit[4:] not in filelist or not require_file(src, unit):
             refuse("missing native GENERIC i915 source owner " + unit)
-    if ("i915drmkms*" not in generic or
-            "intelfb*" not in generic):
+    if (not re.search(r"^i915drmkms\*\s+at\s+pci\?", generic, re.M) or
+            not re.search(r"^intelfb\*\s+at\s+intelfbbus\?", generic, re.M)):
         refuse("GENERIC does not select both built-in i915 and intelfb")
     if re.search(r"^\s*(?:device\s+rtwn8723be\s*:|attach\s+rtwn8723be\b)",
                  pci_file, re.M):
@@ -111,7 +111,7 @@ def prepare(src: Path, rtl: Path, i915: Path, out: Path,
     for unit in rtl_units:
         replacements["sys/dev/pci/" + unit] = (rtl / "src" / unit).read_bytes()
     for ext in ("*.h", "*.inc"):
-        for file in (rtl / "src").glob("rtwn8723be" + ext[1:]):
+        for file in (rtl / "src").glob("rtwn8723be" + ext):
             if file.is_symlink() or not file.is_file():
                 refuse("linked RTL native include " + file.name)
             replacements["sys/dev/pci/" + file.name] = file.read_bytes()
