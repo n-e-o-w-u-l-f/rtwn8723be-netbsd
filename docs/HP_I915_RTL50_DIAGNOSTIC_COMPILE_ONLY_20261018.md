@@ -128,6 +128,12 @@ RTL WIP `867714f724610abe2816f09d8fa8ab67ecf6f7f5` now stages **both** exact i91
 
 **Executed on SentinelX Legion** with i915 owner `f56203a2` and exact NetBSD pinned source subset: two overlay/source-integrity checks PASS; private staging of 50 RTL native units and both 18+14 i915 traces PASS; 8 original pinned files hash-preserved; **5 deliberate failures refused** (phase mutation, bad context, duplicate marker, base SHA drift, unselected intel_dp.c); diagnostic shell syntax and off-HP execution refusal PASS. Native full NetBSD source build/link, HP boot, physical KMS and WLAN remain **NOT_RUN**. The earlier denied publication of `tests/test_hp_combined_diagnostic_source.py` was not retried.
 
+## Verified AUX IRQ-unavailable poll fallback 0013 (2026-10-18)
+
+RTL WIP `004c06a35b65bd8dcb61575ae2591dddd918a345` applies the existing immutable i915-owned candidate `0013-i915-edp-aux-poll-when-irqs-disabled-netbsd11.patch` **after** `0004` precharge and `0039` G08 trace in a temporary private `intel_dp.c` copy. The exact producer patch hash is `3806db3f9ef738d1d1d79b3adc96237ea9e3cdf1f43fc4ec4c9ddeb0f591f997`. The new branch requires `!cold && i915->drm.irq_enabled && i915->runtime_pm.irqs_enabled` before the IRQ wait; otherwise it retains the existing NetBSD atomic polling and timeout path. No other driver statement may change.
+
+**Actual Legion verification:** isolated exact frozen-NetBSD `intel_dp_aux_wait_done` 8/8 C11 ASan/UBSan fault conditions PASS, old code negative control aborts as expected; private real NetBSD staging with 50 RTL C files and 14 G08 marks PASS; three invalid cases (tampered patch, source drift, duplicate application) refused; trace preservation, final C hash and manifest SHA checks PASS. Final staged `intel_dp.c` SHA256: `7d9536d7a989a240fcb16595039297a72a894764c55df83fd86ac65ea189d250`. The off-HP compile-only builder still fails closed. **No HP compilation, kernel installation, boot, physical KMS, RTL/WPA2 acceptance or semantic Linux323 closure performed.** Full Linux reference lifecycle parity remains open.
+
 ## Next actions
 
 1. Establish a genuinely permitted direct HP command executor,
