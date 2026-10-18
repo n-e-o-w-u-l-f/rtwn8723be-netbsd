@@ -10,6 +10,8 @@ import difflib
 import hashlib
 from pathlib import Path
 import re
+import subprocess
+import tempfile
 
 I915_DRV_PATH = "sys/external/bsd/drm2/dist/drm/i915/i915_drv.c"
 OWNER_PATCH = "patches/0038-netbsd11-i915-g01-g09-boottrace.patch"
@@ -239,4 +241,90 @@ def build_g08_private_overlay(i915_repo: Path, base_source: bytes,
         "i915_g08_trace_patch_sha256": hashlib.sha256(patch).hexdigest(),
         "i915_g08_trace_input_sha256": hashlib.sha256(base_source).hexdigest(),
         "i915_g08_trace_output_sha256": hashlib.sha256(result).hexdigest(),
+    }
+
+
+# CHV hardware fixes are owned by the i915 provider; they do not substitute
+# for modern Linux-323 semantic source closure or authorize any kernel boot.
+CHV_POWER_PATH = "sys/external/bsd/drm2/dist/drm/i915/display/intel_display_power.c"
+CHV_FIXES = {
+    CHV_POWER_PATH: {
+        "patch": "patches/0002-chv-defer-phy-control-powerwell-linux-1a2466fe-netbsd11.patch",
+        "patch_sha256": "e75157d717a3e90e8ae51f38e8ea4b679772f9705630fee30813606818823905",
+        "original_sha256": "07b4d1fb0b1983c77310d375bdae87a6a1cec5c5689cde82e72cccb13993f730",
+    },
+    I915_DP_PATH: {
+        "patch": "patches/0004-pre-skl-dp-aux-precharge-linux-8ec7d10a-netbsd11.patch",
+        "patch_sha256": "9fe5faccdda6cb55a1f0966cc076a46ea7356d533174a67da377d4ce228662ee",
+        "original_sha256": G08_PINNED_SHA256,
+    },
+}
+
+
+def _checked_chv_apply(i915_repo: Path, source_path: str, source: bytes) -> bytes:
+    """Apply only one fixed owner patch to an isolated real-file copy."""
+    record = CHV_FIXES[source_path]
+    patch_file = i915_repo / record["patch"]
+    if not patch_file.is_file() or patch_file.is_symlink():
+        refuse("CHV_OWNER_PATCH_MISSING")
+    patch = patch_file.read_bytes()
+    if hashlib.sha256(patch).hexdigest() != record["patch_sha256"]:
+        refuse("CHV_OWNER_PATCH_SHA_MISMATCH")
+    with tempfile.TemporaryDirectory(prefix="hp-i915-chv-source-") as tmp:
+        root = Path(tmp)
+        target = root / source_path
+        target.parent.mkdir(parents=True)
+        target.write_bytes(source)
+        for mode in ("--check", ""):
+            command = ["git", "apply", *( [mode] if mode else []), str(patch_file)]
+            try:
+                result = subprocess.run(
+                    command, cwd=root, capture_output=True, timeout=20,
+                    check=False)
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                refuse("CHV_PATCH_APPLY_TOOL_FAILURE_" + type(exc).__name__)
+            if result.returncode != 0:
+                refuse("CHV_PATCH_CONTEXT_OR_DUPLICATE_" + source_path)
+        updated = target.read_bytes()
+    if updated == source or b"\x00" in updated:
+        refuse("CHV_PATCH_NO_ACTUAL_CHANGE")
+    return updated
+
+
+def build_chv_hardware_fixes(
+    i915_repo: Path, base_dp: bytes, traced_dp: bytes, base_power: bytes
+) -> tuple[bytes, bytes, dict]:
+    """Only pins/applies CHV AUX precharge + delayed PHY write.
+
+    Apply DP hardware correction both with and without G08 trace; after both
+    runs, the existing 14 guarded trace blocks must remain the SOLE delta.
+    """
+    if hashlib.sha256(base_dp).hexdigest() != G08_PINNED_SHA256:
+        refuse("CHV_DP_BASE_SHA_MISMATCH")
+    expected_power_sha = CHV_FIXES[CHV_POWER_PATH]["original_sha256"]
+    if hashlib.sha256(base_power).hexdigest() != expected_power_sha:
+        refuse("CHV_POWER_BASE_SHA_MISMATCH")
+    verify_g08_overlay(base_dp, traced_dp)
+    patched_power = _checked_chv_apply(i915_repo, CHV_POWER_PATH, base_power)
+    bare_dp = _checked_chv_apply(i915_repo, I915_DP_PATH, base_dp)
+    final_dp = _checked_chv_apply(i915_repo, I915_DP_PATH, traced_dp)
+    verify_g08_overlay(bare_dp, final_dp)
+    power_text = patched_power.decode("utf-8")
+    dp_text = final_dp.decode("utf-8")
+    if (".sync_hw = chv_pipe_power_well_sync_hw," not in power_text or
+            "I915_WRITE(DISPLAY_PHY_CONTROL, dev_priv->chv_phy_control);" not in power_text):
+        refuse("CHV_POWER_WELL_SYNC_SEMANTICS_INVALID")
+    if "(3 << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT)" not in dp_text:
+        refuse("CHV_AUX_PRECHARGE_SEMANTICS_INVALID")
+    return final_dp, patched_power, {
+        "i915_chv_hw_state": "VERIFIED_PINNED_CHV_AUX3_PHY_SYNC_PRIVATE_FIX",
+        "i915_chv_hw_patch_sha256": {
+            path: record["patch_sha256"] for path, record in CHV_FIXES.items()
+        },
+        "i915_chv_phy_original_sha256": expected_power_sha,
+        "i915_chv_phy_output_sha256": hashlib.sha256(patched_power).hexdigest(),
+        "i915_chv_dp_original_sha256": G08_PINNED_SHA256,
+        "i915_chv_dp_output_sha256": hashlib.sha256(final_dp).hexdigest(),
+        "i915_chv_dp_g08_blocks_preserved": 14,
+        "i915_chv_semantic_parity_323_proven": False,
     }
