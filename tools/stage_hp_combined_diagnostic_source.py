@@ -26,6 +26,10 @@ from hp_i915_boot_trace_overlay import (
     build_private_overlay, build_g08_private_overlay, build_chv_hardware_fixes,
     build_aux_irq_private_overlay, build_edp_dpcd_private_overlay,
 )
+from hp_i915_native_vblank_overlay import (
+    PINNED as VBLANK_PINNED, NETBSD_CORE as VBLANK_CORE,
+    build_vblank_private_core,
+)
 
 NETBSD_PIN = "03d918f6d0e81fa05b8f1160eca0628ad39988a6"
 SOURCE_SHA = "88c9e4c4ffb0669fdec14fd6a3589ab4aae43b2ef32ad5f6deb78b86ffd1d8e8"
@@ -140,6 +144,19 @@ def prepare(src: Path, rtl: Path, i915: Path, out: Path,
     replacements[I915_DRV_PATH] = traced
     replacements[I915_DP_PATH] = final_dp
     replacements[CHV_POWER_PATH] = final_power
+    # Incorporate the i915-owned, frozen NetBSD VBlank core hooks and the
+    # separately proven pipe bounds correction in this NONRELEASE mirror.
+    # The unmodified NetBSD source tree is never patched or overwritten.
+    native_drm_list = require_file(src, "sys/external/bsd/drm2/drm/files.drmkms")
+    if b"file\texternal/bsd/drm2/dist/drm/drm_vblank.c\tdrmkms" not in native_drm_list:
+        refuse("native DRM file list does not select VBlank core")
+    vblank_source = {name: require_file(src, name) for name in VBLANK_PINNED}
+    vblank_files, vblank_meta = build_vblank_private_core(i915, vblank_source)
+    if VBLANK_CORE not in vblank_files:
+        refuse("missing pinned native VBlank core after overlay")
+    if any(name in replacements for name in vblank_files):
+        refuse("VBlank patch conflicts with existing private replacement")
+    replacements.update(vblank_files)
     cfgpath = "sys/arch/amd64/conf/" + diag_ident
     replacements[cfgpath] = config.encode()
     snapshot = {
@@ -155,6 +172,7 @@ def prepare(src: Path, rtl: Path, i915: Path, out: Path,
         "required_native_i915_sources": list(REQUIRED_BUILTIN),
         "source_sha256": {k:digest(v) for k,v in sorted(replacements.items())},
         **trace_meta, **dp_meta, **chv_meta, **aux_meta, **edp_meta,
+        **vblank_meta,
     }
     out.mkdir(mode=0o700)
     try:
