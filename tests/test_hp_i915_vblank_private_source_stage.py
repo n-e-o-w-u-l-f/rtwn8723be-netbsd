@@ -24,7 +24,10 @@ from hp_i915_native_vblank_overlay import (  # noqa: E402
 )
 from stage_hp_combined_diagnostic_source import (  # noqa: E402
     prepare, I915_DRV_PATH, I915_DP_PATH, CHV_POWER_PATH,
+    REQUIRED_BUILTIN, REQUIRED_DRM_VBLANK,
 )
+from configure_hp_combined_i915_rtl import verify_make_objects  # noqa: E402
+from verify_hp_combined_kernel import verify_link_map_owners  # noqa: E402
 
 
 def must(test: bool, message: str) -> None:
@@ -80,6 +83,10 @@ def main() -> None:
              not snapshot["eligible_for_boot"], "diagnostic-only gate lost")
         must(len(snapshot["rtl_native_units"]) == 50,
              "RTL50 source file inventory regressed")
+        native_owners = list(REQUIRED_BUILTIN) + list(REQUIRED_DRM_VBLANK)
+        must(len(native_owners) == 5 and
+             snapshot["required_native_i915_sources"] == native_owners,
+             "full native core+VBlank worker object owners missing")
         must(snapshot["i915_drm_vblank_status"] ==
              "VERIFIED_PINNED_NONRELEASE_CORE_AND_0018",
              "missing exact candidate stage")
@@ -167,7 +174,35 @@ def main() -> None:
                 s, rtl, i915, root / ("refused-missing-" + str(i)),
                 head(rtl), head(i915)), "missing native prerequisite " + name)
         print("VBLANK_0018_FOUR_NATIVE_HEADER_MISSING_DRIFT_REFUSALS_PASS")
-    print("I915_VBLANK_0018_STAGING_12_NEGATIVE_CASES_PASS")
+
+        owners = [Path(x).stem + ".o" for x in
+                  snapshot["rtl_native_units"] + native_owners]
+        selected = " ".join(owners)
+        actual = verify_make_objects(
+            selected, snapshot["rtl_native_units"], native_owners)
+        must(actual["rtl_objects"] == 50 and
+             actual["gpu_and_drm_objects"] == 5,
+             "native kernel object graph missing VBlank owner")
+        linked = verify_link_map_owners(
+            selected, snapshot["rtl_native_units"], native_owners)
+        must(linked["map_rtl_objects_verified"] == 50 and
+             linked["map_gpu_drm_objects_verified"] == 5,
+             "final link map object ownership incomplete")
+        for missing in ("drm_vblank.o", "drm_vblank_work.o"):
+            absent = [item for item in owners if item != missing]
+            reject(lambda x=" ".join(absent): verify_make_objects(
+                x, snapshot["rtl_native_units"], native_owners),
+                "missing native object " + missing)
+            reject(lambda x=" ".join(absent): verify_link_map_owners(
+                x, snapshot["rtl_native_units"], native_owners),
+                "missing final map object " + missing)
+        reject(lambda: verify_make_objects(
+            selected + " drm_vblank_work.o",
+            snapshot["rtl_native_units"], native_owners),
+            "duplicated native VBlank work object")
+        print("VBLANK_0018_NATIVE_55_OBJECT_AND_MAP_GATES_PASS")
+        print("VBLANK_0018_FIVE_MISSING_DUPLICATE_OBJECT_NEGATIVES_REFUSED")
+    print("I915_VBLANK_0018_STAGING_17_NEGATIVE_CASES_PASS")
     print("LIMIT: source-only private shadow on Legion, NO NetBSD HP compile/boot")
 
 
