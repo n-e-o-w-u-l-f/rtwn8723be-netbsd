@@ -45,10 +45,11 @@ through this build-only workflow.
   `/usr/tools/bin/nbconfig`, `nbmake-amd64` and verified running
   kernel identity. Creates a new private output directory; executes
   native `nbconfig`, checks actual `nbmake -V OBJS` for RTL50 and
-  the three real i915 owners, then `nbmake -j2 dependall`.
+  five native i915/DRM owners (three i915 plus `drm_vblank.o` and
+  `drm_vblank_work.o`), then `nbmake -j2 dependall`.
   Requires a linked `ELF64 x86-64`, immutable private source
   SHA256 and full `netbsd.map` linker map proving all 50 RTL +
-  three i915 C objects. Keeps detailed output under
+  five i915/DRM C objects. Keeps detailed output under
   `diagnostic-build.log` and durable phase markers in
   `diagnostic-build-status.txt`.
 - `diagnostic-source-manifest.json` sets
@@ -152,9 +153,12 @@ The existing **private, nonrelease source mirror** now includes all five VBlank 
 
 The consumer applies two immutable i915-owned patches only in a **temporary copied NetBSD DRM tree**: core VBlank hooks SHA256 `0acc6a3e68a9276a734752b78d4e07d725efafc84ebc2bacaa11a0825832d919`, followed by the independent reference-pointer guard `0018` SHA256 `2a4cc2546abd9e9e7be38a7e972d619a49991a1f02cff8333cacc35db9a1dd0f`. Both patches are re-applied with genuine `git apply --check` and `git apply`, reversed, and the original three source bytes restored exactly. The worker's NetBSD system dependencies `include/drm/drm_wait_netbsd.h` and `include/drm_trace.h` are now explicitly presence- and SHA-bound to the frozen source, without copying unrelated headers into the owner project.
 
-**Executed on Legion:** `VBLANK_0018_RTL50_G08_CHV_NONRELEASE_SOURCE_STAGE_PASS`, `I915_VBLANK_0018_STAGING_12_NEGATIVE_CASES_PASS` and `VBLANK_0018_OFF_HP_DIAG_BUILDER_FAIL_CLOSED_PASS`. The **12 negative controls** cover three corrupted native core inputs, four changed i915 owner inputs/patches, one symlinked owner hook, and four missing/corrupted NetBSD header dependencies. All five new files are materialized (not symlinks) in the private source mirror and have their hashes in `diagnostic-source-manifest.json`. Unmodified frozen input files and the existing 14 G08 trace marks are preserved. `kernel_build=NOT_RUN`, `eligible_for_install=false`, `eligible_for_boot=false` and `i915_full_323_semantic_closure=NOT_VERIFIED` remain mandatory.
+**Executed on Legion:** `VBLANK_0018_RTL50_G08_CHV_NONRELEASE_SOURCE_STAGE_PASS`, `I915_VBLANK_0018_STAGING_17_NEGATIVE_CASES_PASS` and `VBLANK_0018_OFF_HP_DIAG_BUILDER_FAIL_CLOSED_PASS`. The **17 negative controls** cover three corrupted native core inputs, four changed i915 owner inputs/patches, one symlinked owner hook, four missing/corrupted NetBSD header dependencies, and five missing/duplicate native-object or final-link-map cases. All five new files are materialized (not symlinks) in the private source mirror and have their hashes in `diagnostic-source-manifest.json`. Unmodified frozen input files and the existing 14 G08 trace marks are preserved. `kernel_build=NOT_RUN`, `eligible_for_install=false`, `eligible_for_boot=false` and `i915_full_323_semantic_closure=NOT_VERIFIED` remain mandatory.
 
 **Open native limits:** New VBlank `SCHED_RR` vs Linux `SCHED_FIFO` deadline parity, NetBSD compiler `-Werror` for the *composed* core/worker, DRM internal `drm_trace.h` ABI and actual GPU interrupt timing are **not tested here**. This represents SOURCE STAGING, not a successful HP compile or functional KMS/RTL.
+
+
+**Source graph versus compiled proof:** `required_native_i915_sources` now contains five native sources: the three original i915 owners, `drm_vblank.c`, and `drm_vblank_work.c`. The HP-only diagnostic wrapper now refuses an expanded native `OBJS` list lacking either VBlank object, and post-link `netbsd.map` ownership checks use the same five-object manifest. An entirely synthetic, bounded 55-object/ELF-map fixture on Legion passes selection and rejects both missing workers and a duplicate; **this does not assert that a real HP NetBSD 11 compiler/linker has succeeded**.
 
 ## Next actions
 
