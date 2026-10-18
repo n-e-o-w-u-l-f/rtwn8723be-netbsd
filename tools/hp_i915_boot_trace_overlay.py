@@ -40,13 +40,16 @@ def refuse(message: str) -> None:
     raise ValueError("I915_BOOT_TRACE_" + message)
 
 
-def apply_exact_patch(original: bytes, patch: bytes) -> bytes:
+def apply_exact_patch(original: bytes, patch: bytes, *,
+                      source_path: str = I915_DRV_PATH,
+                      pinned_sha256: str = PINNED_SOURCE_SHA256,
+                      verifier=None) -> bytes:
     """Apply strictly one pinned-path unified diff; reject drift/replacements.
 
     Includes bounded hunk parsing and exact source/content reconstruction.
     Do not run git apply against NetBSD or a symlink mirror.
     """
-    if hashlib.sha256(original).hexdigest() != PINNED_SOURCE_SHA256:
+    if hashlib.sha256(original).hexdigest() != pinned_sha256:
         refuse("BASE_SOURCE_SHA_MISMATCH")
     if len(patch) > 32768 or len(patch) < 600:
         refuse("PATCH_SIZE_INVALID")
@@ -55,8 +58,8 @@ def apply_exact_patch(original: bytes, patch: bytes) -> bytes:
         diff = patch.decode("utf-8")
     except UnicodeDecodeError:
         refuse("NON_UTF8_INPUT")
-    before = "--- a/" + I915_DRV_PATH + "\n"
-    after = "+++ b/" + I915_DRV_PATH + "\n"
+    before = "--- a/" + source_path + "\n"
+    after = "+++ b/" + source_path + "\n"
     if not diff.startswith(before + after):
         refuse("PATCH_TARGET_MISMATCH")
     lines = diff.splitlines(keepends=True)[2:]
@@ -108,13 +111,13 @@ def apply_exact_patch(original: bytes, patch: bytes) -> bytes:
     changed = "".join(out)
     expected = "".join(difflib.unified_diff(
         raw.splitlines(keepends=True), changed.splitlines(keepends=True),
-        fromfile="a/" + I915_DRV_PATH, tofile="b/" + I915_DRV_PATH))
+        fromfile="a/" + source_path, tofile="b/" + source_path))
     if expected != diff:
         # For this narrowly scoped i915 owner patch the canonical unified
         # hunk layout must match the exact pinned generator, not a rewrite.
         refuse("PATCH_CANONICAL_DIFF_MISMATCH")
     result = changed.encode("utf-8")
-    verify_trace_overlay(original, result)
+    (verifier or verify_trace_overlay)(original, result)
     return result
 
 
@@ -164,4 +167,76 @@ def build_private_overlay(i915_repo: Path, base_source: bytes,
         "i915_trace_output_sha256": hashlib.sha256(output).hexdigest(),
         "i915_trace_print_calls": 18,
         "i915_trace_source": I915_DRV_PATH,
+    }
+
+
+# The i915 owner supplies this independent NetBSD-only G08 eDP/AUX patch.
+# Its source never overlaps the older i915_drv.c G01-G09 overlay.
+I915_DP_PATH = "sys/external/bsd/drm2/dist/drm/i915/display/intel_dp.c"
+G08_OWNER_PATCH = "patches/0039-netbsd11-i915-chv-edp-aux-phase-trace.patch"
+G08_PINNED_SHA256 = (
+    "7f79318fee13fd67da6d0c0b21da90a372310e297c38767397bfd96129db0141"
+)
+G08_PHASE_LABELS = {
+    "G08.A1": "AUX_INIT", "G08.A2": "EDP_DPCD",
+    "G08.C1": "CHV_PHY", "G08.C2": "CHV_PLL",
+    "G08.P1": "EDP_PANEL", "G08.L1": "LINK_TRAIN",
+    "G08.L2": "LINK_STOP",
+}
+G08_GUARD = re.compile(
+    r'#ifdef __NetBSD__\n'
+    r'\tprintf\("\[I915 G08\.[A-Z][12]\] [^"\n]+\\n"(?:, has_dpcd)?\);\n'
+    r'#endif\n'
+)
+G08_MARKER = re.compile(
+    r'\tprintf\("\[I915 (G08\.[A-Z][12])\] ([A-Z_]+) '
+    r'(BEGIN|END)( success=%d)?\\n"(?:, has_dpcd)?\);\n'
+)
+
+
+def verify_g08_overlay(original: bytes, changed: bytes) -> None:
+    """Reject alterations to the real NetBSD execution path and unpaired tags."""
+    base = original.decode("utf-8")
+    text = changed.decode("utf-8")
+    restored, removed = G08_GUARD.subn("", text)
+    if removed != 14 or restored != base:
+        refuse("G08_CHANGED_NATIVE_CONTROL_FLOW")
+    tagged = [line for line in text.splitlines(keepends=True)
+              if 'printf("[I915 G08.' in line]
+    if len(tagged) != 14:
+        refuse("G08_TRACE_MESSAGES_NOT_14")
+    phases = Counter()
+    for line in tagged:
+        match = G08_MARKER.fullmatch(line)
+        if not match or G08_PHASE_LABELS.get(match[1]) != match[2]:
+            refuse("G08_TRACE_MARKER_INVALID")
+        if bool(match[4]) != (match[1] == "G08.A2" and match[3] == "END"):
+            refuse("G08_DPCD_RESULT_INVALID")
+        phases[(match[1], match[3])] += 1
+    if phases != Counter({(key, phase): 1 for key in G08_PHASE_LABELS
+                          for phase in ("BEGIN", "END")}):
+        refuse("G08_TRACE_NOT_PAIRED")
+    if text.count("#ifdef __NetBSD__") - base.count("#ifdef __NetBSD__") != 14:
+        refuse("G08_TRACE_NOT_NETBSD_GUARDED")
+
+
+def build_g08_private_overlay(i915_repo: Path, base_source: bytes,
+                             existing: bytes | None = None) -> tuple[bytes, dict]:
+    """Stage the producer's unmodified 0039 diff in memory, never on source."""
+    if existing is not None and existing != base_source:
+        refuse("G08_OWNER_SOURCE_CONFLICT_REBASE_REQUIRED")
+    path = i915_repo / G08_OWNER_PATCH
+    if not path.is_file() or path.is_symlink():
+        refuse("G08_OWNER_PATCH_MISSING")
+    patch = path.read_bytes()
+    result = apply_exact_patch(
+        base_source, patch, source_path=I915_DP_PATH,
+        pinned_sha256=G08_PINNED_SHA256, verifier=verify_g08_overlay)
+    return result, {
+        "i915_g08_trace_state": "VERIFIED_PINNED_G08_PRIVATE_OVERLAY",
+        "i915_g08_trace_source": I915_DP_PATH,
+        "i915_g08_trace_print_calls": 14,
+        "i915_g08_trace_patch_sha256": hashlib.sha256(patch).hexdigest(),
+        "i915_g08_trace_input_sha256": hashlib.sha256(base_source).hexdigest(),
+        "i915_g08_trace_output_sha256": hashlib.sha256(result).hexdigest(),
     }
