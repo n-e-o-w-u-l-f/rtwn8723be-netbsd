@@ -272,6 +272,20 @@ def render_config(generic: str, rtl_short: str, i915_short: str) -> tuple[str, s
     if not re.fullmatch(r"[0-9a-f]{12}", rtl_short) or not re.fullmatch(r"[0-9a-f]{12}", i915_short):
         refuse("invalid source commit identity")
     lines = ['include "arch/amd64/conf/GENERIC"', 'ident "' + identity + '"']
+    # Diagnostic-only kernel: capture DDB output to the in-memory msgbuf.
+    # Never silently override a conflicting inherited NetBSD GENERIC option.
+    diagnostics = (("DDB", None),
+                   ("DDB_TEE_MSGBUF", "1"),
+                   ("MSGBUFSIZE", "262144"))
+    for key, wanted in diagnostics:
+        match = re.findall(r"^\\s*options\\s+" + re.escape(key) +
+                           r"(?:\\s*=\\s*([^\\s#]+))?(?:\\s*(?:#.*)?)?$",
+                           generic, re.M)
+        if match:
+            if len(match) != 1 or (wanted is not None and match[0] != wanted):
+                refuse("NetBSD GENERIC diagnostic option conflicts: " + key)
+            continue
+        lines.append("options " + key + (("=" + wanted) if wanted else ""))
     for device, bus in (
         ("i915drmkms", "pci"),
         ("intelfb", "intelfbbus"),
