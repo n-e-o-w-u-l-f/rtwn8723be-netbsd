@@ -410,3 +410,95 @@ def build_aux_irq_private_overlay(
         "i915_aux_irq_g08_blocks_preserved": 14,
         "i915_aux_irq_full_323_semantic_closure": False,
     }
+
+
+# Existing i915-owner source correction 0012: a truncated eDP DPCD rates
+# response must not leave uninitialized stack entries in the rate decoder.
+EDP_DPCD_PATCH = "candidates/0012-i915-edp-dpcd-rates-failed-aux-read-netbsd11.patch"
+EDP_DPCD_SHA256 = (
+    "a50717c043eff10e31c5dd8d9582632d71197203c5a13738e12e7e520817a5fa"
+)
+EDP_DPCD_OLD = (
+    "\t\tdrm_dp_dpcd_read(&intel_dp->aux, DP_SUPPORTED_LINK_RATES,\n"
+    "\t\t\t\tsink_rates, sizeof(sink_rates));"
+)
+EDP_DPCD_NEW = (
+    "\t\tif (drm_dp_dpcd_read(&intel_dp->aux, DP_SUPPORTED_LINK_RATES,\n"
+    "\t\t\t\t     sink_rates, sizeof(sink_rates)) !=\n"
+    "\t\t    (ssize_t)sizeof(sink_rates)) {\n"
+    "\t\t\tDRM_DEBUG_KMS(\"Unable to read eDP supported link rates, \"\n"
+    "\t\t\t\t      \"using default rates\\n\");\n"
+    "\t\t\tmemset(sink_rates, 0, sizeof(sink_rates));\n"
+    "\t\t}"
+)
+
+
+def _checked_edp_rate_apply(i915_repo: Path, source: bytes) -> bytes:
+    path = i915_repo / EDP_DPCD_PATCH
+    if not path.is_file() or path.is_symlink():
+        refuse("EDP_DPCD_OWNER_PATCH_MISSING")
+    patch = path.read_bytes()
+    if hashlib.sha256(patch).hexdigest() != EDP_DPCD_SHA256:
+        refuse("EDP_DPCD_PATCH_SHA_MISMATCH")
+    original = source.decode("utf-8")
+    start = "static bool\nintel_edp_init_dpcd("
+    stop = "static bool\nintel_dp_get_dpcd("
+    if original.count(start) != 1 or original.count(stop) != 1:
+        refuse("EDP_DPCD_FN_BOUNDARY_DRIFT")
+    i = original.index(start)
+    j = original.index(stop, i)
+    fragment = original[i:j]
+    if fragment.count(EDP_DPCD_OLD) != 1 or EDP_DPCD_NEW in fragment:
+        refuse("EDP_DPCD_DUPLICATE_OR_CONTEXT_DRIFT")
+    if "intel_dp->num_sink_rates = i;" not in fragment or (
+            "intel_dp_set_sink_rates(intel_dp);" not in fragment):
+        refuse("EDP_DPCD_FALLBACK_OR_DECODER_DRIFT")
+    expected = (original[:i] +
+                fragment.replace(EDP_DPCD_OLD, EDP_DPCD_NEW, 1) +
+                original[j:]).encode("utf-8")
+    with tempfile.TemporaryDirectory(prefix="hp-i915-edp-rate-source-") as tmp:
+        root = Path(tmp)
+        target = root / I915_DP_PATH
+        target.parent.mkdir(parents=True)
+        target.write_bytes(source)
+        for check_args in (["--check"], []):
+            try:
+                proc = subprocess.run(
+                    ["git", "apply", *check_args, str(path)], cwd=root,
+                    capture_output=True, timeout=20, check=False)
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                refuse("EDP_DPCD_APPLY_TOOL_FAILURE_" + type(exc).__name__)
+            if proc.returncode:
+                refuse("EDP_DPCD_PATCH_CONTEXT_OR_DUPLICATE")
+        changed = target.read_bytes()
+    if changed != expected:
+        refuse("EDP_DPCD_UNRELATED_SOURCE_DELTA")
+    return changed
+
+
+def build_edp_dpcd_private_overlay(
+    i915_repo: Path, dp_after_g08_chv_and_irq: bytes
+) -> tuple[bytes, dict]:
+    """After 0004+0013+0039: checked 0012; 14 G08 guards stay unchanged."""
+    text = dp_after_g08_chv_and_irq.decode("utf-8")
+    bare, count = G08_GUARD.subn("", text)
+    if count != 14:
+        refuse("EDP_DPCD_G08_TRACE_DRIFT")
+    verify_g08_overlay(bare.encode("utf-8"), dp_after_g08_chv_and_irq)
+    if "(3 << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT)" not in text or (
+            "if (!cold && i915->drm.irq_enabled &&" not in text):
+        refuse("EDP_DPCD_PRECONDITION_MISSING")
+    bare_updated = _checked_edp_rate_apply(i915_repo, bare.encode("utf-8"))
+    final = _checked_edp_rate_apply(i915_repo, dp_after_g08_chv_and_irq)
+    verify_g08_overlay(bare_updated, final)
+    if final.count(b"memset(sink_rates, 0, sizeof(sink_rates));") != 1:
+        refuse("EDP_DPCD_CLEAR_NOT_UNIQUE")
+    return final, {
+        "i915_edp_dpcd_state": "VERIFIED_PINNED_SHORT_READ_SAFE_PRIVATE_OVERLAY",
+        "i915_edp_dpcd_patch_sha256": EDP_DPCD_SHA256,
+        "i915_edp_dpcd_input_sha256": hashlib.sha256(
+            dp_after_g08_chv_and_irq).hexdigest(),
+        "i915_edp_dpcd_output_sha256": hashlib.sha256(final).hexdigest(),
+        "i915_edp_dpcd_g08_blocks_preserved": 14,
+        "i915_edp_dpcd_full_323_semantic_closure": False,
+    }
