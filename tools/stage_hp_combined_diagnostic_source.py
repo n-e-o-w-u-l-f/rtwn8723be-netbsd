@@ -24,7 +24,7 @@ from configure_hp_combined_i915_rtl import (
 from hp_i915_boot_trace_overlay import (
     I915_DRV_PATH, I915_DP_PATH, CHV_POWER_PATH,
     build_private_overlay, build_g08_private_overlay, build_chv_hardware_fixes,
-    build_aux_irq_private_overlay,
+    build_aux_irq_private_overlay, build_edp_dpcd_private_overlay,
 )
 
 NETBSD_PIN = "03d918f6d0e81fa05b8f1160eca0628ad39988a6"
@@ -131,6 +131,9 @@ def prepare(src: Path, rtl: Path, i915: Path, out: Path,
         i915, native_dp, traced_dp, native_power)
     chv_meta["i915_chv_dp_preaux_sha256"] = chv_meta["i915_chv_dp_output_sha256"]
     final_dp, aux_meta = build_aux_irq_private_overlay(i915, final_dp)
+    aux_meta["i915_aux_irq_preedp_sha256"] = aux_meta["i915_aux_irq_output_sha256"]
+    final_dp, edp_meta = build_edp_dpcd_private_overlay(i915, final_dp)
+    aux_meta["i915_aux_irq_output_sha256"] = digest(final_dp)
     chv_meta["i915_chv_dp_output_sha256"] = digest(final_dp)
     dp_meta["i915_g08_trace_prechv_sha256"] = dp_meta["i915_g08_trace_output_sha256"]
     dp_meta["i915_g08_trace_output_sha256"] = digest(final_dp)
@@ -151,7 +154,7 @@ def prepare(src: Path, rtl: Path, i915: Path, out: Path,
         "config": "source/" + cfgpath, "rtl_native_units": rtl_units,
         "required_native_i915_sources": list(REQUIRED_BUILTIN),
         "source_sha256": {k:digest(v) for k,v in sorted(replacements.items())},
-        **trace_meta, **dp_meta, **chv_meta, **aux_meta,
+        **trace_meta, **dp_meta, **chv_meta, **aux_meta, **edp_meta,
     }
     out.mkdir(mode=0o700)
     try:
