@@ -41,6 +41,28 @@ assert identity == "HP-COMBINED-I915-" + "b" * 12 + "-RTL-" + "a" * 12
 assert 'include "arch/amd64/conf/GENERIC"' in config
 assert "rtwn8723be* at pci? dev ? function ?" in config
 assert "no i915drmkms" not in config
+assert "options DDB\n" in config
+assert "options DDB_TEE_MSGBUF=1\n" in config
+assert "options MSGBUFSIZE=262144\n" in config
+# Existing exact diagnostic options must not be emitted twice.
+generic_logged = (generic + "options DDB\n"
+                  "options DDB_TEE_MSGBUF=1\n"
+                  "options MSGBUFSIZE=262144\n")
+identity2, already_logged = render_config(
+    generic_logged, fake_rtl_sha[:12], fake_gpu_sha[:12])
+assert identity2 == identity
+assert "options DDB\n" not in already_logged
+assert "options DDB_TEE_MSGBUF=1\n" not in already_logged
+assert "options MSGBUFSIZE=262144\n" not in already_logged
+refused(lambda: render_config(
+    generic + "options DDB_TEE_MSGBUF=0\n",
+    "a"*12, "b"*12), "DDB output lost")
+refused(lambda: render_config(
+    generic + "options MSGBUFSIZE=8192\n",
+    "a"*12, "b"*12), "diagnostic message buffer shrunk")
+refused(lambda: render_config(
+    generic_logged + "options DDB_TEE_MSGBUF=1\n",
+    "a"*12, "b"*12), "duplicate kernel option")
 effective_config(generic, config)
 refused(lambda: effective_config("", config), "inherited i915drmkms")
 refused(lambda: effective_config(generic, config + "no i915drmkms*\n"),
