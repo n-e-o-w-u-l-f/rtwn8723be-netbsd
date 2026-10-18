@@ -17,6 +17,13 @@ PINNED_SOURCE_SHA256 = (
     "88c9e4c4ffb0669fdec14fd6a3589ab4aae43b2ef32ad5f6deb78b86ffd1d8e8"
 )
 PHASES = {f"G{i:02d}" for i in range(1, 10)}
+PHASE_LABELS = {
+    "G01": "pci_attach", "G02": "early_probe",
+    "G03": "mmio_probe", "G04": "hardware_ggtt_probe",
+    "G05": "bios_vbt_init", "G06": "power_domains_init_hw",
+    "G07": "irq_install", "G08": "modeset_init", "G09": "fbdev_init",
+}
+VOID_PHASES = {"G05", "G06"}
 HUNK = re.compile(r"^@@ -([0-9]+)(?:,([0-9]+))? \+([0-9]+)(?:,([0-9]+))? @@.*\n$")
 TAG = re.compile(
     r'^\tprintf\("\[I915 (G0[1-9])\] ([a-z0-9_]+) '
@@ -106,7 +113,9 @@ def apply_exact_patch(original: bytes, patch: bytes) -> bytes:
         # For this narrowly scoped i915 owner patch the canonical unified
         # hunk layout must match the exact pinned generator, not a rewrite.
         refuse("PATCH_CANONICAL_DIFF_MISMATCH")
-    return changed.encode("utf-8")
+    result = changed.encode("utf-8")
+    verify_trace_overlay(original, result)
+    return result
 
 
 def verify_trace_overlay(original: bytes, changed: bytes) -> None:
@@ -125,6 +134,14 @@ def verify_trace_overlay(original: bytes, changed: bytes) -> None:
     counted = Counter((m[1], m[3]) for m in markers)
     if counted != Counter({(p,s):1 for p in PHASES for s in ("BEGIN","END")}):
         refuse("TRACE_NOT_PAIRED")
+    for m in markers:
+        key, label, phase = m[1], m[2], m[3]
+        if label != PHASE_LABELS[key]:
+            refuse("PHASE_LABEL_CHANGED")
+        with_rc = phase == "END" and key not in VOID_PHASES
+        code = m[0]
+        if with_rc != ("END ret=%d" in code and ", ret);" in code):
+            refuse("PHASE_RETURN_FORMAT_CHANGED")
     if text.count("#ifdef __NetBSD__") - base.count("#ifdef __NetBSD__") != 18:
         refuse("TRACE_NOT_NETBSD_GUARDED")
 
