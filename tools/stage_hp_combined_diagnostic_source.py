@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stage pinned NetBSD GENERIC i915 + RTL50 + G01-G09 for COMPILE-ONLY.
+"""Stage pinned NetBSD GENERIC i915 + RTL50 + G01-G09/G08 for COMPILE-ONLY.
 
 This is deliberately NOT the production 323-Linux-unit/full-release builder.
 No kernel is installed or booted; success never grants KMS/RTL release.
@@ -21,7 +21,9 @@ sys.path.insert(0, str(ROOT / "tools"))
 from configure_hp_combined_i915_rtl import (
     clean_git_head, effective_config, mirror, render_config, rtl_inventory,
 )
-from hp_i915_boot_trace_overlay import I915_DRV_PATH, build_private_overlay
+from hp_i915_boot_trace_overlay import (
+    I915_DRV_PATH, I915_DP_PATH, build_private_overlay, build_g08_private_overlay,
+)
 
 NETBSD_PIN = "03d918f6d0e81fa05b8f1160eca0628ad39988a6"
 SOURCE_SHA = "88c9e4c4ffb0669fdec14fd6a3589ab4aae43b2ef32ad5f6deb78b86ffd1d8e8"
@@ -116,7 +118,12 @@ def prepare(src: Path, rtl: Path, i915: Path, out: Path,
                 refuse("linked RTL native include " + file.name)
             replacements["sys/dev/pci/" + file.name] = file.read_bytes()
     traced, trace_meta = build_private_overlay(i915, native_drv)
+    native_dp = require_file(src, I915_DP_PATH)
+    if I915_DP_PATH[4:] not in filelist:
+        refuse("missing GENERIC-selected intel_dp.c display owner")
+    traced_dp, dp_meta = build_g08_private_overlay(i915, native_dp)
     replacements[I915_DRV_PATH] = traced
+    replacements[I915_DP_PATH] = traced_dp
     cfgpath = "sys/arch/amd64/conf/" + diag_ident
     replacements[cfgpath] = config.encode()
     snapshot = {
@@ -131,7 +138,7 @@ def prepare(src: Path, rtl: Path, i915: Path, out: Path,
         "config": "source/" + cfgpath, "rtl_native_units": rtl_units,
         "required_native_i915_sources": list(REQUIRED_BUILTIN),
         "source_sha256": {k:digest(v) for k,v in sorted(replacements.items())},
-        **trace_meta,
+        **trace_meta, **dp_meta,
     }
     out.mkdir(mode=0o700)
     try:
