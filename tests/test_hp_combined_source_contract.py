@@ -221,6 +221,21 @@ assert builder.index("verify_hp_combined_kernel.py") < builder.index("dependall"
 assert "COMBINED_KERNEL_LINKED_NO_INSTALL" in verifier
 assert "HP-RTL50-" in configurator  # guarded refusal of legacy identity
 assert "WAIT_FOR_I915_RELEASE" in configurator
+assert "from hp_i915_boot_trace_overlay import I915_DRV_PATH, build_private_overlay" in configurator
+assert configurator.index("if not permit:") < configurator.index(
+    "        traced, trace_meta = build_private_overlay(")
+assert configurator.index(
+    "        traced, trace_meta = build_private_overlay(") < configurator.index(
+    '            mirror(')
+assert '"source_sha256":' in configurator and "**trace_meta" in configurator
+assert "I915_TRACE_SOURCE_NOT_IN_NATIVE_OBJECT_GRAPH" in configurator
+assert "private i915 G01-G09 trace manifest missing or modified" in verifier
+assert "trace_digest" in verifier
+assert '--run --i915-repo "$I915" --netbsd-src "$NETBSD"' in builder
+preflight = (ROOT / "tools/run_hp_combined_preflight_tests.py").read_text()
+assert "test_hp_i915_trace_overlay_source.py" in preflight
+assert "test_hp_combined_trace_manifest_source.py" in preflight
+assert "--netbsd-i915" in preflight and "--i915-repo" in preflight
 
 print("HP_COMBINED_SOURCE_CONTRACT_PASS: RTL50, GPU/DRM3 synthetic units, "
       "Linux323 mapping/negative gates, i915-on Kconfig, clean private "
