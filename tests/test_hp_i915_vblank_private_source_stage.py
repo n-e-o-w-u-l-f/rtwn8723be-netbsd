@@ -17,7 +17,8 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 from hp_i915_native_vblank_overlay import (  # noqa: E402
-    CORE_HOOKS, REF_BOUNDS, WORKER_C, WORKER_H, PINNED, OWNER_SHA,
+    CORE_HOOKS, REF_BOUNDS, WORKER_C, WORKER_H, PINNED,
+    PINNED_DEPENDENCIES, OWNER_SHA,
     NATIVE_WORKER, NATIVE_WORKER_HEADER, NETBSD_CORE, NETBSD_FILELIST,
     build_vblank_private_core,
 )
@@ -85,6 +86,11 @@ def main() -> None:
         must(snapshot["i915_drm_vblank_scheduler_class_parity"] ==
              "NOT_VERIFIED_SCHED_RR_VS_FIFO",
              "unverified scheduling falsely accepted")
+        must(snapshot["i915_drm_vblank_pinned_dependencies_sha256"] ==
+             PINNED_DEPENDENCIES, "VBlank frozen dependencies not recorded")
+        for name, digest in PINNED_DEPENDENCIES.items():
+            must(sha((src / name).read_bytes()) == digest,
+                 "VBlank missing/unpinned header " + name)
         for p, raw in files.items():
             staged = output / "source" / p
             must(staged.is_file() and not staged.is_symlink() and
@@ -145,7 +151,23 @@ def main() -> None:
         reject(lambda: build_vblank_private_core(symlinked, original),
                "linked owner hook")
         print("VBLANK_0018_OWNER_SYMLINK_REFUSED")
-    print("I915_VBLANK_0018_STAGING_8_NEGATIVE_CASES_PASS")
+
+        for i, name in enumerate(PINNED_DEPENDENCIES):
+            mutated_source = root / ("tampered-dependency-" + str(i))
+            shutil.copytree(src, mutated_source, symlinks=True)
+            target = mutated_source / name
+            target.write_bytes(target.read_bytes() + b"X")
+            reject(lambda s=mutated_source, i=i: prepare(
+                s, rtl, i915, root / ("refused-tampered-" + str(i)),
+                head(rtl), head(i915)), "altered native prerequisite " + name)
+            missing_source = root / ("missing-dependency-" + str(i))
+            shutil.copytree(src, missing_source, symlinks=True)
+            (missing_source / name).unlink()
+            reject(lambda s=missing_source, i=i: prepare(
+                s, rtl, i915, root / ("refused-missing-" + str(i)),
+                head(rtl), head(i915)), "missing native prerequisite " + name)
+        print("VBLANK_0018_FOUR_NATIVE_HEADER_MISSING_DRIFT_REFUSALS_PASS")
+    print("I915_VBLANK_0018_STAGING_12_NEGATIVE_CASES_PASS")
     print("LIMIT: source-only private shadow on Legion, NO NetBSD HP compile/boot")
 
 
