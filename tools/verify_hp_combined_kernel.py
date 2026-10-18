@@ -20,6 +20,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 from configure_hp_combined_i915_rtl import (
     refuse, selected_i915_objects, verify_make_objects, RTL_UNIT,
 )
+from hp_i915_boot_trace_overlay import I915_DRV_PATH, PINNED_SOURCE_SHA256
 
 
 def run(*argv: str) -> str:
@@ -49,7 +50,24 @@ def load_snapshot(output: Path) -> dict:
     gpu = data.get("i915_selected_native")
     if not isinstance(gpu, list) or len(gpu) < 3:
         refuse("missing i915 owner/object closure in snapshot")
-    for name, digest in data.get("source_sha256", {}).items():
+    # The executable must be linked from the exact private instrumented
+    # i915_drv.c, not an unchanged pinned symlink or a silently missing trace.
+    digest_map = data.get("source_sha256")
+    trace_digest = data.get("i915_trace_output_sha256")
+    if (data.get("i915_trace_state") !=
+            "VERIFIED_PINNED_G01_G09_PRIVATE_OVERLAY" or
+            data.get("i915_trace_source") != I915_DRV_PATH or
+            I915_DRV_PATH not in gpu or
+            data.get("i915_trace_input_sha256") != PINNED_SOURCE_SHA256 or
+            data.get("i915_trace_print_calls") != 18 or
+            not isinstance(trace_digest, str) or
+            not re.fullmatch(r"[0-9a-f]{64}", trace_digest) or
+            not isinstance(data.get("i915_trace_patch_sha256"), str) or
+            not re.fullmatch(r"[0-9a-f]{64}", data["i915_trace_patch_sha256"]) or
+            not isinstance(digest_map, dict) or
+            digest_map.get(I915_DRV_PATH) != trace_digest):
+        refuse("private i915 G01-G09 trace manifest missing or modified")
+    for name, digest in digest_map.items():
         if not isinstance(name, str) or not name.startswith("sys/") or ".." in Path(name).parts:
             refuse("unsafe source snapshot path")
         file = output / "source" / name
