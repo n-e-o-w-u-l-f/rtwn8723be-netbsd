@@ -226,7 +226,7 @@ assert configurator.index("if not permit:") < configurator.index(
     "        traced, trace_meta = build_private_overlay(")
 assert configurator.index(
     "        traced, trace_meta = build_private_overlay(") < configurator.index(
-    '            mirror(')
+    '            mirror(', configurator.index("def main("))
 assert '"source_sha256":' in configurator and "**trace_meta" in configurator
 assert "I915_TRACE_SOURCE_NOT_IN_NATIVE_OBJECT_GRAPH" in configurator
 assert "private i915 G01-G09 trace manifest missing or modified" in verifier
