@@ -60,7 +60,8 @@ case "$OUTPUT" in /*) ;; *)
 
 # All 38 RTL source/native regressions plus combined Kconfig and final
 # linker-map tests are mandatory. Never run the RTL-only builder itself.
-"$PYTHON" -B "$ROOT/tools/run_hp_combined_preflight_tests.py" --run || {
+"$PYTHON" -B "$ROOT/tools/run_hp_combined_preflight_tests.py" \
+ --run --i915-repo "$I915" --netbsd-src "$NETBSD" || {
  echo "REFUSED: combined native/source regression gate failed" >&2; exit 2; }
 # Revalidate the i915 owner decision after a potentially lengthy test run.
 "$PYTHON" -B "$ROOT/tools/check_i915_kernel_release.py" \
