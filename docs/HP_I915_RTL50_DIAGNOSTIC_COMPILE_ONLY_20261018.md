@@ -111,6 +111,12 @@ or physical KMS/WPA2 test occurred.** The direct HP RDC command
 quota remained provider-reported 0% on the last check; no separately
 callable direct Tailscale executor was available here.
 
+## G08 producer overlay integrated (2026-10-18)
+
+RTL WIP `867714f724610abe2816f09d8fa8ab67ecf6f7f5` now stages **both** exact i915 owner patches in separate private files: `0038` -> `i915_drv.c` (G01–G09, 18 prints) and `0039` -> `display/intel_dp.c` (G08 AUX/DPCD, Cherryview PHY/PLL, eDP panel and link, 14 prints). The latter is required by the native `files.i915drmkms` selector. Both original and staged SHA256 digests and patch hashes are bound to the private diagnostic manifest. The pinned NetBSD source is unchanged.
+
+**Executed on SentinelX Legion** with i915 owner `f56203a2` and exact NetBSD pinned source subset: two overlay/source-integrity checks PASS; private staging of 50 RTL native units and both 18+14 i915 traces PASS; 8 original pinned files hash-preserved; **5 deliberate failures refused** (phase mutation, bad context, duplicate marker, base SHA drift, unselected intel_dp.c); diagnostic shell syntax and off-HP execution refusal PASS. Native full NetBSD source build/link, HP boot, physical KMS and WLAN remain **NOT_RUN**. The earlier denied publication of `tests/test_hp_combined_diagnostic_source.py` was not retried.
+
 ## Next actions
 
 1. Establish a genuinely permitted direct HP command executor,
