@@ -22,7 +22,8 @@ from configure_hp_combined_i915_rtl import (
     clean_git_head, effective_config, mirror, render_config, rtl_inventory,
 )
 from hp_i915_boot_trace_overlay import (
-    I915_DRV_PATH, I915_DP_PATH, build_private_overlay, build_g08_private_overlay,
+    I915_DRV_PATH, I915_DP_PATH, CHV_POWER_PATH,
+    build_private_overlay, build_g08_private_overlay, build_chv_hardware_fixes,
 )
 
 NETBSD_PIN = "03d918f6d0e81fa05b8f1160eca0628ad39988a6"
@@ -122,8 +123,16 @@ def prepare(src: Path, rtl: Path, i915: Path, out: Path,
     if I915_DP_PATH[4:] not in filelist:
         refuse("missing GENERIC-selected intel_dp.c display owner")
     traced_dp, dp_meta = build_g08_private_overlay(i915, native_dp)
+    native_power = require_file(src, CHV_POWER_PATH)
+    if CHV_POWER_PATH[4:] not in filelist:
+        refuse("missing GENERIC-selected intel_display_power.c CHV owner")
+    final_dp, final_power, chv_meta = build_chv_hardware_fixes(
+        i915, native_dp, traced_dp, native_power)
+    dp_meta["i915_g08_trace_prechv_sha256"] = dp_meta["i915_g08_trace_output_sha256"]
+    dp_meta["i915_g08_trace_output_sha256"] = digest(final_dp)
     replacements[I915_DRV_PATH] = traced
-    replacements[I915_DP_PATH] = traced_dp
+    replacements[I915_DP_PATH] = final_dp
+    replacements[CHV_POWER_PATH] = final_power
     cfgpath = "sys/arch/amd64/conf/" + diag_ident
     replacements[cfgpath] = config.encode()
     snapshot = {
@@ -138,7 +147,7 @@ def prepare(src: Path, rtl: Path, i915: Path, out: Path,
         "config": "source/" + cfgpath, "rtl_native_units": rtl_units,
         "required_native_i915_sources": list(REQUIRED_BUILTIN),
         "source_sha256": {k:digest(v) for k,v in sorted(replacements.items())},
-        **trace_meta, **dp_meta,
+        **trace_meta, **dp_meta, **chv_meta,
     }
     out.mkdir(mode=0o700)
     try:
