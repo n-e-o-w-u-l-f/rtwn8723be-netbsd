@@ -23,6 +23,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 from check_i915_kernel_release import check as release_check
+from hp_i915_boot_trace_overlay import I915_DRV_PATH, build_private_overlay
 
 SHA = re.compile(r"^[0-9a-f]{40}$")
 RTL_UNIT = re.compile(
@@ -435,6 +436,18 @@ def main() -> int:
             replacements["sys/dev/pci/" + path.name] = path.read_bytes()
         for dest,(file,_) in closure["files"].items():
             replacements[dest] = file.read_bytes()
+        # The exact i915-owner G01-G09 trace must be materialized as a
+        # private byte-copy BEFORE mirror() introduces pinned-source symlinks.
+        # No patch operation may ever follow or mutate the reference tree.
+        if I915_DRV_PATH not in closure["selected"]:
+            refuse("I915_TRACE_SOURCE_NOT_IN_NATIVE_OBJECT_GRAPH")
+        native_trace_base = src / I915_DRV_PATH
+        if not native_trace_base.is_file() or native_trace_base.is_symlink():
+            refuse("I915_TRACE_PINNED_NATIVE_SOURCE_ABSENT_OR_LINK")
+        traced, trace_meta = build_private_overlay(
+            i915, native_trace_base.read_bytes(),
+            existing=replacements.get(I915_DRV_PATH))
+        replacements[I915_DRV_PATH] = traced
         for selected in closure["selected"]:
             if selected not in replacements and not (src / selected).is_file():
                 refuse("missing native GPU/DRM/TTM source: " + selected)
@@ -461,6 +474,7 @@ def main() -> int:
                 "config":"source/" + cfgpath,
                 "rtl_native_units":rtl_units,
                 "i915_selected_native":closure["selected"],
+                **trace_meta,
                 "source_sha256":{k:hashlib.sha256(v).hexdigest()
                                  for k,v in sorted(replacements.items())},
                 "status":"CONFIGURED_SOURCE_ONLY_NO_KERNEL_BUILD",
