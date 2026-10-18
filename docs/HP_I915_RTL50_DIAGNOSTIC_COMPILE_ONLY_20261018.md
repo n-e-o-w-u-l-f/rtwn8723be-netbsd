@@ -134,6 +134,12 @@ RTL WIP `004c06a35b65bd8dcb61575ae2591dddd918a345` applies the existing immutabl
 
 **Actual Legion verification:** isolated exact frozen-NetBSD `intel_dp_aux_wait_done` 8/8 C11 ASan/UBSan fault conditions PASS, old code negative control aborts as expected; private real NetBSD staging with 50 RTL C files and 14 G08 marks PASS; three invalid cases (tampered patch, source drift, duplicate application) refused; trace preservation, final C hash and manifest SHA checks PASS. Final staged `intel_dp.c` SHA256: `7d9536d7a989a240fcb16595039297a72a894764c55df83fd86ac65ea189d250`. The off-HP compile-only builder still fails closed. **No HP compilation, kernel installation, boot, physical KMS, RTL/WPA2 acceptance or semantic Linux323 closure performed.** Full Linux reference lifecycle parity remains open.
 
+## eDP link-rate short AUX read guard 0012 (2026-10-18)
+
+The nonrelease private i915+RTL50 source stage now applies existing i915 owner `0012` after `0004`/ `0013`/ `0039` to `display/intel_dp.c`, preserving 14 G08 traces, the AUX IRQ fallback and the Cherryview precharge. The new guard clears all supported-link-rate entries on an incomplete or failed DPCD read, leaving the original default-rate decision active. The producer patch hash is `a50717c043eff10e31c5dd8d9582632d71197203c5a13738e12e7e520817a5fa`.
+
+On operational Legion: frozen NetBSD source-extracted C11/UBSan 5 cases, five mutation refusals, and actual git apply/reverse PASS; full private RTL50 pinned source-stage PASS with five independent tamper/drift/precondition rejections. Final private `intel_dp.c` SHA256 `712c7364f821320af523b140881cb64b00092e664c07706b7b8e884d57f6aecc` recorded in all dependent manifest SHA fields. Off-HP builder refusal, diff/shell/Python syntax PASS. **No HP native compile, kernel link/install/boot, complete Linux323 source/DRM/TTM closure, KMS or WLAN/WPA2 proof.** [i915 owner evidence](https://github.com/n-e-o-w-u-l-f/i915-cherryview-braswell-netbsd/blob/work/hp-native-drm-stage-replay-20261015/docs/HP_I915_EDP_DPCD_SHORT_READ_20261018.md).
+
 ## Next actions
 
 1. Establish a genuinely permitted direct HP command executor,
