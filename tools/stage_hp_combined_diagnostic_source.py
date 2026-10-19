@@ -25,6 +25,7 @@ from hp_i915_boot_trace_overlay import (
     I915_DRV_PATH, I915_DP_PATH, CHV_POWER_PATH,
     build_private_overlay, build_g08_private_overlay, build_chv_hardware_fixes,
     build_aux_irq_private_overlay, build_edp_dpcd_private_overlay,
+    build_pps_timeout_private_overlay,
 )
 from hp_i915_native_vblank_overlay import (
     PINNED as VBLANK_PINNED, PINNED_DEPENDENCIES as VBLANK_DEPENDENCIES,
@@ -143,6 +144,8 @@ def prepare(src: Path, rtl: Path, i915: Path, out: Path,
     final_dp, aux_meta = build_aux_irq_private_overlay(i915, final_dp)
     aux_meta["i915_aux_irq_preedp_sha256"] = aux_meta["i915_aux_irq_output_sha256"]
     final_dp, edp_meta = build_edp_dpcd_private_overlay(i915, final_dp)
+    final_dp, pps_meta = build_pps_timeout_private_overlay(i915, final_dp)
+    edp_meta["i915_edp_dpcd_postpps_sha256"] = digest(final_dp)
     aux_meta["i915_aux_irq_output_sha256"] = digest(final_dp)
     chv_meta["i915_chv_dp_output_sha256"] = digest(final_dp)
     dp_meta["i915_g08_trace_prechv_sha256"] = dp_meta["i915_g08_trace_output_sha256"]
@@ -188,7 +191,7 @@ def prepare(src: Path, rtl: Path, i915: Path, out: Path,
             list(REQUIRED_BUILTIN) + list(REQUIRED_DRM_VBLANK),
         "source_sha256": {k:digest(v) for k,v in sorted(replacements.items())},
         **trace_meta, **dp_meta, **chv_meta, **aux_meta, **edp_meta,
-        **vblank_meta,
+        **pps_meta, **vblank_meta,
     }
     out.mkdir(mode=0o700)
     try:
