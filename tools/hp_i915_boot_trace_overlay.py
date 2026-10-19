@@ -502,3 +502,85 @@ def build_edp_dpcd_private_overlay(
         "i915_edp_dpcd_g08_blocks_preserved": 14,
         "i915_edp_dpcd_full_323_semantic_closure": False,
     }
+
+
+# Exact upstream NetBSD PPS timeout-log correction; changes no timings/IO.
+# Applies ONLY to the private, pinned nonrelease display/intel_dp.c overlay.
+PPS_TIMEOUT_PATCH = "patches/0041-netbsd11-i915-chv-pps-timeout-no-false-success.patch"
+PPS_TIMEOUT_SHA256 = (
+    "4eda6344f97d6e9a5d5c3677150878f9b008c376f9a387799c0bc3c82c3eeb45"
+)
+PPS_WAIT_OLD = (
+    b'\tif (intel_de_wait_for_register(dev_priv, pp_stat_reg,\n'
+    b'\t\t\t\t       mask, value, 5000))\n'
+    b'\t\tDRM_ERROR("Panel status timeout: status %08x control %08x\\n",\n'
+    b'\t\t\t\tI915_READ(pp_stat_reg),\n'
+    b'\t\t\t\tI915_READ(pp_ctrl_reg));\n'
+    b'\n'
+    b'\tDRM_DEBUG_KMS("Wait complete\\n");'
+)
+PPS_WAIT_NEW = (
+    b'\tif (intel_de_wait_for_register(dev_priv, pp_stat_reg,\n'
+    b'\t\t\t\t       mask, value, 5000)) {\n'
+    b'\t\tDRM_ERROR("Panel status timeout: status %08x control %08x\\n",\n'
+    b'\t\t\t\tI915_READ(pp_stat_reg),\n'
+    b'\t\t\t\tI915_READ(pp_ctrl_reg));\n'
+    b'\t\treturn;\n'
+    b'\t}\n'
+    b'\n'
+    b'\tDRM_DEBUG_KMS("Wait complete\\n");'
+)
+
+
+def build_pps_timeout_private_overlay(
+    i915_repo: Path, staged_dp: bytes
+) -> tuple[bytes, dict]:
+    """Apply source-pinned 0041 after all previous CHV/AUX/eDP overlays."""
+    if staged_dp.count(PPS_WAIT_OLD) != 1 or PPS_WAIT_NEW in staged_dp:
+        refuse("PPS_TIMEOUT_OLD_SOURCE_MISSING_OR_ALREADY_FIXED")
+    text = staged_dp.decode("utf-8")
+    bare, count = G08_GUARD.subn("", text)
+    if count != 14:
+        refuse("PPS_TIMEOUT_EXPECTED_14_G08_TRACES")
+    verify_g08_overlay(bare.encode("utf-8"), staged_dp)
+    patch_file = i915_repo / PPS_TIMEOUT_PATCH
+    if not patch_file.is_file() or patch_file.is_symlink():
+        refuse("PPS_TIMEOUT_OWNER_PATCH_MISSING")
+    patch = patch_file.read_bytes()
+    if hashlib.sha256(patch).hexdigest() != PPS_TIMEOUT_SHA256:
+        refuse("PPS_TIMEOUT_OWNER_PATCH_SHA_MISMATCH")
+    with tempfile.TemporaryDirectory(prefix="hp-pps-chv-nonrelease-") as tmp:
+        root = Path(tmp)
+        target = root / I915_DP_PATH
+        target.parent.mkdir(parents=True)
+        target.write_bytes(staged_dp)
+        for option in ("--check", None):
+            cmd = ["git", "apply"]
+            if option is not None:
+                cmd.append(option)
+            cmd.append(str(patch_file))
+            try:
+                completed = subprocess.run(
+                    cmd, cwd=root, capture_output=True, check=False,
+                    timeout=20)
+            except (OSError, subprocess.TimeoutExpired) as err:
+                refuse("PPS_TIMEOUT_GIT_TOOL_" + type(err).__name__)
+            if completed.returncode != 0:
+                refuse("PPS_TIMEOUT_PATCH_CONTEXT_OR_DUPLICATE")
+        final = target.read_bytes()
+    if final != staged_dp.replace(PPS_WAIT_OLD, PPS_WAIT_NEW, 1):
+        refuse("PPS_TIMEOUT_PATCH_UNRELATED_DELTA")
+    final_text = final.decode("utf-8")
+    bare_final, n = G08_GUARD.subn("", final_text)
+    if n != 14:
+        refuse("PPS_TIMEOUT_G08_CORRUPTION")
+    verify_g08_overlay(bare_final.encode("utf-8"), final)
+    return final, {
+        "i915_pps_timeout_state": "PINNED_DIAGNOSTIC_FALSE_SUCCESS_GUARD_NONRELEASE",
+        "i915_pps_timeout_patch_sha256": PPS_TIMEOUT_SHA256,
+        "i915_pps_timeout_input_sha256": hashlib.sha256(staged_dp).hexdigest(),
+        "i915_pps_timeout_output_sha256": hashlib.sha256(final).hexdigest(),
+        "i915_pps_timeout_g08_preserved": 14,
+        "i915_pps_timeout_kernel_build": False,
+        "i915_pps_timeout_full_323_semantic_closure": False,
+    }
