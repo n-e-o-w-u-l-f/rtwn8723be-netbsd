@@ -255,6 +255,8 @@ rtwn8723be_datapath_tx_check_slots(struct rtwn8723be_datapath *dp,
         ring->desc_dma.kva == NULL || ring->desc_dma.map == NULL ||
         ring->desc_dma.size < (bus_size_t)ring->count *
             sizeof(struct rtwn8723be_tx_desc) ||
+        ring->desc_dma.map->dm_mapsize < (bus_size_t)ring->count *
+            sizeof(struct rtwn8723be_tx_desc) ||
         !rtwn8723be_dma32_range_valid(
             ring->desc_dma.paddr, ring->desc_dma.size))
         error = EIO;
@@ -268,7 +270,16 @@ rtwn8723be_datapath_tx_check_slots(struct rtwn8723be_datapath *dp,
                 error = EBUSY;
                 break;
             }
-            if (ring->slot[idx].map == NULL) {
+            /*
+             * This is an admission check, not a reservation. Mirror the
+             * single enqueue's unloaded bus_dma map/owner conditions, or
+             * a stale map could be advertised as available before TX.
+             */
+            if (ring->slot[idx].map == NULL ||
+                ring->slot[idx].map->dm_mapsize != 0 ||
+                ring->slot[idx].map->dm_nsegs != 0 ||
+                ring->slot[idx].tx_owner != NULL ||
+                ring->slot[idx].tx_release != NULL) {
                 error = EIO;
                 break;
             }
