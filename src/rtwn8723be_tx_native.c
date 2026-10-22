@@ -95,8 +95,9 @@ rtwn8723be_tx_native_enqueue_owned(struct rtwn8723be_softc *sc,
     error = r23be_tx_queue_check(qid, input->fw_queue, command);
     if (error != 0)
         return error;
-    if (m->m_next != NULL || m->m_len != m->m_pkthdr.len)
-        return EFBIG; /* DMA ring was allocated for one segment. */
+    if ((m->m_flags & M_PKTHDR) == 0 || m->m_next != NULL ||
+        m->m_nextpkt != NULL || m->m_len != m->m_pkthdr.len)
+        return EFBIG; /* A single TX map must own one complete mbuf. */
     if (m->m_pkthdr.len <= 0 ||
         m->m_pkthdr.len > RTWN8723BE_RX_BUFFER_SIZE ||
         input->buffer_len != m->m_pkthdr.len ||
@@ -111,6 +112,8 @@ rtwn8723be_tx_native_enqueue_owned(struct rtwn8723be_softc *sc,
         ring->desc_dma.map == NULL ||
         ring->desc_dma.size < (bus_size_t)ring->count *
             sizeof(struct rtwn8723be_tx_desc) ||
+        ring->desc_dma.map->dm_mapsize < (bus_size_t)ring->count *
+            sizeof(struct rtwn8723be_tx_desc) ||
         !rtwn8723be_dma32_range_valid(
             ring->desc_dma.paddr, ring->desc_dma.size))
         return EIO;
@@ -122,7 +125,15 @@ rtwn8723be_tx_native_enqueue_owned(struct rtwn8723be_softc *sc,
     desc = &((struct rtwn8723be_tx_desc *)ring->desc_dma.kva)[idx];
     if (slot->m != NULL)
         return EBUSY;
-    if (slot->map == NULL)
+    /*
+     * A NULL mbuf alone does not prove that a DMA map is unloaded.
+     * Reject stale owner references or partially released DMA state
+     * before reading the descriptor or attempting bus_dmamap_load_mbuf.
+     * The existing batch enqueue applies this same fail-closed rule.
+     */
+    if (slot->map == NULL || slot->map->dm_mapsize != 0 ||
+        slot->map->dm_nsegs != 0 || slot->tx_owner != NULL ||
+        slot->tx_release != NULL)
         return EIO;
 
     /* The device may still own a descriptor whose mbuf was not published. */
