@@ -76,6 +76,11 @@ rtwn8723be_f16_1_dma_mem_alloc(bus_dma_tag_t dmat,
         !rtwn8723be_dma32_range_valid(
             dma->map->dm_segs[0].ds_addr, size)) {
         error = EFBIG;
+        /* No PRE sync or device publication has occurred.  Unload the
+         * rejected map directly: the common free path's POST sync is
+         * reserved for mappings already handed to the device.
+         */
+        bus_dmamap_unload(dmat, dma->map);
         goto fail; /* Return all resources; never publish a truncated DMA. */
     }
 
