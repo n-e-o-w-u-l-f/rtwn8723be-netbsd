@@ -5,8 +5,12 @@ Read-only source extraction; temporary host C11+UBSan test, NOT a NetBSD
 kernel or physical PCI DMA test. Source must come from the active RTL tree.
 """
 from pathlib import Path
+import argparse
 import os
+import platform
+import socket
 import subprocess
+import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -20,6 +24,19 @@ end = SOURCE.index(AFTER, SOURCE.index(FREE))
 body = SOURCE[start:end]
 assert "bus_dmamap_unload(dmat, dma->map);\n        goto fail;" in body
 assert "dma->map->dm_mapsize != 0" in body
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--source-only", action="store_true",
+                    help="validate source anchors only, without any compiler invocation")
+args = parser.parse_args()
+if args.source_only:
+    print("RTL_DMA_ALLOC_SOURCE_ANCHORS_OK native=NOT_RUN")
+    sys.exit(0)
+if (platform.system() != "NetBSD" or platform.machine() != "amd64"
+        or not socket.gethostname().lower().startswith("hp-tpnw121")):
+    print("RTL_DMA_HP_NATIVE_COMPILER_ONLY: off-HP compiler execution refused",
+          file=sys.stderr)
+    sys.exit(2)
 
 PRELUDE = r'''
 #include <assert.h>
