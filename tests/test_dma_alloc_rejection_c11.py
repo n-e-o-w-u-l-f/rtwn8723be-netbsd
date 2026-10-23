@@ -8,6 +8,7 @@ from pathlib import Path
 import argparse
 import os
 import platform
+import re
 import socket
 import subprocess
 import sys
@@ -18,25 +19,99 @@ SOURCE = (ROOT / "src/rtwn8723be_f16_1_dma.c").read_text(encoding="utf-8")
 ALLOC = "int\nrtwn8723be_f16_1_dma_mem_alloc("
 FREE = "\nvoid\nrtwn8723be_f16_1_dma_mem_free("
 AFTER = "\nvoid\nrtwn8723be_f16_1_dma_sync_for_device("
-assert SOURCE.count(ALLOC) == SOURCE.count(FREE) == SOURCE.count(AFTER) == 1
-start = SOURCE.index(ALLOC)
-end = SOURCE.index(AFTER, SOURCE.index(FREE))
-body = SOURCE[start:end]
-assert "bus_dmamap_unload(dmat, dma->map);\n        goto fail;" in body
-assert "dma->map->dm_mapsize != 0" in body
+def source_body(text: str) -> str:
+    """Validate actual production C control flow, not removable Python asserts."""
+    code = re.sub(r"/\*.*?\*/|//[^\n]*", "", text, flags=re.S)
+    if any(code.count(marker) != 1 for marker in (ALLOC, FREE, AFTER)):
+        raise ValueError("DMA allocator/free function markers must be unique")
+    alloc_begin = code.index(ALLOC)
+    free_begin = code.index(FREE)
+    end = code.index(AFTER)
+    if not alloc_begin < free_begin < end:
+        raise ValueError("DMA allocator/free ordering changed")
+    alloc = code[alloc_begin:free_begin]
+    free = code[free_begin:end]
+    try:
+        loaded = alloc.index("error = bus_dmamap_load(")
+        load_fail = alloc.index("if (error != 0)\n        goto fail;", loaded)
+        reject_begin = alloc.index("if (dma->map->dm_nsegs != 1 ||", loaded)
+        pre_sync = alloc.index("bus_dmamap_sync(", loaded)
+        open_brace = alloc.index("{", reject_begin)
+        close_brace = alloc.index("}", open_brace)
+        reject = " ".join(alloc[open_brace + 1:close_brace].split())
+        expected = ("error = EFBIG; bus_dmamap_unload(dmat, dma->map); "
+                    "goto fail;")
+        if reject != expected:
+            raise ValueError("rejected loaded map must unload once before common unwind")
+        if not loaded < load_fail < reject_begin < pre_sync:
+            raise ValueError("DMA load, error handling, rejection and PRE order invalid")
+        if "dma->map != NULL && dma->map->dm_mapsize != 0" not in free:
+            raise ValueError("free must guard unloaded map before sync")
+        operations = ["bus_dmamap_sync(", "bus_dmamap_unload(",
+                      "bus_dmamem_unmap(", "bus_dmamem_free(",
+                      "bus_dmamap_destroy("]
+        if [free.index(op) for op in operations] != sorted(
+                free.index(op) for op in operations):
+            raise ValueError("DMA free cleanup ordering invalid")
+    except (ValueError, IndexError) as exc:
+        raise ValueError("DMA source invariant failed: " + str(exc)) from exc
+    # C compilation uses the ORIGINAL, unmodified production function bodies.
+    return text[text.index(ALLOC):text.index(AFTER, text.index(FREE))]
+
+
+def source_mutation_selftest(text: str) -> int:
+    begin = text.index("if (dma->map->dm_nsegs != 1 ||")
+    end = text.index("\n    memset(dma->kva", begin)
+    original = text[begin:end]
+    unload = "        bus_dmamap_unload(dmat, dma->map);\n"
+    if original.count(unload) != 1 or original.count("error = EFBIG;") != 1:
+        raise ValueError("unexpected DMA rejection mutation fixture")
+    mutants = [
+        original.replace(unload, "", 1),
+        original.replace(unload, unload * 2, 1),
+        original.replace(unload + "        goto fail;\n",
+                         "        goto fail;\n" + unload, 1),
+        original.replace(unload,
+                         "        bus_dmamap_sync(dmat, dma->map, 0, size, "
+                         "BUS_DMASYNC_POSTREAD);\n" + unload, 1),
+        original.replace("error = EFBIG;", "error = 0;", 1),
+    ]
+    refused = 0
+    for number, mutant in enumerate(mutants, 1):
+        if mutant == original:
+            raise ValueError(f"source mutant {number} was not applied")
+        try:
+            source_body(text[:begin] + mutant + text[end:])
+        except ValueError:
+            refused += 1
+        else:
+            raise ValueError(f"unsafe DMA source mutation {number} escaped guard")
+    return refused
+
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--source-only", action="store_true",
-                    help="validate source anchors only, without any compiler invocation")
+                    help="check source invariants only; no compiler execution")
+parser.add_argument("--self-test", action="store_true",
+                    help="also reject five invalid source mutations; no compiler")
 args = parser.parse_args()
-if args.source_only:
-    print("RTL_DMA_ALLOC_SOURCE_ANCHORS_OK native=NOT_RUN")
+try:
+    body = source_body(SOURCE)
+    refused = source_mutation_selftest(SOURCE) if args.self_test else 0
+except ValueError as exc:
+    print(f"RTL_DMA_SOURCE_GUARD_FAIL: {exc}", file=sys.stderr)
+    sys.exit(1)
+
+if args.source_only or args.self_test:
+    print(f"RTL_DMA_ALLOC_SOURCE_GUARD_PASS mutations_refused={refused}; "
+          "native=NOT_RUN")
     sys.exit(0)
 if (platform.system() != "NetBSD" or platform.machine() != "amd64"
         or not socket.gethostname().lower().startswith("hp-tpnw121")):
     print("RTL_DMA_HP_NATIVE_COMPILER_ONLY: off-HP compiler execution refused",
           file=sys.stderr)
     sys.exit(2)
+
 
 PRELUDE = r'''
 #include <assert.h>
