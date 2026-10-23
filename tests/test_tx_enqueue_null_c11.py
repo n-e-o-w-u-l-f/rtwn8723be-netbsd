@@ -52,7 +52,7 @@ struct rtwn8723be_softc { bool sc_mapped, sc_rings_allocated, sc_dma_32bit;
 struct rtwn8723be_tx_params { unsigned fw_queue; int buffer_len, packet_len;
  uint32_t buffer_dma, next_desc_dma; };
 static struct { unsigned cpu, device, load, unload, sync, barrier, write, encode; } calls;
-static int load_error;
+static int load_error, injected_case;
 static bool rtwn8723be_dma32_range_valid(uint64_t a, size_t n)
 { return n != 0 && a <= UINT32_MAX && n - 1 <= UINT32_MAX - a; }
 static void rtwn8723be_f16_1_dma_sync_for_cpu(void *t, struct dma *d, size_t o, size_t n)
@@ -63,7 +63,13 @@ static int bus_dmamap_load_mbuf(void *t, struct map *p, struct mbuf *m, int flag
 { assert(t && p && m && flags == (BUS_DMA_NOWAIT | BUS_DMA_WRITE)); calls.load++;
  if (load_error) return load_error;
  p->dm_mapsize = m->m_len; p->dm_nsegs = 1;
- p->dm_segs[0].ds_addr = 0x2000; p->dm_segs[0].ds_len = m->m_len; return 0; }
+ p->dm_segs[0].ds_addr = 0x2000; p->dm_segs[0].ds_len = m->m_len;
+ if (injected_case == 11) p->dm_nsegs = 2;
+ if (injected_case == 12) p->dm_segs[0].ds_len = 63;
+ if (injected_case == 13) p->dm_segs[0].ds_addr = UINT64_C(0x100000000);
+ if (injected_case == 14) p->dm_segs[0].ds_addr = UINT32_MAX - 31;
+ if (injected_case == 15) p->dm_mapsize = 63;
+ return 0; }
 static void bus_dmamap_unload(void *t, struct map *p)
 { assert(t && p); calls.unload++; memset(p, 0, sizeof(*p)); }
 static void bus_dmamap_sync(void *t, struct map *p, size_t o, size_t n, int flags)
@@ -71,7 +77,12 @@ static void bus_dmamap_sync(void *t, struct map *p, size_t o, size_t n, int flag
  calls.sync++; }
 static int rtwn8723be_tx_encode(const struct rtwn8723be_tx_params *p, uint8_t *d, size_t n)
 { assert(p->buffer_dma == 0x2000 && p->next_desc_dma == 0x1040);
- calls.encode++; memset(d, 0, n); return 0; }
+ calls.encode++; memset(d, 0, n);
+ if (injected_case == 16) { memset(d, 0x5a, n); return EINVAL; }
+ if (injected_case == 17) {
+   uint32_t own = htole32(R23BE_TXD0_OWN); memcpy(d, &own, sizeof(own));
+ }
+ return 0; }
 static int rtwn8723be_tx_encode_command(int len, uint32_t a, uint32_t next, uint8_t *d, size_t n)
 { (void)len; (void)a; (void)next; (void)d; (void)n; assert(!"unexpected command encoding"); return EINVAL; }
 static void membar_producer(void) { calls.barrier++; }
@@ -92,7 +103,8 @@ int main(int argc, char **argv)
  struct rtwn8723be_tx_params p = {RTWN8723BE_TX_FW_BE, 64, 64, 0, 0};
  struct rtwn8723be_tx_ring *r = &sc.sc_tx_ring[RTWN8723BE_BE_QUEUE];
  int test = argc == 2 ? atoi(argv[1]) : -1, expected = EIO, result;
- assert(test >= 0 && test < 11);
+ assert(test >= 0 && test < 20);
+ injected_case = test;
  sc.sc_mapped = sc.sc_rings_allocated = sc.sc_dma_32bit = true;
  sc.sc_dmat = &sc;
  r->count = 2; r->slot = slot;
@@ -114,17 +126,22 @@ int main(int argc, char **argv)
  case 8: r->desc_dma.map = NULL; break;
  case 9: load_error = ENOMEM; expected = ENOMEM; break;
  case 10: expected = 0; break;
+ case 11: case 12: case 13: case 14: expected = EFBIG; break;
+ case 15: expected = EIO; break;
+ case 16: case 17: expected = EINVAL; break;
+ case 18: desc[0].d[0] = htole32(R23BE_TXD0_OWN); expected = EBUSY; break;
+ case 19: expected = 0; break;
  }
  memcpy(&before, &sc, sizeof(sc)); memcpy(desc_before, desc, sizeof(desc));
  memcpy(slot_before, slot, sizeof(slot)); memcpy(&packet_before, &packet, sizeof(packet));
  result = rtwn8723be_tx_native_enqueue_owned(&sc, RTWN8723BE_BE_QUEUE, &m, &p,
-     false, NULL, NULL);
+     false, test >= 11 ? &sc : NULL, test >= 11 ? release_owner : NULL);
  assert(result == expected);
  if (test < 9) {
    const unsigned char *b = (const unsigned char *)&calls;
    for (size_t i = 0; i < sizeof(calls); i++) assert(b[i] == 0);
  }
- if (test != 10) {
+ if (test != 10 && test != 19) {
    assert(memcmp(&sc, &before, sizeof(sc)) == 0);
    assert(memcmp(desc, desc_before, sizeof(desc)) == 0);
    assert(memcmp(slot, slot_before, sizeof(slot)) == 0);
@@ -134,7 +151,18 @@ int main(int argc, char **argv)
    assert(calls.cpu == 1 && calls.load == 1 && calls.device == 1);
    assert(!calls.unload && !calls.sync && !calls.encode && !calls.write && !calls.barrier);
  }
- if (test == 10) {
+ if (test >= 11 && test <= 17) {
+   assert(calls.cpu == 1 && calls.load == 1 && calls.unload == 1 && calls.device == 1);
+   assert(calls.encode == (test >= 16 ? 1U : 0U));
+   assert(!calls.sync && !calls.write && !calls.barrier);
+ }
+ if (test == 18) {
+   assert(calls.cpu == 1 && calls.device == 1);
+   assert(!calls.load && !calls.unload && !calls.encode && !calls.sync && !calls.write && !calls.barrier);
+ }
+ if (test == 10 || test == 19) {
+   assert(slot[0].tx_owner == (test == 19 ? &sc : NULL));
+   assert(slot[0].tx_release == (test == 19 ? release_owner : NULL));
    assert(calls.cpu == 1 && calls.load == 1 && calls.device == 1 && calls.sync == 1);
    assert(calls.encode == 1 && calls.write == 1 && calls.barrier == 1 && !calls.unload);
    assert(r->producer == 1 && slot[0].m == &m && packet.dm_mapsize == 64);
@@ -168,6 +196,9 @@ def main():
             "slot->map == NULL || slot->map->dm_mapsize != 0",
             "slot->map->dm_mapsize != 0 || slot->map == NULL"), 0, "runtime error"),
         ("missing_tag_guard", replace_once(body, " || sc->sc_dmat == NULL", ""), 1, "assertion"),
+        ("missing_unload", replace_once(body,
+            "bus_dmamap_unload(sc->sc_dmat, slot->map);",
+            "(void)bus_dmamap_unload;"), 16, "assertion"),
     ]
     with tempfile.TemporaryDirectory(prefix="rtl-enqueue-c-") as tmp:
         for name, code, case, diagnostic in [("baseline", body, None, None)] + mutants:
@@ -177,7 +208,7 @@ def main():
             subprocess.run(["cc", "-std=c11", "-Wall", "-Wextra", "-Werror",
                 "-O1", "-g", "-fsanitize=undefined", "-fno-sanitize-recover=undefined",
                 str(cfile), "-o", str(binary)], check=True, timeout=60)
-            for n in range(11) if case is None else [case]:
+            for n in range(20) if case is None else [case]:
                 result = subprocess.run([str(binary), str(n)], text=True,
                     capture_output=True, timeout=10)
                 if case is None:
@@ -188,7 +219,7 @@ def main():
                     assert result.returncode != 0, name + " survived"
                     assert diagnostic in result.stderr.lower(), (name, result.stderr)
                     print("KILLED " + name + ": " + result.stderr.splitlines()[0], flush=True)
-    print("PASS: 11 native C cases; 3 compiled runtime mutants rejected")
+    print("PASS: 20 native C cases; 4 compiled runtime mutants rejected")
 
 if __name__ == "__main__":
     main()
