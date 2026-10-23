@@ -13,6 +13,8 @@ END = "\nrtwn8723be_tx_native_enqueue_batch("
 LOAD = "\n    error = bus_dmamap_load_mbuf("
 SYNC = "rtwn8723be_f16_1_dma_sync_for_cpu("
 TOKENS = {
+    "payload-map-nonnull": "slot->map == NULL",
+    "dma-tag-nonnull": "sc->sc_dmat == NULL",
     "packet-header": "(m->m_flags & M_PKTHDR) == 0",
     "no-fragment-chain": "m->m_nextpkt != NULL",
     "descriptor-map-capacity": "ring->desc_dma.map->dm_mapsize <",
@@ -22,6 +24,8 @@ TOKENS = {
     "stale-release-callback": "slot->tx_release != NULL",
 }
 MUTATIONS = {
+    "payload-map-nonnull": "slot->map != NULL",
+    "dma-tag-nonnull": "sc->sc_dmat != NULL",
     "packet-header": "(m->m_flags & M_PKTHDR) != 0",
     "no-fragment-chain": "m->m_nextpkt == NULL",
     "descriptor-map-capacity": "ring->desc_dma.map->dm_mapsize >",
@@ -48,6 +52,12 @@ def audit(source):
     for name, token in TOKENS.items():
         if token not in pre:
             failures.append(name + " absent before first DMA map load")
+    # The historical V1 crash dereferenced NULL map + 0x30. The NULL
+    # check must short-circuit before any map field access, not just load.
+    null_pos = pre.find("slot->map == NULL")
+    field_pos = pre.find("slot->map->")
+    if null_pos < 0 or field_pos < 0 or null_pos >= field_pos:
+        failures.append("NULL payload map guard must precede field access")
     # Checking only text presence is insufficient: quarantine must precede
     # descriptor access and DMA mapping. Negative ordering mutation below.
     pos = pre.find("slot->map->dm_mapsize != 0")
@@ -83,6 +93,19 @@ def main():
         if not audit(broken):
             raise AssertionError("mutation escaped: " + name)
         checks += 1
+    for token in ("slot->map == NULL || ", " || sc->sc_dmat == NULL"):
+        if single.count(token) != 1:
+            raise AssertionError("ambiguous NULL guard: " + token)
+        if not audit(source.replace(token, "", 1)):
+            raise AssertionError("removed NULL guard escaped: " + token)
+        checks += 1
+    good_order = "slot->map == NULL || slot->map->dm_mapsize != 0"
+    bad_order = "slot->map->dm_mapsize != 0 || slot->map == NULL"
+    if single.count(good_order) != 1:
+        raise AssertionError("ambiguous map guard ordering")
+    if not audit(source.replace(good_order, bad_order, 1)):
+        raise AssertionError("late NULL guard escaped")
+    checks += 1
     precheck = "slot->map->dm_mapsize != 0 ||"
     if single.count(precheck) != 1:
         raise AssertionError("ambiguous map guard")
