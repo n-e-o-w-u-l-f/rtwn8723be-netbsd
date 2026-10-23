@@ -14,6 +14,9 @@ NETBSD=$2
 OUTPUT=$3
 NBCONFIG=/usr/tools/bin/nbconfig
 NBMAKE=/usr/tools/bin/nbmake-amd64
+# GCC collect2 also needs the matching prefixed linker in its process PATH.
+PATH="/usr/tools/bin:$PATH"
+export PATH
 PYTHON=$(command -v python3) || { echo "REFUSED: Python3 unavailable" >&2; exit 2; }
 [ "$(uname -s)" = NetBSD ] && [ "$(uname -m)" = amd64 ] || {
   echo "REFUSED: NetBSD amd64 HP only" >&2; exit 2; }
