@@ -17,6 +17,7 @@ esac
 # The compiler, source stage and inventory are specifically owned by the HP.
 [ "$(uname -s)" = "NetBSD" ] || fail 'NetBSD-only: no Arch/Debian/Windows substitute'
 [ "$(uname -m)" = "amd64" ] || fail 'target must be amd64'
+case "$(uname -r)" in 11.*) ;; *) fail 'NetBSD 11 required';; esac
 case "$(hostname)" in
     hp-tpnw121|hp-tpnw121.*) ;;
     *) fail 'host identity is not the verified hp-tpnw121; no action' ;;
