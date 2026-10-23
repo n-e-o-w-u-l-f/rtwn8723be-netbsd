@@ -17,13 +17,15 @@ NBMAKE=/usr/tools/bin/nbmake-amd64
 PYTHON=$(command -v python3) || { echo "REFUSED: Python3 unavailable" >&2; exit 2; }
 [ "$(uname -s)" = NetBSD ] && [ "$(uname -m)" = amd64 ] || {
   echo "REFUSED: NetBSD amd64 HP only" >&2; exit 2; }
+case "$(uname -r)" in 11.*) : ;; *)
+  echo "REFUSED: NetBSD 11 required" >&2; exit 2;; esac
 case "$(hostname)" in hp-tpnw121*) : ;; *)
   echo "REFUSED: physical HP target only" >&2; exit 2;; esac
 [ "$(id -u)" -ne 0 ] || { echo "REFUSED: owner non-root only" >&2; exit 2; }
 [ -x "$NBCONFIG" ] && [ -x "$NBMAKE" ] || {
   echo "REFUSED: HP native tools not verified" >&2; exit 2; }
 [ -r /netbsd ] || { echo "REFUSED: current HP kernel path unreadable" >&2; exit 2; }
-RUNNING=$(sysctl -n machdep.booted_kernel 2>/dev/null) || {
+RUNNING=$(/sbin/sysctl -n machdep.booted_kernel 2>/dev/null) || {
   echo "REFUSED: current kernel identity not established" >&2; exit 2; }
 [ -n "$RUNNING" ] || { echo "REFUSED: empty kernel identity" >&2; exit 2; }
 case "$RUNNING" in *F83*|*F84*|*F16.0*)
@@ -58,7 +60,7 @@ phase NBCONFIG
     exit 2
   }
 phase VERIFY_NATIVE_OBJS
-"$NBMAKE" -C "$OUTPUT/obj" -V OBJS > "$OUTPUT/native-objects.txt" 2>>"$LOG" || {
+"$NBMAKE" -C "$OUTPUT/obj" -v OBJS > "$OUTPUT/native-objects.txt" 2>>"$LOG" || {
   phase FAILED_OBJECT_QUERY
   exit 2
 }
