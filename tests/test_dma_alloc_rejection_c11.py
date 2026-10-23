@@ -69,7 +69,7 @@ def source_mutation_selftest(text: str) -> int:
     mutants = [
         original.replace(unload, "", 1),
         original.replace(unload, unload * 2, 1),
-        original.replace(unload + "        goto fail;\n",
+        original.replace(unload,
                          "        goto fail;\n" + unload, 1),
         original.replace(unload,
                          "        bus_dmamap_sync(dmat, dma->map, 0, size, "
