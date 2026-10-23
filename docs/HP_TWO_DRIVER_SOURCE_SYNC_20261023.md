@@ -1,58 +1,55 @@
 # HP-native i915 + RTL8723BE source synchronization
 
-**Status:** SOURCE PREPARED / HP NOT_YET_EXECUTED / LOCAL FLEET UNKNOWN.
-**Target:** HP TPN-W121, NetBSD 11 amd64 (the only authorized native driver compiler/kernel build/physical test host).
-**No kernel installation, bootloader change or WLAN/KMS activation.**
+**Verified 2026-10-23:** SOURCES ON HP / NATIVE DMA FIXTURE PASS / FULL PRIVATE DIAGNOSTIC KERNEL COMPILED AND LINKED.
+**Not installed, released or booted. Physical KMS, WPA2 and recovery acceptance remain OPEN.**
 
-## Canonical inputs (verified GitHub on 2026-10-23)
+## Exact tested sources and executable route
 
-| Driver | Active development branch | Verified HEAD before this sync helper |
-|---|---|---|
-| i915 Cherryview/Braswell | `work/hp-native-drm-stage-replay-20261015` | `8a164f10c45c3d66f7648376ccd2177c8dfe81ba` |
-| RTL8723BE | `wip/hp-rtl-runtime-48-merge-20261010` | `799a0fe2877f3210e8a3a981db82654795b547d0` |
-
-**Important:** The RTL HEAD advances when this helper and report are published. The helper reads both current GitHub refs and verifies each staged checkout against the SHA observed immediately before cloning. It does not mistake the repository's older `main` for its active development branch. GitHub is the currently verified central publication point, NOT evidence that local worktrees on the HP or other computers are current.
-
-## Actual host/tool preflight
-
-The current ChatGPT SentinelX tool lists **Legion only** as operational. The HP is not directly enrolled with a callable SentinelX agent in this session. Historical strict SSH via Legion to HP was positively verified on 2026-10-21, but a later **caller-side provider refusal of remote SSH execution** prevents treating that prior success as authorization for new equivalent commands or a reason to reroute around a denied effect. A Tailscale online peer is not an authenticated command executor.
-
-Therefore the helper was **committed for direct, owner-authorized execution on the HP**, not secretly run through Legion. No current HP Git worktree, live kernel, boot menu, i915 device or WLAN hardware status has been checked here. Avoid trying the equivalent denied remote effect via another script, host, identity or tool.
-
-## Safe preparation and native execution on the HP console
-
-If the user's HP session has Git and GitHub public HTTPS access, enter these commands **on the HP itself**. The initial clone uses a *new* directory; do not use a directory already containing work. All commands stop on failure:
-
-```sh
-git clone --single-branch --branch wip/hp-rtl-runtime-48-merge-20261010 \
-  https://github.com/n-e-o-w-u-l-f/rtwn8723be-netbsd.git \
-  "$HOME/rtl-hp-sync-bootstrap"
-sh "$HOME/rtl-hp-sync-bootstrap/tools/hp_driver_source_stage.sh" --audit
-sh "$HOME/rtl-hp-sync-bootstrap/tools/hp_driver_source_stage.sh" --stage
-sh "$HOME/rtl-hp-sync-bootstrap/tools/hp_driver_source_stage.sh" --native-test
-```
-
-The script path is [`tools/hp_driver_source_stage.sh`](../tools/hp_driver_source_stage.sh). It refuses execution unless `uname -s` returns NetBSD, `uname -m` returns amd64, and the hostname matches `hp-tpnw121`. It reads only the exact two development branches, verifies live `git ls-remote` SHAs before each fresh clone, and aborts on races. It does not fetch or update *existing* local repositories in `--audit` mode. It finds named i915/RTL checkouts in two levels under `/root` and `/home/andreas`; optional extra absolute paths can be supplied to `--audit`.
-
-Under the user's home directory the default stage is `$HOME/hp-driver-source-stage/{i915,rtl}`. The second clone never overwrites an existing destination, even if the earlier run failed partway. Set `HP_DRIVER_STAGE_ROOT` to a different absolute path only if an existing stage needs to be preserved.
-
-The native `--native-test` gate requires a **clean staged RTL checkout**, matching GitHub HEAD, the NetBSD HP host, `python3` and `cc`. It runs the source-only negative suite and then the compiled C11/UBSan allocator mock fixture **on HP**; writes the verbose compiler/runtime log outside the checkout under `$HOME/hp-driver-source-stage/rtl-native-test.*`. A PASS is a native **userland failure-injection fixture**, not actual DMA hardware or a complete kernel.
-
-## Decision table after HP readback
-
-| Observed local status vs current GitHub | Required action |
+| Input | Exact tested revision |
 |---|---|
-| MATCH + CLEAN | Stage verified. Native isolated tests may begin. |
-| MATCH + DIRTY | Preserve local edits. Inspect source and untracked files; do not overwrite. |
-| LOCAL_AHEAD | Preserve local commits; review and publish safe local changes through authorized non-force Git before integrating. |
-| REMOTE_AHEAD + CLEAN | After separately approved remote fetch/branch verification, local `git pull --ff-only` can advance an existing checkout. |
-| DIVERGED | Stop automatic integration. Compare both histories and agree on review/merge branch before changes. |
-| ANCESTRY_UNKNOWN_REMOTE_OBJECT_NOT_FETCHED | Cannot infer ahead/behind. Keep both copies; independently fetch when permitted, then re-evaluate. |
+| i915 active branch `work/hp-native-drm-stage-replay-20261015` | `8a164f10c45c3d66f7648376ccd2177c8dfe81ba` |
+| RTL active branch `wip/hp-rtl-runtime-48-merge-20261010` | `a06a74eec7ffdeca8f472cc5c9a28d89d4b2cd04` |
+| NetBSD native source | `03d918f6d0e81fa05b8f1160eca0628ad39988a6` |
 
-A fresh isolated clone is only an **additional current GitHub copy**, not a forced alignment of all historical worktrees or the NetBSD `/usr/src` tree. Treat locally newer unpushed work on Legion/HP/BMAX/PHOBOS/Spinnennet/Pi-hole as UNKNOWN until individually inventoried by legitimate direct executors. No force push, `git reset --hard`, `git clean`, silent stash, unreviewed merge or private-key movement.
+The assistant directly executed authenticated strict-host-key SSH from the Windows controller to HP `megal`, verified NetBSD 11.0 amd64 and F77, and performed all compiler/linker work on HP. Current SentinelX capability/state was also verified on Legion. No Legion/Arch build, paid runner, quota change, credential movement or policy weakening was used.
 
-## Next actual driver engineering gate
+Historical caller-side refusals of specific old source/header/scratch/RX-write effects remain distinct and were not replayed. Historical absence of an executor was not presented as current fact: this session independently proved direct HP execution. No existing old worktree was fast-forwarded, reset, cleaned, stashed or force-merged.
 
-Once the HP reports the real staged HEADs and `--native-test` log, reconcile its existing source and pinned `NetBSD/src@03d918f6d0e81fa05b8f1160eca0628ad39988a6`, then produce a **native HP-only diagnostic compile** of the composed kernel. Native i915 DRM/GEM/PPGTT closure and RTL TX/RX DMA/IRQ/WPA2 remain open. Do not install or boot an experimental KMS kernel before independent early-console capture and a physically tested F77/stock recovery path.
+## Preserved fleet state
 
-**Truth boundary:** SOURCE_PREPARED on GitHub does not mean TRANSFERRED_TO_HP, NATIVE_BUILT, INSTALLED, BOOTED or VERIFIED.
+A bounded developer-root/worktree inventory was executed on HP, Legion, BMAX, Spinnennet, Pi-hole and Phobos. No target driver checkout was found in Phobos's inspected roots; skipped/inaccessible paths remain UNKNOWN. Offline peers were not called synchronized. Main and development WIP are different histories, especially RTL; a clean main checkout is not an up-to-date WIP.
+
+The original HP/peer trees were preserved, including large dirty NetBSD integration trees. One unpublished Legion RTL commit `cda48e590ae4e65db4aca3ecb3bb116a27c5cbbe` and three unpublished BMAX i915 commits ending `6ab2012403a93a752cb4261165210f6146e8e71b` were exported as verified bundles to HP and retained under separate `preserved/` refs. They were not silently merged into the current source.
+
+[Detailed fleet reconciliation](https://github.com/n-e-o-w-u-l-f/Agent-Governance/blob/main/state/inventories/hp-two-driver-direct-20261023.md).
+
+## Actual HP artifacts and validation
+
+Work is isolated beneath `/home/megal/hp-driver-source-stage-20261023`. Current tested RTL checkout is `rtl-native-a06`; i915 is `i915`; clean pinned native sys/common source is `netbsd-github-a02`. Previous stages and failed build logs remain separate.
+
+The existing [source-stage helper](../tools/hp_driver_source_stage.sh) was read before execution. Its reviewed defects/limitations were identified: release11 was not explicitly enforced, and its two-level audit can omit repositories inaccessible to Git's owner checks. Explicit NetBSD11 validation was applied before initial execution and then fixed in source. Independent owner-aware inventory supplemented the helper; path-scoped read-only Git trust did not change global configuration.
+
+Native HP C11+UBSan allocator fixture: **9 cases PASS**, with **5 unsafe source mutations refused**. Existing BTC async-event sequencing source regression PASS. This is a userland allocator failure-injection fixture, not physical DMA testing.
+
+The actual native kernel build exposed and repaired three bootstrap issues: unqualified sysctl outside owner PATH, unexpanded `make -V OBJS`, and missing matching toolchain linker in process PATH. Native compilation then caught one unused DM-init variable; only that declaration was removed. Werror and all ownership/release guards were retained. Each original failure and successful retest is preserved in governance.
+
+Fresh native config selected 3290 kernel objects, including all **50 RTL + 5 required native i915/DRM owners**. Those 55 objects compiled and linked with ld-r on HP. The subsequent **full native GENERIC dependall and final kernel link completed exit0**, including debug artifacts. Final source-hash, amd64 ELF and link-map ownership checks PASS. Final kernel has zero undefined symbols.
+
+- Kernel: `diagnostic-a06/obj/netbsd`, 29689696 bytes.
+- Kernel SHA256: `1aabcdee27654413382a1497e52e27b4ae4f4cd031ba478a47a233198fe4fbb4`.
+- Map SHA256: `dd84c24ba71ca6c0a22f3878fb832168e82d5e6eaeea98c84752fb75354f7101`.
+- Full native log: `a07-full-kernel.log`.
+- Terminal native receipt: `a07-full-kernel-status.json`.
+
+[Full native build report and retained failures](https://github.com/n-e-o-w-u-l-f/Agent-Governance/blob/main/docs/HP_NATIVE_DIAGNOSTIC_20261023.md).
+[Published full-kernel receipt](https://github.com/n-e-o-w-u-l-f/Agent-Governance/blob/main/docs/evidence/HP_NATIVE_FULL_KERNEL_20261023.json).
+
+## Safety and remaining acceptance
+
+The private kernel combines pinned NetBSD GENERIC native i915 with project diagnostic patches and current RTL50. It is **not** proof of full modern Linux323 i915 semantic/DRM/TTM parity or working display/WLAN/PM.
+
+No kernel was copied to a boot path, installed, selected or booted. EFI, boot.cfg, radio and old source/worktrees were not changed. Actual readback still reports `netbsd.v1-f77-linux-efuse-map-20260926`. The stage remains ineligible for install and boot. Read-only boot-menu inspection found F77 default and F16.2/safe-textmode recovery entries; that is not a physical recovery drill or stock-image proof.
+
+Before any experimental boot: establish independent early-console capture and physically exercise F77/stock fallback. Then actual KMS display, PCI DMA/IRQ, WPA2 encrypted traffic and PM/recovery need separate verified acceptance. No background build remains after this terminal result.
+
+The documentation commit following the tested source revision changes documentation only; the exact compiled source remains the revision above. **SOURCE_SYNCED and NATIVE_DIAGNOSTIC_LINKED do not mean INSTALLED, BOOTED, PHYSICAL_KMS_PASS or WLAN_PASS.**
