@@ -54,7 +54,10 @@ audit_checkout() {
     git -C "$d" rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0
     origin=$(git -C "$d" remote get-url origin 2>/dev/null || :)
     case "$origin" in
-       *n-e-o-w-u-l-f/i915-cherryview-braswell-netbsd*|*n-e-o-w-u-l-f/rtwn8723be-netbsd*) ;;
+       *n-e-o-w-u-l-f/i915-cherryview-braswell-netbsd*)
+           project=I915 expected=$I915_SHA ;;
+       *n-e-o-w-u-l-f/rtwn8723be-netbsd*)
+           project=RTL expected=$RTL_SHA ;;
        *) return 0 ;;
     esac
     current_branch=$(git -C "$d" symbolic-ref --quiet --short HEAD 2>/dev/null || printf DETACHED)
@@ -65,8 +68,21 @@ audit_checkout() {
     else
         cleanliness=CLEAN
     fi
-    info "LOCAL_REPO=$d BRANCH=$current_branch HEAD=$current_head STATE=$cleanliness"
-    info 'LOCAL_REMOTE_COMPARISON=NOT_VERIFIED_WITHOUT_FETCH; never force reset or discard local commits'
+    if [ "$current_head" = "$expected" ]; then
+        relation=MATCH
+    elif git -C "$d" cat-file -e "$expected^{commit}" 2>/dev/null; then
+        if git -C "$d" merge-base --is-ancestor "$current_head" "$expected"; then
+            relation=REMOTE_AHEAD
+        elif git -C "$d" merge-base --is-ancestor "$expected" "$current_head"; then
+            relation=LOCAL_AHEAD
+        else
+            relation=DIVERGED
+        fi
+    else
+        relation=ANCESTRY_UNKNOWN_REMOTE_OBJECT_NOT_FETCHED
+    fi
+    info "LOCAL_REPO=$d PROJECT=$project BRANCH=$current_branch HEAD=$current_head STATE=$cleanliness GITHUB_HEAD=$expected RELATION=$relation"
+    info 'Audit does not fetch or alter refs; unknown ancestry requires reviewed fetch later'
 }
 
 audit_known() {
@@ -100,22 +116,26 @@ stage_one() {
 
 case "$mode" in
     --audit)
+        I915_SHA=$(remote_sha "$I915_REPO" "$I915_BRANCH")
+        RTL_SHA=$(remote_sha "$RTL_REPO" "$RTL_BRANCH")
+        info "GITHUB_I915_HEAD=$I915_SHA BRANCH=$I915_BRANCH"
+        info "GITHUB_RTL_HEAD=$RTL_SHA BRANCH=$RTL_BRANCH"
         audit_known
         for extra in "$@"; do audit_checkout "$extra"; done
         info 'AUDIT_ONLY; no fetch, pull, merge, kernel build or host deployment'
         ;;
     --stage)
         [ "$#" -eq 0 ] || fail '--stage accepts no extra paths'
+        I915_SHA=$(remote_sha "$I915_REPO" "$I915_BRANCH")
+        RTL_SHA=$(remote_sha "$RTL_REPO" "$RTL_BRANCH")
         audit_known
         [ ! -e "$ROOT/i915" ] && [ ! -L "$ROOT/i915" ] ||
             fail 'existing i915 stage; review it first'
         [ ! -e "$ROOT/rtl" ] && [ ! -L "$ROOT/rtl" ] ||
             fail 'existing RTL stage; review it first'
-        i915_sha=$(remote_sha "$I915_REPO" "$I915_BRANCH")
-        rtl_sha=$(remote_sha "$RTL_REPO" "$RTL_BRANCH")
         mkdir -p "$ROOT"
-        stage_one "$I915_REPO" "$I915_BRANCH" "$ROOT/i915" "$i915_sha"
-        stage_one "$RTL_REPO" "$RTL_BRANCH" "$ROOT/rtl" "$rtl_sha"
+        stage_one "$I915_REPO" "$I915_BRANCH" "$ROOT/i915" "$I915_SHA"
+        stage_one "$RTL_REPO" "$RTL_BRANCH" "$ROOT/rtl" "$RTL_SHA"
         info 'SOURCE_STAGED; old HP worktrees, /usr/src and boot configuration untouched'
         info "NEXT: sh $0 --native-test (on HP only; userland DMA fixture)"
         ;;
