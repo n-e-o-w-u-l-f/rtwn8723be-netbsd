@@ -922,7 +922,6 @@ rtwn8723be_runtime_dm_init(void *arg)
     struct rtwn8723be_softc *sc = arg;
     struct rtwn8723be_runtime *r = sc->sc_runtime;
     struct rtwn8723be_dm_init_inputs in;
-    int error;
     memset(&in, 0, sizeof(in));
     in.hardware_ready = runtime_rf_ready(sc);
     in.rf_identity_valid = sc->sc_phy_identity_valid;
