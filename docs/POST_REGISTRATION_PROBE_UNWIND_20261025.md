@@ -55,6 +55,16 @@ The preflight expressly rejects `RUNNING`, `STOPPING`, `STOPPED`, and
 all failed pre-`RUNNING` startup stages: those paths need the separate
 real DM/BTC, firmware and hardware stop/recovery owners.
 
+Additional resource-integrity repair in this branch: rollback refuses to
+free rings/DMA while a prepared datapath IRQ dispatch is still bound
+(`sc_irq_dispatch_ready || sc_irq_arg != NULL`). The real datapath owner
+must unprepare it after all hardware and soft interrupts quiesce; the
+rollback may not simply clear those pointers because unprepare also owns
+a TX mutex. Further, `rtwn8723be_netbsd_dma_release()` now explicitly
+clears `sc_dma_32bit` after destroying its restricted DMA subregion and
+restoring the parent DMA tag. Otherwise a later source-level DMA32 guard
+could wrongly accept the unrestricted parent as a verified DMA32 tag.
+
 ## Executed source evidence
 
 On 2026-10-25 the current branch at
@@ -93,6 +103,20 @@ The HP native 48-object link remains OPEN; the last verified private
 full kernel link is still the historical Shadow H 47-object build.
 GitHub Actions infrastructure has historically failed before executing
 job steps; host regression success is not reported as CI success.
+
+## Extended portable regression evidence
+
+At GitHub branch revision `4dd84afc877971aa415923945a9c3127113f9e75`,
+all 60 `tests/test_*.py` scripts were invoked on legion in a disposable
+checkout. **48 passed**, including the new
+`test_native_dma_release_invariant.py` and the extended
+`test_post_registration_probe_unwind.py` that rejects bound datapath
+dispatchers. The other **12 are environment-dependent**: they explicitly
+require HP/NetBSD or pinned local Linux source trees unavailable in
+that Linux test sandbox. No other test failures were found in this pass.
+
+The 48 successful scripts are host/source evidence only; nothing here
+replaces NetBSD compilation and runtime ownership/fault injection.
 
 ## Remaining gates
 
