@@ -2,6 +2,26 @@
 
 Date: 2026-10-25 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — RFKILL-VALIDATED NET80211 START (2026-10-25)
+
+An invalid or failed GPIO poll now revokes the previous valid RFKill
+sample; stale last-known radio-on readings can no longer authorize a
+subsequent net80211 hardware start. A lock-protected snapshot returns
+ENXIO/EAGAIN when owner state or current sample is untrustworthy.
+Native net80211 `if_init` checks the switch both before hardware start
+and again before publishing IFF_RUNNING, invoking real hw_stop if the
+switch turns off/becomes unknown during initialization. Successful
+hardware start is never reported as WLAN running on that error path.
+
+The production worker, snapshot and if_init implementations were
+compiled under C11/UBSan as part of the new regression. On legion at
+`658b286e14cf5483fbc74d81be935d1e6ce89e0b`, **51/51 permitted
+portable scripts passed**, and 12 scripts remained target/reference
+dependent. This does **not** provide asynchronous RFKill switch-off
+notifications after IFF_RUNNING or NetBSD native kernel/HP evidence.
+The four unbound lifecycle owners and full-port acceptance remain OPEN.
+See `docs/RX_C2H_STAGED_ADMISSION_20261025.md`.
+
 ## SOURCE CHECKPOINT — STAGED RX/C2H & BINDING OWNER (2026-10-25)
 
 A real probe/start ordering deadlock was removed at source level:
