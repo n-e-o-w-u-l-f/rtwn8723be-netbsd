@@ -68,6 +68,8 @@ rtwn8723be_rx_binding_init(struct rtwn8723be_rx_binding *binding,
         return EBUSY; /* Caller must not rebind an active IRQ context. */
     if (!net->registered || net->sc == NULL)
         return ENXIO;
+    if (net->sc->sc_rx_binding != NULL)
+        return EBUSY; /* One published RX/C2H binding per PCI device. */
 
     /*
      * These callbacks are required by the supported station datapath.
@@ -95,5 +97,37 @@ rtwn8723be_rx_binding_init(struct rtwn8723be_rx_binding *binding,
     binding->dispatch.arg = binding;
     binding->dispatch.frame = rtwn8723be_rx_binding_frame;
     binding->dispatch.c2h = rtwn8723be_rx_binding_c2h;
+    /* Publish only after every required callback has been installed. */
+    net->sc->sc_rx_binding = binding;
+    return 0;
+}
+
+/*
+ * Only the owner that has drained the real PCI/soft IRQ and unprepared the
+ * datapath may retire these borrowed callback pointers. The bridge storage
+ * is supplied by the native lifecycle and must outlive this function.
+ */
+int
+rtwn8723be_rx_binding_fini(struct rtwn8723be_rx_binding *binding)
+{
+    struct rtwn8723be_softc *sc;
+
+    if (binding == NULL || binding->net == NULL ||
+        binding->net->sc == NULL)
+        return EINVAL;
+    sc = binding->net->sc;
+    if (sc->sc_rx_binding != binding ||
+        binding->dispatch.arg != binding ||
+        binding->dispatch.frame != rtwn8723be_rx_binding_frame ||
+        binding->dispatch.c2h != rtwn8723be_rx_binding_c2h)
+        return EBUSY;
+    if (sc->sc_datapath != NULL || sc->sc_irq_arg != NULL ||
+        sc->sc_irq_dispatch_ready || sc->sc_irq_requested ||
+        sc->sc_irq_enabled || sc->sc_ih != NULL ||
+        sc->sc_soft_ih != NULL || sc->sc_pihp != NULL)
+        return EBUSY;
+
+    sc->sc_rx_binding = NULL;
+    memset(binding, 0, sizeof(*binding));
     return 0;
 }
