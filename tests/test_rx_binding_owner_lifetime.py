@@ -94,8 +94,10 @@ cases = (
                 "false", 1), N),
     (RX.replace("sc->sc_irq_requested ||", "", 1), N),
     (RX.replace("sc->sc_rx_binding = NULL;", "", 1), N),
-    (RX.replace("memset(binding, 0, sizeof(*binding));",
-                "/* forget to revoke callbacks */", 1), N),
+    (RX.replace("    sc->sc_rx_binding = NULL;\n"
+                "    memset(binding, 0, sizeof(*binding));",
+                "    sc->sc_rx_binding = NULL;\n"
+                "    /* forget to revoke callbacks */", 1), N),
     (RX, N.replace("sc->sc_datapath->rx.arg == sc->sc_rx_binding",
                    "true", 1)),
     (RX, N.replace(".unbind_rx = rtwn8723be_native_unwind_rx_binding,",
