@@ -72,6 +72,9 @@ rtwn8723be_datapath_prepare(struct rtwn8723be_datapath *dp,
     /* dp storage must be zero-initialized by its owning attach path. */
     if (dp->prepared || sc->sc_datapath != NULL ||
         sc->sc_irq_dispatch_ready || sc->sc_irq_arg != NULL ||
+        sc->sc_irq_dispatch.rx != NULL ||
+        sc->sc_irq_dispatch.tx_done != NULL ||
+        sc->sc_irq_dispatch.power_event != NULL ||
         sc->sc_ih != NULL || sc->sc_soft_ih != NULL ||
         sc->sc_pihp != NULL)
         return EBUSY;
@@ -138,7 +141,10 @@ rtwn8723be_datapath_unprepare(struct rtwn8723be_datapath *dp)
 
     /* Unbind only after the hardware and NetBSD softint are both quiesced. */
     if (sc->sc_datapath != dp || sc->sc_irq_arg != dp ||
-        !sc->sc_irq_dispatch_ready)
+        !sc->sc_irq_dispatch_ready ||
+        sc->sc_irq_dispatch.rx != rtwn8723be_dp_rx ||
+        sc->sc_irq_dispatch.tx_done != rtwn8723be_dp_tx_done ||
+        sc->sc_irq_dispatch.power_event != NULL)
         return EBUSY;
     if (dp->tx_enabled || sc->sc_irq_requested || sc->sc_irq_enabled ||
         sc->sc_ih != NULL || sc->sc_soft_ih != NULL ||
