@@ -30,6 +30,7 @@ extracted = "\n".join([
     "static int\n" + function("rtwn8723be_rx_binding_frame"),
     "static int\n" + function("rtwn8723be_rx_binding_c2h"),
     "int\n" + function("rtwn8723be_rx_binding_init"),
+    "int\n" + function("rtwn8723be_rx_binding_fini"),
 ])
 prologue = r"""
 #include <assert.h>
@@ -40,8 +41,12 @@ prologue = r"""
 #include <errno.h>
 #include <string.h>
 #include "rtwn8723be_c2h.h"
+struct rtwn8723be_rx_binding;
 struct rtwn8723be_softc {
     bool sc_btcoexist;
+    struct rtwn8723be_rx_binding *sc_rx_binding;
+    void *sc_datapath, *sc_irq_arg, *sc_ih, *sc_soft_ih, *sc_pihp;
+    bool sc_irq_dispatch_ready, sc_irq_requested, sc_irq_enabled;
     struct { bool initialized; } sc_btc;
     struct { bool initialized, active; } sc_btc_mp;
 };
@@ -103,7 +108,16 @@ int main(void)
     assert(b.dispatch.frame(b.dispatch.arg, bytes, sizeof(bytes), &p)
            == ENXIO);
     n.registered = true;
-    memset(&b, 0, sizeof(b));
+    assert(sc.sc_rx_binding == &b);
+    sc.sc_irq_requested = true;
+    assert(rtwn8723be_rx_binding_fini(&b) == EBUSY);
+    sc.sc_irq_requested = false;
+    sc.sc_datapath = &b; /* Foreign live datapath forbids RX release. */
+    assert(rtwn8723be_rx_binding_fini(&b) == EBUSY);
+    sc.sc_datapath = NULL;
+    assert(rtwn8723be_rx_binding_fini(&b) == 0);
+    assert(sc.sc_rx_binding == NULL && b.net == NULL);
+    assert(rtwn8723be_rx_binding_fini(&b) == EINVAL);
     h.tx_report = NULL;
     assert(rtwn8723be_rx_binding_init(&b, &n, &h) == ENOSYS);
     h.tx_report = on_event;
@@ -114,7 +128,8 @@ int main(void)
     /* A function pointer is not equivalent to an initialized BT owner. */
     /* Probe-time publication works BEFORE BT owners start. */
     assert(rtwn8723be_rx_binding_init(&b, &n, &h) == 0);
-    assert(b.net == &n && b.dispatch.arg == &b);
+    assert(b.net == &n && b.dispatch.arg == &b &&
+        sc.sc_rx_binding == &b);
     assert(b.dispatch.frame(b.dispatch.arg, bytes, sizeof(bytes), &p) == 0);
     p.c2h_id = R23BE_C2H_BT_INFO;
     assert(b.dispatch.c2h(b.dispatch.arg, bytes, sizeof(bytes), &p)
@@ -148,6 +163,14 @@ int main(void)
     assert(b.dispatch.c2h(b.dispatch.arg, bytes, sizeof(bytes), NULL)
         == EINVAL);
     assert(rtwn8723be_rx_binding_init(NULL, &n, &h) == EINVAL);
+    sc.sc_ih = &b;
+    assert(rtwn8723be_rx_binding_fini(&b) == EBUSY);
+    sc.sc_ih = NULL;
+    sc.sc_irq_arg = &b;
+    assert(rtwn8723be_rx_binding_fini(&b) == EBUSY);
+    sc.sc_irq_arg = NULL;
+    assert(rtwn8723be_rx_binding_fini(&b) == 0);
+    assert(sc.sc_rx_binding == NULL);
     puts("RTL_RX_FRAME_C2H_SHARED_CONTEXT_C11_UBSAN_OK");
     return 0;
 }
