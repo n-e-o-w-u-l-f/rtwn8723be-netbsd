@@ -28,6 +28,8 @@ assert ".rfkill_queue_present = sc->sc_rfkill_native.wq != NULL" in native
 assert ".irq_handles_coherent = all_irq || no_irq" in native
 assert ".hal_started = sc->sc_hal_started" in native
 assert ".irq_requested = sc->sc_irq_requested" in native
+assert ".datapath_bound = sc->sc_irq_dispatch_ready ||" in native
+assert "sc->sc_irq_arg != NULL," in native
 assert ".progress = sc->sc_probe_unwind_progress" in native
 assert "&sc->sc_probe_unwind_progress, &ops, sc" in native
 assert "sc->sc_probe_unwind_progress = R23BE_PROBE_UNWIND_NONE;" in native
@@ -216,6 +218,7 @@ int main(void)
     TRUE_REJECT_FIELD(being_init_adapter);
     TRUE_REJECT_FIELD(fw_ready);
     TRUE_REJECT_FIELD(hal_started);
+    TRUE_REJECT_FIELD(datapath_bound);
     TRUE_REJECT_FIELD(irq_requested);
     TRUE_REJECT_FIELD(irq_enabled);
 #undef TRUE_REJECT_FIELD
