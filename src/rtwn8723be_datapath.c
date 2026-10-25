@@ -70,8 +70,10 @@ rtwn8723be_datapath_prepare(struct rtwn8723be_datapath *dp,
         rx->frame == NULL || rx->c2h == NULL)
         return EINVAL;
     /* dp storage must be zero-initialized by its owning attach path. */
-    if (dp->prepared || sc->sc_irq_dispatch_ready ||
-        sc->sc_ih != NULL || sc->sc_soft_ih != NULL)
+    if (dp->prepared || sc->sc_datapath != NULL ||
+        sc->sc_irq_dispatch_ready || sc->sc_irq_arg != NULL ||
+        sc->sc_ih != NULL || sc->sc_soft_ih != NULL ||
+        sc->sc_pihp != NULL)
         return EBUSY;
     if (!sc->sc_core_initialized || !sc->sc_rings_allocated ||
         sc->sc_dmat == NULL || !sc->sc_dma_32bit)
@@ -84,6 +86,8 @@ rtwn8723be_datapath_prepare(struct rtwn8723be_datapath *dp,
     dp->tx_complete_arg = tx_complete_arg;
     mutex_init(&dp->tx_lock, MUTEX_DEFAULT, IPL_NET);
     dp->prepared = true;
+    /* Publish owner before IRQ dispatch; never leave an orphan TX mutex. */
+    sc->sc_datapath = dp;
 
     memset(&irq, 0, sizeof(irq));
     irq.rx = rtwn8723be_dp_rx;
@@ -133,11 +137,16 @@ rtwn8723be_datapath_unprepare(struct rtwn8723be_datapath *dp)
     sc = dp->sc;
 
     /* Unbind only after the hardware and NetBSD softint are both quiesced. */
-    if (dp->tx_enabled || sc->sc_irq_enabled ||
+    if (sc->sc_datapath != dp || sc->sc_irq_arg != dp ||
+        !sc->sc_irq_dispatch_ready)
+        return EBUSY;
+    if (dp->tx_enabled || sc->sc_irq_requested || sc->sc_irq_enabled ||
         sc->sc_ih != NULL || sc->sc_soft_ih != NULL ||
         sc->sc_pihp != NULL)
         return EBUSY;
+    /* External lifecycle excludes TX enqueue/softint before lock destroy. */
     rtwn8723be_netbsd_irq_set_dispatch(sc, NULL, NULL);
+    sc->sc_datapath = NULL;
     mutex_destroy(&dp->tx_lock);
     memset(dp, 0, sizeof(*dp));
     return 0;
