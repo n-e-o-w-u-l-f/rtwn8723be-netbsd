@@ -23,6 +23,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "rtwn8723be_probe_admission.h"
 #include "rtwn8723be_probe_unwind.h"
 #include "rtwn8723be_datapath.h"
+#include "rtwn8723be_rx_binding.h"
 
 static int
 rtwn8723be_native_match(device_t parent, cfdata_t cf, void *aux)
@@ -64,7 +65,17 @@ rtwn8723be_native_probe_resources_ready(struct rtwn8723be_softc *sc)
         .rfkill_initialized = sc->sc_rfkill_native.initialized,
         .rfkill_active = sc->sc_rfkill_native.active,
         .irq_dispatch_ready = sc->sc_irq_dispatch_ready &&
+            sc->sc_rx_binding != NULL &&
+            sc->sc_rx_binding->net == &sc->sc_net80211 &&
+            sc->sc_rx_binding->dispatch.arg == sc->sc_rx_binding &&
+            sc->sc_rx_binding->dispatch.frame != NULL &&
+            sc->sc_rx_binding->dispatch.c2h != NULL &&
             sc->sc_datapath != NULL &&
+            sc->sc_datapath->rx.arg == sc->sc_rx_binding &&
+            sc->sc_datapath->rx.frame ==
+                sc->sc_rx_binding->dispatch.frame &&
+            sc->sc_datapath->rx.c2h ==
+                sc->sc_rx_binding->dispatch.c2h &&
             sc->sc_datapath->sc == sc &&
             sc->sc_datapath->prepared &&
             sc->sc_irq_arg == sc->sc_datapath,
@@ -137,6 +148,20 @@ rtwn8723be_native_unwind_datapath(void *arg)
 }
 
 static int
+rtwn8723be_native_unwind_rx_binding(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+    int error;
+
+    if (sc->sc_rx_binding != NULL) {
+        error = rtwn8723be_rx_binding_fini(sc->sc_rx_binding);
+        if (error != 0)
+            return error;
+    }
+    return sc->sc_rx_binding == NULL ? 0 : EBUSY;
+}
+
+static int
 rtwn8723be_native_unwind_rfkill(void *arg)
 {
     struct rtwn8723be_softc *sc = arg;
@@ -188,12 +213,20 @@ rtwn8723be_native_post_registration_unwind(struct rtwn8723be_softc *sc)
             (dp->prepared && dp->sc == sc &&
              sc->sc_irq_arg == dp && sc->sc_irq_dispatch_ready &&
              sc->sc_irq_dispatch.rx != NULL &&
-             sc->sc_irq_dispatch.tx_done != NULL) :
+             sc->sc_irq_dispatch.tx_done != NULL &&
+             sc->sc_rx_binding != NULL &&
+             dp->rx.arg == sc->sc_rx_binding &&
+             dp->rx.frame == sc->sc_rx_binding->dispatch.frame &&
+             dp->rx.c2h == sc->sc_rx_binding->dispatch.c2h) :
             (sc->sc_irq_arg == NULL && !sc->sc_irq_dispatch_ready &&
              sc->sc_irq_dispatch.rx == NULL &&
              sc->sc_irq_dispatch.tx_done == NULL &&
              sc->sc_irq_dispatch.power_event == NULL),
         .datapath_tx_enabled = dp != NULL && dp->tx_enabled,
+        .rx_binding_present = sc->sc_rx_binding != NULL,
+        .rx_binding_owned = sc->sc_rx_binding != NULL &&
+            sc->sc_rx_binding->net == &sc->sc_net80211 &&
+            sc->sc_rx_binding->dispatch.arg == sc->sc_rx_binding,
         .irq_requested = sc->sc_irq_requested,
         .irq_enabled = sc->sc_irq_enabled,
         .irq_handles_coherent = all_irq || no_irq,
@@ -208,6 +241,7 @@ rtwn8723be_native_post_registration_unwind(struct rtwn8723be_softc *sc)
     const struct rtwn8723be_probe_unwind_ops ops = {
         .disestablish_irq = rtwn8723be_native_unwind_irq,
         .unprepare_datapath = rtwn8723be_native_unwind_datapath,
+        .unbind_rx = rtwn8723be_native_unwind_rx_binding,
         .drain_rfkill = rtwn8723be_native_unwind_rfkill,
         .unregister_net80211 = rtwn8723be_native_unwind_net80211,
     };
@@ -270,6 +304,11 @@ rtwn8723be_native_probe_cleanup(struct rtwn8723be_softc *sc)
         if (rtwn8723be_native_unwind_datapath(sc) != 0) {
             aprint_error_dev(sc->sc_dev,
                 "retaining PCI resources: datapath still owned\n");
+            return;
+        }
+        if (rtwn8723be_native_unwind_rx_binding(sc) != 0) {
+            aprint_error_dev(sc->sc_dev,
+                "retaining PCI resources: RX binding still owned\n");
             return;
         }
     }

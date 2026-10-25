@@ -30,6 +30,7 @@ extracted = "\n".join([
     "static int\n" + function("rtwn8723be_rx_binding_frame"),
     "static int\n" + function("rtwn8723be_rx_binding_c2h"),
     "int\n" + function("rtwn8723be_rx_binding_init"),
+    "int\n" + function("rtwn8723be_rx_binding_fini"),
 ])
 prologue = r"""
 #include <assert.h>
@@ -40,8 +41,12 @@ prologue = r"""
 #include <errno.h>
 #include <string.h>
 #include "rtwn8723be_c2h.h"
+struct rtwn8723be_rx_binding;
 struct rtwn8723be_softc {
     bool sc_btcoexist;
+    struct rtwn8723be_rx_binding *sc_rx_binding;
+    void *sc_datapath, *sc_irq_arg, *sc_ih, *sc_soft_ih, *sc_pihp;
+    bool sc_irq_dispatch_ready, sc_irq_requested, sc_irq_enabled;
     struct { bool initialized; } sc_btc;
     struct { bool initialized, active; } sc_btc_mp;
 };
@@ -49,7 +54,7 @@ struct rtwn8723be_net80211 {
     struct rtwn8723be_softc *sc;
     bool registered;
 };
-struct rtwn8723be_rx_packet { int kind; };
+struct rtwn8723be_rx_packet { int kind; uint8_t c2h_id; };
 struct rtwn8723be_rx_dispatch {
     void *arg;
     int (*frame)(void *, const uint8_t *, size_t,
@@ -103,7 +108,16 @@ int main(void)
     assert(b.dispatch.frame(b.dispatch.arg, bytes, sizeof(bytes), &p)
            == ENXIO);
     n.registered = true;
-    memset(&b, 0, sizeof(b));
+    assert(sc.sc_rx_binding == &b);
+    sc.sc_irq_requested = true;
+    assert(rtwn8723be_rx_binding_fini(&b) == EBUSY);
+    sc.sc_irq_requested = false;
+    sc.sc_datapath = &b; /* Foreign live datapath forbids RX release. */
+    assert(rtwn8723be_rx_binding_fini(&b) == EBUSY);
+    sc.sc_datapath = NULL;
+    assert(rtwn8723be_rx_binding_fini(&b) == 0);
+    assert(sc.sc_rx_binding == NULL && b.net == NULL);
+    assert(rtwn8723be_rx_binding_fini(&b) == EINVAL);
     h.tx_report = NULL;
     assert(rtwn8723be_rx_binding_init(&b, &n, &h) == ENOSYS);
     h.tx_report = on_event;
@@ -112,15 +126,51 @@ int main(void)
     h.bt_info = on_event;
     h.bt_mp = on_event;
     /* A function pointer is not equivalent to an initialized BT owner. */
-    assert(rtwn8723be_rx_binding_init(&b, &n, &h) == EAGAIN);
-    assert(b.net == NULL && b.dispatch.arg == NULL);
-    sc.sc_btc.initialized = true;
-    assert(rtwn8723be_rx_binding_init(&b, &n, &h) == EAGAIN);
-    sc.sc_btc_mp.initialized = true;
-    assert(rtwn8723be_rx_binding_init(&b, &n, &h) == EAGAIN);
-    sc.sc_btc_mp.active = true;
+    /* Probe-time publication works BEFORE BT owners start. */
     assert(rtwn8723be_rx_binding_init(&b, &n, &h) == 0);
+    assert(b.net == &n && b.dispatch.arg == &b &&
+        sc.sc_rx_binding == &b);
+    assert(b.dispatch.frame(b.dispatch.arg, bytes, sizeof(bytes), &p) == 0);
+    p.c2h_id = R23BE_C2H_BT_INFO;
+    assert(b.dispatch.c2h(b.dispatch.arg, bytes, sizeof(bytes), &p)
+        == EAGAIN);
+    p.c2h_id = R23BE_C2H_BT_MP;
+    assert(b.dispatch.c2h(b.dispatch.arg, bytes, sizeof(bytes), &p)
+        == EAGAIN);
+    assert(c2h_calls == 1); /* Neither early BT event reached firmware. */
+
+    /* The actual BTC event queue checks enable/closing under its own lock. */
+    sc.sc_btc.initialized = true;
+    p.c2h_id = R23BE_C2H_BT_INFO;
+    assert(b.dispatch.c2h(b.dispatch.arg, bytes, sizeof(bytes), &p) == 0);
+    assert(c2h_calls == 2);
+    p.c2h_id = R23BE_C2H_BT_MP;
+    assert(b.dispatch.c2h(b.dispatch.arg, bytes, sizeof(bytes), &p)
+        == EAGAIN);
+    sc.sc_btc_mp.initialized = true;
+    assert(b.dispatch.c2h(b.dispatch.arg, bytes, sizeof(bytes), &p)
+        == EAGAIN);
+    sc.sc_btc_mp.active = true;
+    assert(b.dispatch.c2h(b.dispatch.arg, bytes, sizeof(bytes), &p) == 0);
+    assert(c2h_calls == 3);
+    sc.sc_btc_mp.active = false;
+    assert(b.dispatch.c2h(b.dispatch.arg, bytes, sizeof(bytes), &p)
+        == EAGAIN);
+    /* Non-BT notifications remain separately routable at probe stage. */
+    p.c2h_id = R23BE_C2H_TX_REPORT;
+    assert(b.dispatch.c2h(b.dispatch.arg, bytes, sizeof(bytes), &p) == 0);
+    assert(c2h_calls == 4);
+    assert(b.dispatch.c2h(b.dispatch.arg, bytes, sizeof(bytes), NULL)
+        == EINVAL);
     assert(rtwn8723be_rx_binding_init(NULL, &n, &h) == EINVAL);
+    sc.sc_ih = &b;
+    assert(rtwn8723be_rx_binding_fini(&b) == EBUSY);
+    sc.sc_ih = NULL;
+    sc.sc_irq_arg = &b;
+    assert(rtwn8723be_rx_binding_fini(&b) == EBUSY);
+    sc.sc_irq_arg = NULL;
+    assert(rtwn8723be_rx_binding_fini(&b) == 0);
+    assert(sc.sc_rx_binding == NULL);
     puts("RTL_RX_FRAME_C2H_SHARED_CONTEXT_C11_UBSAN_OK");
     return 0;
 }

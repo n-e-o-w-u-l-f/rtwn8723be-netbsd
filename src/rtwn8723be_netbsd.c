@@ -87,6 +87,7 @@ rtwn8723be_netbsd_context_fini(struct rtwn8723be_softc *sc)
      * Never retire the softc while that external owner is still bound.
      */
     KASSERT(sc->sc_datapath == NULL);
+    KASSERT(sc->sc_rx_binding == NULL);
     KASSERT(sc->sc_irq_arg == NULL && !sc->sc_irq_dispatch_ready);
     /*
      * Native detach has already quiesced and disestablished both hard

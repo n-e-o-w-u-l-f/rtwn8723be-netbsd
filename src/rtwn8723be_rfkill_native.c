@@ -53,11 +53,14 @@ rtwn8723be_rfkill_worker(struct work *wk, void *arg)
     if (active) {
         n->samples++;
         n->last_error = error;
-        if (error == 0 && valid) {
-            n->last_valid = true;
+        /*
+         * A later failing/invalid poll MUST revoke the previous good
+         * sample; otherwise a stale radio-on bit would authorize WLAN
+         * start after the physical switch became unreadable.
+         */
+        n->last_valid = error == 0 && valid;
+        if (n->last_valid)
             n->last_radio_on = on;
-        }
-        /* Busy/invalid polls NEVER publish an invented switch value. */
     }
     n->work_queued = false;
     if (n->active)
@@ -138,6 +141,38 @@ rtwn8723be_rfkill_native_init(void *arg)
     /* Deferred sample retries even if Linux's first GPIO read was busy. */
     callout_schedule(&n->timer, hz);
     mutex_exit(&n->lock);
+    return 0;
+}
+
+/*
+ * The registered interface may start only on a fresh, valid physical-radio
+ * sample. Never confuse a stale last-known value after a busy/failing poll
+ * with a proven current RF switch state. The external net80211 lifecycle
+ * excludes concurrent fini while this spin-lock-protected snapshot runs.
+ */
+int
+rtwn8723be_rfkill_native_radio_on(struct rtwn8723be_softc *sc, bool *on)
+{
+    struct rtwn8723be_rfkill_native *n;
+    bool active, valid, value;
+    int error;
+
+    if (sc == NULL || on == NULL)
+        return EINVAL;
+    n = &sc->sc_rfkill_native;
+    if (!n->initialized)
+        return ENXIO;
+
+    mutex_enter(&n->lock);
+    active = n->active;
+    valid = n->last_valid;
+    value = n->last_radio_on;
+    error = n->last_error;
+    mutex_exit(&n->lock);
+
+    if (!active || !valid || error != 0)
+        return EAGAIN;
+    *on = value;
     return 0;
 }
 

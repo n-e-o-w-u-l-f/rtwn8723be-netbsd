@@ -493,13 +493,29 @@ def check(root, require_closure=False):
             mp_source or
             "rtwn8723be_btc_mp_native_c2h(void *," not in mp_header):
         raise ValueError("typed native BTC MP C2H consumer adapter missing")
+    # IRQ dispatch must be prepared after net80211 registration but
+    # BEFORE the firmware/BT start phase can activate the BTC owners.
+    # Actual Bluetooth notifications must instead be gated at the point
+    # where a borrowed RX packet enters its live C2H consumer.
     publish = rx_binding.find("memset(binding, 0, sizeof(*binding))")
-    if publish < 0 or any(
-            rx_binding.find(token) < 0 or rx_binding.find(token) > publish
-            for token in ("!net->sc->sc_btc.initialized",
-                          "!net->sc->sc_btc_mp.initialized",
-                          "!net->sc->sc_btc_mp.active")):
-        raise ValueError("BTC C2H RX callbacks publish before activation")
+    init = rx_binding.split("rtwn8723be_rx_binding_init(", 1)[1]
+    init = init.split("\n}\n", 1)[0]
+    receive = rx_binding.split("rtwn8723be_rx_binding_c2h(", 1)[1]
+    receive = receive.split("\n}\n", 1)[0]
+    bt_checks = (
+        "packet->c2h_id == R23BE_C2H_BT_INFO",
+        "!binding->net->sc->sc_btc.initialized",
+        "packet->c2h_id == R23BE_C2H_BT_MP",
+        "!binding->net->sc->sc_btc_mp.initialized",
+        "!binding->net->sc->sc_btc_mp.active",
+    )
+    gate = receive.find("return rtwn8723be_c2h_native_receive(")
+    if (publish < 0 or gate < 0 or
+            any(t not in receive[:gate] for t in bt_checks) or
+            "return EAGAIN;" not in receive[:gate] or
+            "!net->sc->sc_btc.initialized" in init or
+            "!net->sc->sc_btc_mp.active" in init):
+        raise ValueError("BT C2H is not staged behind actual runtime owner")
 
     # Frozen halbtc_get_bt_afh_map_from_bt() publishes L then M then H.
     # These are source-order guards, not an executable native/firmware test.

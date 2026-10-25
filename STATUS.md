@@ -2,6 +2,50 @@
 
 Date: 2026-10-25 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — RFKILL-VALIDATED NET80211 START (2026-10-25)
+
+An invalid or failed GPIO poll now revokes the previous valid RFKill
+sample; stale last-known radio-on readings can no longer authorize a
+subsequent net80211 hardware start. A lock-protected snapshot returns
+ENXIO/EAGAIN when owner state or current sample is untrustworthy.
+Native net80211 `if_init` checks the switch both before hardware start
+and again before publishing IFF_RUNNING, invoking real hw_stop if the
+switch turns off/becomes unknown during initialization. Successful
+hardware start is never reported as WLAN running on that error path.
+
+The production worker, snapshot and if_init implementations were
+compiled under C11/UBSan as part of the new regression. On legion at
+`658b286e14cf5483fbc74d81be935d1e6ce89e0b`, **51/51 permitted
+portable scripts passed**, and 12 scripts remained target/reference
+dependent. This does **not** provide asynchronous RFKill switch-off
+notifications after IFF_RUNNING or NetBSD native kernel/HP evidence.
+The four unbound lifecycle owners and full-port acceptance remain OPEN.
+See `docs/RX_C2H_STAGED_ADMISSION_20261025.md`.
+
+## SOURCE CHECKPOINT — STAGED RX/C2H & BINDING OWNER (2026-10-25)
+
+A real probe/start ordering deadlock was removed at source level:
+net80211 and shared RX/IRQ callbacks can be prepared before the firmware-
+dependent Bluetooth coexistence/MP owners have been activated. The actual
+RX C2H callback rejects premature BT_INFO/BT_MP events with EAGAIN before
+forwarding borrowed DMA data; native BTC event admission still occurs under
+its own lock. No real Bluetooth activation is fabricated.
+
+The shared RX binding now has a single softc owner and a checked fini
+requiring IRQ and datapath shutdown. Post-registration teardown journals
+NONE → IRQ → DATAPATH → RX_BINDING → RFKILL → NET80211. Native PCI probe
+success also requires RX and datapath callback identity consistency.
+
+In a disposable clone on legion Linux x86_64 at
+`cab2f716b532d00245c3fc22f4030b2227d5dd4f`, **50 of 50
+permitted portable regression scripts passed**; 12 of 62 require the
+HP/NetBSD target or missing pinned Linux reference checkouts. Both the
+RX binding and five-compensator broker were actually compiled under
+strict portable C11/UBSan. This is **not** a NetBSD/HP kernel link or
+hardware WLAN acceptance. Full net80211 methods, RFKill state
+publication, BTC/DM lifecycle and four unbound callbacks remain OPEN.
+See `docs/RX_C2H_STAGED_ADMISSION_20261025.md`.
+
 ## SOURCE CHECKPOINT — DATAPATH/TX LIFETIME (2026-10-25)
 
 The native softc now records the unique prepared datapath bridge owner

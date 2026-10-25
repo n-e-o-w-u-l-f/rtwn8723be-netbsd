@@ -19,6 +19,7 @@ assert '#include "rtwn8723be_probe_unwind.h"' in native
 for function, effect in (
     ("rtwn8723be_native_unwind_irq", "rtwn8723be_netbsd_disestablish_irq(sc)"),
     ("rtwn8723be_native_unwind_datapath", "rtwn8723be_datapath_unprepare(sc->sc_datapath)"),
+    ("rtwn8723be_native_unwind_rx_binding", "rtwn8723be_rx_binding_fini(sc->sc_rx_binding)"),
     ("rtwn8723be_native_unwind_rfkill", "rtwn8723be_rfkill_native_fini(sc)"),
     ("rtwn8723be_native_unwind_net80211", "rtwn8723be_net80211_unregister(&sc->sc_net80211)"),
 ):
@@ -33,6 +34,10 @@ assert ".datapath_bound = dp != NULL," in native
 assert ".datapath_owner_valid = dp != NULL ?" in native
 assert ".datapath_tx_enabled = dp != NULL && dp->tx_enabled," in native
 assert ".unprepare_datapath = rtwn8723be_native_unwind_datapath," in native
+assert ".unbind_rx = rtwn8723be_native_unwind_rx_binding," in native
+assert ".rx_binding_present = sc->sc_rx_binding != NULL," in native
+assert ".rx_binding_owned = sc->sc_rx_binding != NULL &&" in native
+assert "sc->sc_rx_binding->net == &sc->sc_net80211" in native
 assert ".progress = sc->sc_probe_unwind_progress" in native
 assert "&sc->sc_probe_unwind_progress, &ops, sc" in native
 assert "sc->sc_probe_unwind_progress = R23BE_PROBE_UNWIND_NONE;" in native
@@ -45,6 +50,8 @@ assert cleanup.index("if (stage == R23BE_STAGE_IDLE)") < cleanup.index(
 assert cleanup.index("rtwn8723be_native_post_registration_unwind(sc)") < (
     cleanup.index("rtwn8723be_btc_mp_native_fini(sc)"))
 assert cleanup.index("rtwn8723be_native_unwind_datapath(sc)") < (
+    cleanup.index("rtwn8723be_native_unwind_rx_binding(sc)"))
+assert cleanup.index("rtwn8723be_native_unwind_rx_binding(sc)") < (
     cleanup.index("rtwn8723be_btc_mp_native_fini(sc)"))
 assert cleanup.index("rtwn8723be_btc_mp_native_fini(sc)") < (
     cleanup.index("rtwn8723be_h2c_native_fini(sc)"))
@@ -75,24 +82,25 @@ HARNESS = r'''
 
 struct fixture {
     int calls;
-    int order[4];
+    int order[5];
     int fail_on;
 };
 static int
 effect(void *arg, int step)
 {
     struct fixture *f = arg;
-    assert(f->calls < 4);
+    assert(f->calls < 5);
     f->order[f->calls++] = step;
     return f->fail_on == step ? EIO : 0;
 }
 static int irq(void *p) { return effect(p, 1); }
 static int datapath(void *p) { return effect(p, 2); }
-static int rfkill(void *p) { return effect(p, 3); }
-static int n80211(void *p) { return effect(p, 4); }
+static int rx(void *p) { return effect(p, 3); }
+static int rfkill(void *p) { return effect(p, 4); }
+static int n80211(void *p) { return effect(p, 5); }
 
 static const struct rtwn8723be_probe_unwind_ops ops = {
-    irq, datapath, rfkill, n80211
+    irq, datapath, rx, rfkill, n80211
 };
 static struct rtwn8723be_probe_unwind_snapshot
 baseline(enum rtwn8723be_linux_stage stage, bool dp)
@@ -104,6 +112,8 @@ baseline(enum rtwn8723be_linux_stage stage, bool dp)
     s.bar_mapped = true;
     s.datapath_owner_valid = true;
     s.datapath_bound = dp;
+    s.rx_binding_present = dp;
+    s.rx_binding_owned = dp;
     s.irq_handles_coherent = true;
     s.net80211_registered = stage > R23BE_STAGE_IEEE80211_REGISTER;
     s.net80211_owned = s.net80211_registered;
@@ -124,11 +134,11 @@ passes(enum rtwn8723be_linux_stage stage, bool dp)
     assert(rtwn8723be_probe_unwind_post_registration(
         &s, &progress, &ops, &f) == 0);
     assert(progress == R23BE_PROBE_UNWIND_NET80211);
-    assert(f.calls == 4);
-    for (int j = 0; j < 4; j++)
+    assert(f.calls == 5);
+    for (int j = 0; j < 5; j++)
         assert(f.order[j] == j + 1);
 
-    for (int fail = 1; fail <= 4; fail++) {
+    for (int fail = 1; fail <= 5; fail++) {
         s = baseline(stage, dp);
         progress = R23BE_PROBE_UNWIND_NONE;
         memset(&f, 0, sizeof(f));
@@ -146,6 +156,10 @@ passes(enum rtwn8723be_linux_stage stage, bool dp)
             s.irq_handles_present = false;
         if (progress >= R23BE_PROBE_UNWIND_DATAPATH)
             s.datapath_bound = false;
+        if (progress >= R23BE_PROBE_UNWIND_RX_BINDING) {
+            s.rx_binding_present = false;
+            s.rx_binding_owned = false;
+        }
         if (progress >= R23BE_PROBE_UNWIND_RFKILL) {
             s.rfkill_initialized = false;
             s.rfkill_queue_present = false;
@@ -160,7 +174,7 @@ passes(enum rtwn8723be_linux_stage stage, bool dp)
         assert(rtwn8723be_probe_unwind_post_registration(
             &s, &progress, &ops, &f) == 0);
         assert(progress == R23BE_PROBE_UNWIND_NET80211);
-        assert(f.calls == 5 - fail);
+        assert(f.calls == 6 - fail);
         for (int j = 0; j < f.calls; j++)
             assert(f.order[j] == fail + j);
 
@@ -168,6 +182,8 @@ passes(enum rtwn8723be_linux_stage stage, bool dp)
         s.progress = progress;
         s.irq_handles_present = false;
         s.datapath_bound = false;
+        s.rx_binding_present = false;
+        s.rx_binding_owned = false;
         s.rfkill_initialized = false;
         s.rfkill_queue_present = false;
         s.rfkill_active = false;
@@ -224,6 +240,7 @@ int main(void)
     REJECT_FIELD(pci_snapshot);
     REJECT_FIELD(bar_mapped);
     REJECT_FIELD(datapath_owner_valid);
+    REJECT_FIELD(rx_binding_owned);
     REJECT_FIELD(irq_handles_coherent);
     REJECT_FIELD(net80211_registered);
     REJECT_FIELD(net80211_owned);
@@ -262,9 +279,14 @@ int main(void)
     other.progress = R23BE_PROBE_UNWIND_DATAPATH;
     other.irq_handles_present = false;
     reject(other); /* A journalled datapath cannot remain prepared. */
+    other = s;
+    other.progress = R23BE_PROBE_UNWIND_RX_BINDING;
+    other.irq_handles_present = false;
+    other.datapath_bound = false;
+    reject(other); /* A journalled RX binding cannot remain published. */
 
     s = baseline(R23BE_STAGE_PROBED, false);
-    missing.unprepare_datapath = NULL;
+    missing.unbind_rx = NULL;
     assert(rtwn8723be_probe_unwind_post_registration(
         &s, &progress, &missing, &f) == ENOSYS && f.calls == 0);
     assert(rtwn8723be_probe_unwind_post_registration(
@@ -283,7 +305,7 @@ int main(void)
     other = s;
     other.progress = (enum rtwn8723be_probe_unwind_progress)-1;
     reject(other);
-    puts("RTL_POSTREG_PROBE_UNWIND_C11_OK callbacks=4 retry=4");
+    puts("RTL_POSTREG_PROBE_UNWIND_C11_OK callbacks=5 retry=5");
     return 0;
 }
 '''
