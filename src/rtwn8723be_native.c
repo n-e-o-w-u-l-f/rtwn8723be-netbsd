@@ -68,7 +68,14 @@ rtwn8723be_native_probe_resources_ready(struct rtwn8723be_softc *sc)
             sc->sc_rx_binding != NULL &&
             sc->sc_rx_binding->net == &sc->sc_net80211 &&
             sc->sc_rx_binding->dispatch.arg == sc->sc_rx_binding &&
+            sc->sc_rx_binding->dispatch.frame != NULL &&
+            sc->sc_rx_binding->dispatch.c2h != NULL &&
             sc->sc_datapath != NULL &&
+            sc->sc_datapath->rx.arg == sc->sc_rx_binding &&
+            sc->sc_datapath->rx.frame ==
+                sc->sc_rx_binding->dispatch.frame &&
+            sc->sc_datapath->rx.c2h ==
+                sc->sc_rx_binding->dispatch.c2h &&
             sc->sc_datapath->sc == sc &&
             sc->sc_datapath->prepared &&
             sc->sc_irq_arg == sc->sc_datapath,
@@ -206,7 +213,11 @@ rtwn8723be_native_post_registration_unwind(struct rtwn8723be_softc *sc)
             (dp->prepared && dp->sc == sc &&
              sc->sc_irq_arg == dp && sc->sc_irq_dispatch_ready &&
              sc->sc_irq_dispatch.rx != NULL &&
-             sc->sc_irq_dispatch.tx_done != NULL) :
+             sc->sc_irq_dispatch.tx_done != NULL &&
+             sc->sc_rx_binding != NULL &&
+             dp->rx.arg == sc->sc_rx_binding &&
+             dp->rx.frame == sc->sc_rx_binding->dispatch.frame &&
+             dp->rx.c2h == sc->sc_rx_binding->dispatch.c2h) :
             (sc->sc_irq_arg == NULL && !sc->sc_irq_dispatch_ready &&
              sc->sc_irq_dispatch.rx == NULL &&
              sc->sc_irq_dispatch.tx_done == NULL &&
