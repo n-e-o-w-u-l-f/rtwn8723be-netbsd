@@ -26,6 +26,7 @@ def body(src: str, name: str) -> str:
     raise AssertionError(f"unterminated function {name}")
 
 getter = body(rf, "rtwn8723be_rfkill_native_radio_on")
+worker = body(rf, "rtwn8723be_rfkill_worker")
 start = body(net, "rtwn8723be_n80211_ifinit")
 
 before = start.index("error = n->methods.hw_start(sc);")
@@ -36,6 +37,10 @@ assert start.rfind("rtwn8723be_rfkill_native_radio_on(sc, &radio_on)") > before
 assert start.rfind("rtwn8723be_rfkill_native_radio_on(sc, &radio_on)") < after
 assert "int stop_error = n->methods.hw_stop(sc);" in start[before:after]
 assert "return error != 0 ? error : ENETDOWN;" in start
+assert "n->last_valid = error == 0 && valid;" in worker
+assert worker.index("n->last_error = error;") < worker.index(
+    "n->last_valid = error == 0 && valid;") < worker.index(
+    "n->last_radio_on = on;")
 assert getter.index("mutex_enter(&n->lock);") < getter.index(
     "error = n->last_error;") < getter.index("mutex_exit(&n->lock);")
 assert "if (!active || !valid || error != 0)" in getter
@@ -59,9 +64,13 @@ typedef struct { int held; } kmutex_t;
 static void mutex_enter(kmutex_t *m) { assert(!m->held); m->held = 1; }
 static void mutex_exit(kmutex_t *m) { assert(m->held); m->held = 0; }
 
+struct work { int marker; };
 struct rtwn8723be_rfkill_native {
     kmutex_t lock;
-    bool initialized, active, last_valid, last_radio_on;
+    struct work poll_work;
+    int timer;
+    bool initialized, active, work_queued, last_valid, last_radio_on;
+    unsigned int samples;
     int last_error;
 };
 struct rtwn8723be_softc {
@@ -85,6 +94,23 @@ struct rtwn8723be_net80211 {
     struct rtwn8723be_net80211_methods methods;
 };
 int rtwn8723be_rfkill_native_radio_on(struct rtwn8723be_softc *, bool *);
+static int sample_error;
+static bool sample_valid, sample_on;
+static int callout_count;
+static const int hz = 100;
+static int rtwn8723be_netbsd_rfkill_gpio_sample(
+    struct rtwn8723be_softc *sc, bool *on, bool *valid)
+{
+    assert(sc != NULL);
+    *valid = sample_valid;
+    *on = sample_on;
+    return sample_error;
+}
+static void callout_schedule(int *timer, int frequency)
+{
+    assert(timer != NULL && frequency == hz);
+    callout_count++;
+}
 '''
 epilogue = r'''
 static int starts, stops, start_errno, stop_errno, change_on_start;
@@ -164,6 +190,29 @@ int main(void)
     sc.sc_rfkill_native.initialized = false;
     assert(rtwn8723be_rfkill_native_radio_on(&sc,&on) == ENXIO && !on);
 
+    /* Exercise production workqueue state update, not a copied algorithm. */
+    reset(&sc,&n,&ifp);
+    sc.sc_rfkill_native.work_queued = true;
+    sample_error = 0; sample_valid = true; sample_on = true;
+    rtwn8723be_rfkill_worker(&sc.sc_rfkill_native.poll_work, &sc);
+    assert(sc.sc_rfkill_native.last_valid &&
+        sc.sc_rfkill_native.last_radio_on && callout_count == 1);
+    sc.sc_rfkill_native.work_queued = true;
+    sample_error = EBUSY;
+    rtwn8723be_rfkill_worker(&sc.sc_rfkill_native.poll_work, &sc);
+    assert(!sc.sc_rfkill_native.last_valid &&
+        rtwn8723be_rfkill_native_radio_on(&sc,&on) == EAGAIN);
+    sc.sc_rfkill_native.work_queued = true;
+    sample_error = 0; sample_valid = false;
+    rtwn8723be_rfkill_worker(&sc.sc_rfkill_native.poll_work, &sc);
+    assert(!sc.sc_rfkill_native.last_valid);
+    sc.sc_rfkill_native.work_queued = true;
+    sample_valid = true; sample_on = false;
+    rtwn8723be_rfkill_worker(&sc.sc_rfkill_native.poll_work, &sc);
+    assert(sc.sc_rfkill_native.last_valid &&
+        !sc.sc_rfkill_native.last_radio_on);
+    assert(rtwn8723be_rfkill_native_radio_on(&sc,&on) == 0 && !on);
+
     reset(&sc,&n,&ifp);
     assert(rtwn8723be_n80211_ifinit(&ifp) == 0);
     assert(starts == 1 && stops == 0 &&
@@ -217,8 +266,8 @@ int main(void)
 with tempfile.TemporaryDirectory(prefix="rtl-rfkill-start-") as d:
     source = Path(d) / "test.c"
     exe = Path(d) / "test"
-    source.write_text(prologue + "int\n" + getter +
-        "\nstatic int\n" + start + epilogue)
+    source.write_text(prologue + "static void\n" + worker +
+        "\nint\n" + getter + "\nstatic int\n" + start + epilogue)
     subprocess.run([
         "cc","-std=c11","-Wall","-Wextra","-Werror","-pedantic",
         "-fsanitize=undefined","-fno-sanitize-recover=all",
