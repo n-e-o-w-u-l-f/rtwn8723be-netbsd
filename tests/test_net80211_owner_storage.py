@@ -40,7 +40,10 @@ assert NATIVE_C.count("rtwn8723be_net80211_unregister(") == 1
 owner = NATIVE_C.split("rtwn8723be_native_unwind_net80211(void *arg)", 1)
 assert len(owner) == 2
 owner = owner[1].split("\n}\n", 1)[0]
-assert "return rtwn8723be_net80211_unregister(&sc->sc_net80211);" in owner
+assert "error = rtwn8723be_net80211_unregister(&sc->sc_net80211);" in owner
+assert "if (error != 0)" in owner
+assert "if (sc->sc_net80211.registered || sc->sc_net80211.sc != NULL)" in owner
+assert "return EBUSY;" in owner
 assert "rtwn8723be_probe_unwind_post_registration(" in NATIVE_C
 assert "rtwn8723be_native_post_registration_unwind(sc);" in NATIVE_C
 # Both the forward callback and any speculative hardware/network start
