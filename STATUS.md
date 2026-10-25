@@ -1,6 +1,24 @@
 # RTL8723BE NetBSD project status
 
-Date: 2026-10-11
+Date: 2026-10-25 (native hardware/build evidence remains at 2026-10-11)
+
+## NEW SOURCE-ONLY CHECKPOINT (2026-10-25)
+
+A guarded 48-unit private kernel build/link tool is staged on the feature
+branch; it has **not** run on HP. It requires a fresh, clean source checkout,
+the successful 48-rule private configurator, exact F77 recovery kernel and
+original PCI manifest, and an i915-free generated Makefile. It only writes
+private build artifacts, reports nonempty objects and a full private kernel
+link, and does not install/boot a candidate. Portable negative preflight tests
+and a CI step were added. The legacy staged full-kernel route was disabled.
+See `docs/SHADOW_48_BUILD_GATE_20261025.md`.
+
+The connected HP remote tool reported its monthly usage limit and refused
+execution. The observed GitHub Actions attempts on this feature branch
+failed with **zero job steps**, so they do not constitute source-test failures
+or passing tests. The **last verified** full native kernel link remains the
+47-object Shadow H from October 11. The current 48-unit full link, live
+lifecycle, PCI/IRQ admission and physical WLAN acceptance remain OPEN.
 
 ## IST
 
