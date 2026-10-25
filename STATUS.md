@@ -1,6 +1,24 @@
 # RTL8723BE NetBSD project status
 
-Date: 2026-10-11
+Date: 2026-10-25 (last verified HP native build: 2026-10-11)
+
+## SOURCE CHECKPOINT — PROBE ADMISSION (2026-10-25)
+
+The native PCI attachment now performs a real 15-field softc ownership
+admission before it reports successful probing: PROBED/nonrunning lifecycle,
+original PCI snapshot, BAR/core/DMA32/rings, registered and softc-owned
+net80211 with three methods, initialized/active RFKill, ready IRQ dispatch
+and allocated hard/soft/PCI IRQ handles with operational interrupts disabled.
+Every missing prerequisite suppresses the success announcement without
+releasing potentially live post-registration resources.
+
+The production predicate and a strict C11/UBSan test with 15 invalid-snapshot
+cases and source-level negative controls are included in CI. A GitHub-source
+readback confirms the mapping, admission ordering and CI wiring, but **native
+NetBSD compilation, CI success and HP hardware tests have not been verified**
+for this change. Four lifecycle owners remain intentionally unbound, and the
+post-registration rollback remains blocked. See
+`docs/PROBE_ADMISSION_20261025.md`. F77 and i915 safeguards are unchanged.
 
 ## IST
 
