@@ -56,4 +56,11 @@ must_reject({**status, "rules": [
 ]})
 must_reject(status, names=units[:-1])
 must_reject(status, names=[*units[:-1], units[0]])
+# The older tree-staging entrypoint must never become an alternate
+# full-kernel or i915-enabled path around the isolated shadow gate.
+legacy = (ROOT / "tools/build_hp_native.py").read_text()
+assert 'if args.target == "kernel":' in legacy
+assert 'sys.exit("REFUSED: legacy kernel target disabled;' in legacy
+assert "'no i915drmkms*\\n'" in legacy
+
 print("RTL_PRIVATE_48_LINK_PREFLIGHT_OK")
