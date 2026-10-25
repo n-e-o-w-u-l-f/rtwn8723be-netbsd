@@ -18,7 +18,7 @@ netbsd = (SRC / "rtwn8723be_netbsd.c").read_text()
 assert '#include "rtwn8723be_probe_unwind.h"' in native
 for function, effect in (
     ("rtwn8723be_native_unwind_irq", "rtwn8723be_netbsd_disestablish_irq(sc)"),
-    ("rtwn8723be_native_unwind_rfkill", "rtwn8723be_rfkill_native_fini(arg)"),
+    ("rtwn8723be_native_unwind_rfkill", "rtwn8723be_rfkill_native_fini(sc)"),
     ("rtwn8723be_native_unwind_net80211", "rtwn8723be_net80211_unregister(&sc->sc_net80211)"),
 ):
     assert function + "(" in native and effect in native, function
@@ -28,6 +28,9 @@ assert ".rfkill_queue_present = sc->sc_rfkill_native.wq != NULL" in native
 assert ".irq_handles_coherent = all_irq || no_irq" in native
 assert ".hal_started = sc->sc_hal_started" in native
 assert ".irq_requested = sc->sc_irq_requested" in native
+assert ".progress = sc->sc_probe_unwind_progress" in native
+assert "&sc->sc_probe_unwind_progress, &ops, sc" in native
+assert "sc->sc_probe_unwind_progress = R23BE_PROBE_UNWIND_NONE;" in native
 
 cleanup = native.split(
     "rtwn8723be_native_probe_cleanup(struct rtwn8723be_softc *sc)", 1)[1]
@@ -87,6 +90,7 @@ baseline(enum rtwn8723be_linux_stage stage)
 {
     struct rtwn8723be_probe_unwind_snapshot s = {0};
     s.stage = stage;
+    s.progress = R23BE_PROBE_UNWIND_NONE;
     s.pci_snapshot = true;
     s.bar_mapped = true;
     s.irq_handles_coherent = true;
@@ -102,34 +106,79 @@ static void
 passes(enum rtwn8723be_linux_stage stage)
 {
     struct rtwn8723be_probe_unwind_snapshot s = baseline(stage);
+    enum rtwn8723be_probe_unwind_progress progress = R23BE_PROBE_UNWIND_NONE;
     struct fixture f = {0};
+
     assert(rtwn8723be_probe_unwind_eligible(&s));
-    assert(rtwn8723be_probe_unwind_post_registration(&s, &ops, &f) == 0);
+    assert(rtwn8723be_probe_unwind_post_registration(
+        &s, &progress, &ops, &f) == 0);
+    assert(progress == R23BE_PROBE_UNWIND_NET80211);
     assert(f.calls == 3 && f.order[0] == 1 &&
         f.order[1] == 2 && f.order[2] == 3);
+
     for (int fail = 1; fail <= 3; fail++) {
+        s = baseline(stage);
+        progress = R23BE_PROBE_UNWIND_NONE;
         memset(&f, 0, sizeof(f));
         f.fail_on = fail;
-        assert(rtwn8723be_probe_unwind_post_registration(&s, &ops, &f)
-            == EIO);
+        assert(rtwn8723be_probe_unwind_post_registration(
+            &s, &progress, &ops, &f) == EIO);
         assert(f.calls == fail);
+        assert(progress == (enum rtwn8723be_probe_unwind_progress)(fail - 1));
         for (int j = 0; j < fail; j++)
             assert(f.order[j] == j + 1);
+
+        /* Simulate the postconditions the real NetBSD callbacks verified. */
+        s.progress = progress;
+        if (progress >= R23BE_PROBE_UNWIND_IRQ)
+            s.irq_handles_present = false;
+        if (progress >= R23BE_PROBE_UNWIND_RFKILL) {
+            s.rfkill_initialized = false;
+            s.rfkill_queue_present = false;
+            s.rfkill_active = false;
+        }
+        if (progress >= R23BE_PROBE_UNWIND_NET80211) {
+            s.net80211_registered = false;
+            s.net80211_owned = false;
+        }
+        assert(rtwn8723be_probe_unwind_eligible(&s));
+        memset(&f, 0, sizeof(f));
+        assert(rtwn8723be_probe_unwind_post_registration(
+            &s, &progress, &ops, &f) == 0);
+        assert(progress == R23BE_PROBE_UNWIND_NET80211);
+        assert(f.calls == 4 - fail);
+        for (int j = 0; j < f.calls; j++)
+            assert(f.order[j] == fail + j);
+
+        /* Reentrant successful teardown is an actual no-op. */
+        s.progress = progress;
+        s.irq_handles_present = false;
+        s.rfkill_initialized = false;
+        s.rfkill_queue_present = false;
+        s.rfkill_active = false;
+        s.net80211_registered = false;
+        s.net80211_owned = false;
+        memset(&f, 0, sizeof(f));
+        assert(rtwn8723be_probe_unwind_post_registration(
+            &s, &progress, &ops, &f) == 0);
+        assert(f.calls == 0);
     }
 }
 static void
 reject(struct rtwn8723be_probe_unwind_snapshot s)
 {
     struct fixture f = {0};
+    enum rtwn8723be_probe_unwind_progress progress = s.progress;
     assert(!rtwn8723be_probe_unwind_eligible(&s));
-    assert(rtwn8723be_probe_unwind_post_registration(&s, &ops, &f)
-        == EBUSY);
+    assert(rtwn8723be_probe_unwind_post_registration(
+        &s, &progress, &ops, &f) == EBUSY);
     assert(f.calls == 0);
 }
 int main(void)
 {
     struct rtwn8723be_probe_unwind_snapshot s, other;
     struct rtwn8723be_probe_unwind_ops missing = ops;
+    enum rtwn8723be_probe_unwind_progress progress = R23BE_PROBE_UNWIND_NONE;
     struct fixture f = {0};
 
     assert(!rtwn8723be_probe_unwind_eligible(NULL));
@@ -189,11 +238,25 @@ int main(void)
 
     s = baseline(R23BE_STAGE_PROBED);
     missing.drain_rfkill = NULL;
-    assert(rtwn8723be_probe_unwind_post_registration(&s, &missing, &f)
-        == ENOSYS && f.calls == 0);
-    assert(rtwn8723be_probe_unwind_post_registration(&s, NULL, &f)
-        == ENOSYS && f.calls == 0);
-    puts("RTL_POSTREG_PROBE_UNWIND_C11_OK callbacks=3 failure-stops=3");
+    assert(rtwn8723be_probe_unwind_post_registration(
+        &s, &progress, &missing, &f) == ENOSYS && f.calls == 0);
+    assert(rtwn8723be_probe_unwind_post_registration(
+        &s, &progress, NULL, &f) == ENOSYS && f.calls == 0);
+    assert(rtwn8723be_probe_unwind_post_registration(
+        &s, NULL, &ops, &f) == EBUSY && f.calls == 0);
+    progress = R23BE_PROBE_UNWIND_IRQ; /* Journal mismatch is forbidden. */
+    assert(rtwn8723be_probe_unwind_post_registration(
+        &s, &progress, &ops, &f) == EBUSY && f.calls == 0);
+    other = s;
+    other.progress = R23BE_PROBE_UNWIND_IRQ; /* Must see the released IRQ. */
+    reject(other);
+    other = s;
+    other.progress = (enum rtwn8723be_probe_unwind_progress)99;
+    reject(other);
+    other = s;
+    other.progress = (enum rtwn8723be_probe_unwind_progress)-1;
+    reject(other);
+    puts("RTL_POSTREG_PROBE_UNWIND_C11_OK callbacks=3 retry=3");
     return 0;
 }
 '''
