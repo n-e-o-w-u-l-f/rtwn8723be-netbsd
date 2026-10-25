@@ -21,6 +21,7 @@
 
 #include "rtwn8723be_f16_1.h"
 #include "rtwn8723be_linux_state.h"
+#include "rtwn8723be_probe_unwind.h"
 #include "rtwn8723be_runtime_owner.h"
 #include "rtwn8723be_net80211.h"
 #include "rtwn8723be_fw.h"
@@ -115,6 +116,7 @@ struct rtwn8723be_softc {
     void *sc_irq_arg;
 
     struct rtwn8723be_linux_state sc_linux;
+    enum rtwn8723be_probe_unwind_progress sc_probe_unwind_progress;
     struct rtwn8723be_runtime_owner sc_runtime_owner;
     /* Persistent owner for a future fully-unwound net80211 registration. */
     struct rtwn8723be_net80211 sc_net80211;
