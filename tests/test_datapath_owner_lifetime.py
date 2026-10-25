@@ -12,6 +12,7 @@ H = (ROOT / "src/rtwn8723be_netbsd.h").read_text()
 DP = (ROOT / "src/rtwn8723be_datapath.c").read_text()
 NATIVE = (ROOT / "src/rtwn8723be_native.c").read_text()
 UNWIND = (ROOT / "src/rtwn8723be_probe_unwind.h").read_text()
+NETBSD_C = (ROOT / "src/rtwn8723be_netbsd.c").read_text()
 
 def body(src: str, name: str) -> str:
     match = re.search(r"(?m)^(?:static\s+)?int\s*\n" +
@@ -67,6 +68,13 @@ def contract(dp_source: str, native_source: str) -> None:
     assert "sc->sc_irq_dispatch_ready" in unwind
 
     assert ".unprepare_datapath = rtwn8723be_native_unwind_datapath," in native_source
+    admission = native_source.split(
+        "rtwn8723be_native_probe_resources_ready(struct rtwn8723be_softc *sc)", 1)[1]
+    admission = admission.split("\n}\n", 1)[0]
+    assert "sc->sc_datapath != NULL" in admission
+    assert "sc->sc_datapath->prepared" in admission
+    assert "sc->sc_datapath->sc == sc" in admission
+    assert "sc->sc_irq_arg == sc->sc_datapath" in admission
     assert ".datapath_owner_valid = dp != NULL ?" in native_source
     assert ".datapath_tx_enabled = dp != NULL && dp->tx_enabled," in native_source
     assert "sc->sc_datapath = NULL;" not in rollback, (
@@ -78,6 +86,8 @@ def contract(dp_source: str, native_source: str) -> None:
 assert "struct rtwn8723be_datapath *sc_datapath;" in H
 assert "struct rtwn8723be_datapath;" in H
 assert "R23BE_PROBE_UNWIND_DATAPATH" in UNWIND
+assert "KASSERT(sc->sc_datapath == NULL);" in NETBSD_C
+assert "KASSERT(sc->sc_irq_arg == NULL && !sc->sc_irq_dispatch_ready);" in NETBSD_C
 assert "error = ops->unprepare_datapath(owner);" in UNWIND
 assert "s->datapath_tx_enabled" in UNWIND
 assert "!s->datapath_owner_valid" in UNWIND
@@ -101,6 +111,8 @@ controls = (
     (DP, NATIVE.replace(
         "if (rtwn8723be_native_unwind_datapath(sc) != 0)",
         "if (false)", 1)),
+    (DP, NATIVE.replace(
+        "sc->sc_datapath->prepared", "true", 1)),
 )
 for i, (changed_dp, changed_native) in enumerate(controls, 1):
     assert changed_dp != DP or changed_native != NATIVE, i
@@ -110,4 +122,4 @@ for i, (changed_dp, changed_native) in enumerate(controls, 1):
         continue
     raise AssertionError(f"unsafe datapath lifetime mutation {i} accepted")
 
-print("RTL_DATAPATH_OWNER_LIFETIME_SOURCE_OK negatives=9")
+print("RTL_DATAPATH_OWNER_LIFETIME_SOURCE_OK negatives=10")
