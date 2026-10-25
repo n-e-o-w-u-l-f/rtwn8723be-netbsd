@@ -53,11 +53,14 @@ rtwn8723be_rfkill_worker(struct work *wk, void *arg)
     if (active) {
         n->samples++;
         n->last_error = error;
-        if (error == 0 && valid) {
-            n->last_valid = true;
+        /*
+         * A later failing/invalid poll MUST revoke the previous good
+         * sample; otherwise a stale radio-on bit would authorize WLAN
+         * start after the physical switch became unreadable.
+         */
+        n->last_valid = error == 0 && valid;
+        if (n->last_valid)
             n->last_radio_on = on;
-        }
-        /* Busy/invalid polls NEVER publish an invented switch value. */
     }
     n->work_queued = false;
     if (n->active)
