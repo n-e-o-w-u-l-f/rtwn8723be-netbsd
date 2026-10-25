@@ -29,6 +29,7 @@ struct rtwn8723be_probe_unwind_snapshot {
     bool being_init_adapter;
     bool fw_ready;
     bool hal_started;
+    bool datapath_bound;          /* Prepared TX lock/IRQ dispatch still owned */
     bool irq_requested;
     bool irq_enabled;
     bool irq_handles_coherent;
@@ -59,7 +60,8 @@ rtwn8723be_probe_unwind_eligible(
         s->stage > R23BE_STAGE_PROBED ||
         (unsigned int)s->progress > R23BE_PROBE_UNWIND_NET80211 ||
         s->started || s->being_init_adapter || s->fw_ready ||
-        s->hal_started || s->irq_requested || s->irq_enabled ||
+        s->hal_started || s->datapath_bound ||
+        s->irq_requested || s->irq_enabled ||
         !s->irq_handles_coherent)
         return false;
 
