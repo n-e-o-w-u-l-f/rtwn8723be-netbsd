@@ -20,5 +20,7 @@ struct rtwn8723be_rx_binding {
 int rtwn8723be_rx_binding_init(struct rtwn8723be_rx_binding *,
     struct rtwn8723be_net80211 *,
     const struct rtwn8723be_c2h_handlers *);
+/* Only after IRQ and datapath teardown; retains storage on EBUSY. */
+int rtwn8723be_rx_binding_fini(struct rtwn8723be_rx_binding *);
 
 #endif
