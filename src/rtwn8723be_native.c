@@ -265,7 +265,7 @@ rtwn8723be_native_attach(device_t parent, device_t self, void *aux)
     if (!rtwn8723be_native_probe_resources_ready(sc)) {
         aprint_error_dev(self,
             "native RTL8723BE probe returned success without complete "
-            "resource ownership; retaining probe state, WLAN not accepted\\n");
+            "resource ownership; retaining probe state, WLAN not accepted\n");
         return;
     }
     aprint_normal_dev(self, "native RTL8723BE probe completed\n");
