@@ -39,6 +39,10 @@ struct rtwn8723be_rfkill_native {
  * notification/stop have been proven.
  */
 int rtwn8723be_rfkill_native_init(void *);
+/* Source-read admission: EAGAIN if unknown, busy or stale; on unchanged on
+ * failure. The caller owns serialization against RFKill fini/PCI detach.
+ */
+int rtwn8723be_rfkill_native_radio_on(struct rtwn8723be_softc *, bool *);
 int rtwn8723be_rfkill_native_fini(struct rtwn8723be_softc *);
 
 #endif /* _RTWN8723BE_RFKILL_NATIVE_H_ */
