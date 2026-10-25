@@ -130,6 +130,8 @@ jobs:
         run: python3 tests/test_post_registration_probe_unwind.py
       - name: Verify unique datapath/TX/IRQ owner release
         run: python3 tests/test_datapath_owner_lifetime.py
+      - name: Verify RX/C2H owner release and staged Bluetooth admission
+        run: python3 tests/test_rx_binding_owner_lifetime.py
       - name: Invalidate DMA32 authority on native PCI rollback
         run: python3 tests/test_native_dma_release_invariant.py
       - name: Native callback and manifest inventory
