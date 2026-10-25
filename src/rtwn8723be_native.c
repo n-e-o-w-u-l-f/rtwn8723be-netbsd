@@ -21,6 +21,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 
 #include "rtwn8723be_netbsd.h"
 #include "rtwn8723be_probe_admission.h"
+#include "rtwn8723be_probe_unwind.h"
 
 static int
 rtwn8723be_native_match(device_t parent, cfdata_t cf, void *aux)
@@ -90,12 +91,101 @@ rtwn8723be_native_restore_byte(struct rtwn8723be_softc *sc,
 }
 
 /*
- * Reverse the resource mutations of the CURRENT, pre-registration probe.
- * The full net80211/PHY/runtime teardown must be added BEFORE either
- * register_ieee80211 or init_rfkill may be bound to a live probe.
+ * Reverse the three published probe owners before releasing PCI/MMIO.
+ * Only the unstarted probe stages are admissible; do not call this for
+ * RUNNING, STOPPING, STOPPED or failed hardware initialization.
+ */
+static int
+rtwn8723be_native_unwind_irq(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+
+    if (!sc->sc_irq_lock_initialized)
+        return ENXIO;
+    rtwn8723be_netbsd_disestablish_irq(sc);
+    if (sc->sc_ih != NULL || sc->sc_soft_ih != NULL ||
+        sc->sc_pihp != NULL || sc->sc_irq_enabled ||
+        sc->sc_irq_requested)
+        return EBUSY;
+    return 0;
+}
+
+static int
+rtwn8723be_native_unwind_rfkill(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+    int error;
+
+    error = rtwn8723be_rfkill_native_fini(sc);
+    if (error != 0)
+        return error;
+    if (sc->sc_rfkill_native.initialized ||
+        sc->sc_rfkill_native.active || sc->sc_rfkill_native.wq != NULL)
+        return EBUSY;
+    return 0;
+}
+
+static int
+rtwn8723be_native_unwind_net80211(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+
+    int error;
+
+    error = rtwn8723be_net80211_unregister(&sc->sc_net80211);
+    if (error != 0)
+        return error;
+    if (sc->sc_net80211.registered || sc->sc_net80211.sc != NULL)
+        return EBUSY;
+    return 0;
+}
+
+static int
+rtwn8723be_native_post_registration_unwind(struct rtwn8723be_softc *sc)
+{
+    const bool all_irq = sc->sc_ih != NULL &&
+        sc->sc_soft_ih != NULL && sc->sc_pihp != NULL;
+    const bool no_irq = sc->sc_ih == NULL &&
+        sc->sc_soft_ih == NULL && sc->sc_pihp == NULL;
+    const struct rtwn8723be_probe_unwind_snapshot snapshot = {
+        .stage = sc->sc_linux.stage,
+        .progress = sc->sc_probe_unwind_progress,
+        .pci_snapshot = sc->sc_initial_pci_saved,
+        .bar_mapped = sc->sc_mapped,
+        .started = sc->sc_linux.started,
+        .being_init_adapter = sc->sc_linux.being_init_adapter,
+        .fw_ready = sc->sc_linux.fw_ready,
+        .hal_started = sc->sc_hal_started,
+        .datapath_bound = sc->sc_irq_dispatch_ready ||
+            sc->sc_irq_arg != NULL,
+        .irq_requested = sc->sc_irq_requested,
+        .irq_enabled = sc->sc_irq_enabled,
+        .irq_handles_coherent = all_irq || no_irq,
+        .irq_handles_present = all_irq,
+        .net80211_registered = sc->sc_net80211.registered,
+        .net80211_owned = sc->sc_net80211.registered &&
+            sc->sc_net80211.sc == sc,
+        .rfkill_initialized = sc->sc_rfkill_native.initialized,
+        .rfkill_queue_present = sc->sc_rfkill_native.wq != NULL,
+        .rfkill_active = sc->sc_rfkill_native.active,
+    };
+    const struct rtwn8723be_probe_unwind_ops ops = {
+        .disestablish_irq = rtwn8723be_native_unwind_irq,
+        .drain_rfkill = rtwn8723be_native_unwind_rfkill,
+        .unregister_net80211 = rtwn8723be_native_unwind_net80211,
+    };
+
+    return rtwn8723be_probe_unwind_post_registration(
+        &snapshot, &sc->sc_probe_unwind_progress, &ops, sc);
+}
+
+/*
+ * Reverse the resources of a failed PCI probe, including an unstarted
+ * post-registration probe only AFTER IRQ/RFKill/net80211 owners drain.
+ * The full running-driver shutdown remains deliberately unavailable.
  *
- * In the current canonical ops table preflight returns ENOSYS at IDLE,
- * causing ZERO PCI/MMIO changes and hence no cleanup operations.
+ * The present incomplete ops table still fails preflight at IDLE and
+ * produces no PCI/MMIO effects.
  */
 static void
 rtwn8723be_native_probe_cleanup(struct rtwn8723be_softc *sc)
@@ -117,14 +207,18 @@ rtwn8723be_native_probe_cleanup(struct rtwn8723be_softc *sc)
     }
 
     /*
-     * A registered net80211 interface cannot be freed using the present
-     * pre-registration rollback. Never quietly release resources under it.
+     * Do not free PCI resources beneath a published net80211 interface,
+     * RFKill poller, or IRQ handler. Reverse in precisely that order.
+     * A failed compensator preserves the PCI snapshot and all lower owners.
      */
     if (stage >= R23BE_STAGE_IEEE80211_REGISTER) {
-        aprint_error_dev(sc->sc_dev,
-            "refusing incomplete post-registration teardown; "
-            "native driver must remain disabled\n");
-        return;
+        int error = rtwn8723be_native_post_registration_unwind(sc);
+        if (error != 0) {
+            aprint_error_dev(sc->sc_dev,
+                "refusing incomplete post-registration teardown: %d; "
+                "retaining PCI/MMIO resources\n", error);
+            return;
+        }
     }
 
     if (sc->sc_irq_enabled || sc->sc_ih != NULL ||
@@ -172,6 +266,7 @@ rtwn8723be_native_probe_cleanup(struct rtwn8723be_softc *sc)
     sc->sc_core_initialized = false;
     sc->sc_pcie_cap_valid = false;
     sc->sc_linux.stage = R23BE_STAGE_IDLE;
+    sc->sc_probe_unwind_progress = R23BE_PROBE_UNWIND_NONE;
     sc->sc_linux.fw_ready = false;
     sc->sc_linux.mac_func_enable = false;
     sc->sc_linux.started = false;
@@ -184,9 +279,10 @@ rtwn8723be_native_detach(device_t self, int flags)
     struct rtwn8723be_softc *sc = device_private(self);
 
     (void)flags;
-    /* Runtime/network teardown has not yet been implemented or validated. */
-    if (sc->sc_linux.stage >= R23BE_STAGE_IEEE80211_REGISTER)
-        return EBUSY;
+    /* Failed start and running WLAN have no proven reverse owner yet.
+     * The probe cleanup itself allows only unstarted post-registration
+     * checkpoints and retains resources on an unsafe or failed unwind.
+     */
     rtwn8723be_native_probe_cleanup(sc);
     if (sc->sc_linux.stage != R23BE_STAGE_IDLE ||
         sc->sc_initial_pci_saved)

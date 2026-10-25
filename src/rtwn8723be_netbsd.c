@@ -419,6 +419,12 @@ rtwn8723be_netbsd_dma_release(struct rtwn8723be_softc *sc)
         sc->sc_dmat_owned = false;
     }
     sc->sc_dmat = sc->sc_dmat_parent;
+    /*
+     * The unrestricted parent DMA tag must NEVER inherit the old
+     * hardware-visible DMA32 proof from a destroyed subregion. A later
+     * attempted ring allocation must reconfigure DMA32 explicitly.
+     */
+    sc->sc_dma_32bit = false;
 }
 
 int

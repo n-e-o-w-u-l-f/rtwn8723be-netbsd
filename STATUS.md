@@ -2,6 +2,36 @@
 
 Date: 2026-10-25 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — UNSTARTED PROBE ROLLBACK (2026-10-25)
+
+The native PCI probe cleanup now reverses a partially registered but
+**unstarted** interface, after a pure fail-closed owner/state preflight.
+Order is real IRQ disestablishment, RFKill callout/workqueue drain,
+net80211 unregister, BT-MP/H2C close, descriptor-ring/DMA release, BAR
+unmap and PCI restoration. Each failure retains the remaining hardware resources and
+returns an incomplete detach (EBUSY); an explicit per-device monotonic
+journal records only confirmed reverse-release steps so a later serialized
+retry can resume without guessing what was freed. Started, failed-start
+and STOPPING/STOPPED paths remain barred.
+
+The host also confirmed a DMA32 lease bug: releasing the owned
+bus_dma subregion restored the parent DMA tag but left
+`sc_dma_32bit` true. The release now clears this flag; an additional
+regression checks the critical order and negative mutations. The post-
+registration probe preflight now also refuses teardown while a
+datapath dispatcher still owns the IRQ binding and its TX mutex.
+
+A comprehensive Linux x86_64 test pass from
+`4dd84afc877971aa415923945a9c3127113f9e75` executed all 60
+Python test scripts: **48 passed**, **12 required HP/NetBSD or pinned
+reference trees not present in this sandbox**, and there were no
+other test failures. These results include C11/UBSan compensator retry
+tests and source contract checks. These are source/portable tests;
+no matching HP NetBSD object/kernel build or real RFKill/IRQ/net80211
+runtime validation exists for this revision. Four lifecycle slots remain
+unbound; the full source-closure/hardware gates are still OPEN.
+See `docs/POST_REGISTRATION_PROBE_UNWIND_20261025.md`.
+
 ## SOURCE CHECKPOINT — PROBE ADMISSION (2026-10-25)
 
 The native PCI attachment now performs a real 15-field softc ownership
