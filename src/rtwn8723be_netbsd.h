@@ -57,6 +57,7 @@ struct rtwn8723be_irq_dispatch {
 };
 
 struct rtwn8723be_datapath; /* Owned by its attach lifecycle, never copied. */
+struct rtwn8723be_rx_binding; /* Shared RX/C2H owner, released after IRQ. */
 
 struct rtwn8723be_softc {
     device_t sc_dev;
@@ -118,6 +119,7 @@ struct rtwn8723be_softc {
     void *sc_irq_arg;
     /* Sole prepared IRQ/TX bridge owner: cleared only by unprepare. */
     struct rtwn8723be_datapath *sc_datapath;
+    struct rtwn8723be_rx_binding *sc_rx_binding;
 
     struct rtwn8723be_linux_state sc_linux;
     enum rtwn8723be_probe_unwind_progress sc_probe_unwind_progress;
