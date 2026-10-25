@@ -45,7 +45,7 @@ assert getter.index("mutex_enter(&n->lock);") < getter.index(
     "error = n->last_error;") < getter.index("mutex_exit(&n->lock);")
 assert "if (!active || pending || !valid || error != 0)" in getter
 assert "pending = n->work_queued;" in getter
-assert getter.index("if (!active || !valid || error != 0)") < getter.index("*on = value;")
+assert getter.index("if (!active || pending || !valid || error != 0)") < getter.index("*on = value;")
 
 prologue = r'''
 #include <assert.h>
