@@ -13,10 +13,9 @@ link, and does not install/boot a candidate. Portable negative preflight tests
 and a CI step were added. The legacy staged full-kernel route was disabled.
 See `docs/SHADOW_48_BUILD_GATE_20261025.md`.
 
-The connected HP remote tool reported its monthly usage limit and refused
-execution. The observed GitHub Actions attempts on this feature branch
-failed with **zero job steps**, so they do not constitute source-test failures
-or passing tests. The **last verified** full native kernel link remains the
+The HP build could not be executed in this checkpoint. The observed
+GitHub Actions attempts on this feature branch failed with **zero job steps**,
+so they do not constitute source-test failures or passing tests. The **last verified** full native kernel link remains the
 47-object Shadow H from October 11. The current 48-unit full link, live
 lifecycle, PCI/IRQ admission and physical WLAN acceptance remain OPEN.
 
