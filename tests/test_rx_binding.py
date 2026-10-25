@@ -68,6 +68,11 @@ struct rtwn8723be_rx_binding {
     struct rtwn8723be_rx_dispatch dispatch;
 };
 static int frame_calls, c2h_calls;
+static bool rtwn8723be_btc_mp_native_rx_ready(struct rtwn8723be_softc *sc)
+{
+    return sc != NULL && sc->sc_btc_mp.initialized &&
+        sc->sc_btc_mp.active;
+}
 static int rtwn8723be_net80211_rx_frame(void *n, const uint8_t *data,
     size_t len, const struct rtwn8723be_rx_packet *p)
 {

@@ -43,8 +43,9 @@ assert worker.index("n->last_error = error;") < worker.index(
     "n->last_radio_on = on;")
 assert getter.index("mutex_enter(&n->lock);") < getter.index(
     "error = n->last_error;") < getter.index("mutex_exit(&n->lock);")
-assert "if (!active || !valid || error != 0)" in getter
-assert getter.index("if (!active || !valid || error != 0)") < getter.index("*on = value;")
+assert "if (!active || pending || !valid || error != 0)" in getter
+assert "pending = n->work_queued;" in getter
+assert getter.index("if (!active || pending || !valid || error != 0)") < getter.index("*on = value;")
 
 prologue = r'''
 #include <assert.h>
@@ -187,6 +188,9 @@ int main(void)
     sc.sc_rfkill_native.active = false;
     assert(rtwn8723be_rfkill_native_radio_on(&sc,&on) == EAGAIN && !on);
     sc.sc_rfkill_native.active = true;
+    sc.sc_rfkill_native.work_queued = true;
+    assert(rtwn8723be_rfkill_native_radio_on(&sc,&on) == EAGAIN && !on);
+    sc.sc_rfkill_native.work_queued = false;
     sc.sc_rfkill_native.initialized = false;
     assert(rtwn8723be_rfkill_native_radio_on(&sc,&on) == ENXIO && !on);
 
@@ -228,6 +232,11 @@ int main(void)
     sc.sc_rfkill_native.last_error = EBUSY;
     assert(rtwn8723be_n80211_ifinit(&ifp) == EAGAIN &&
         starts == 0 && stops == 0);
+    reset(&sc,&n,&ifp);
+    sc.sc_rfkill_native.work_queued = true;
+    assert(rtwn8723be_n80211_ifinit(&ifp) == EAGAIN &&
+        starts == 0 && stops == 0);
+
 
     reset(&sc,&n,&ifp);
     sc.sc_rfkill_native.initialized = false;

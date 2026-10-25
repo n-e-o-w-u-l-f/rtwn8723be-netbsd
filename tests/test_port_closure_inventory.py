@@ -506,9 +506,17 @@ def check(root, require_closure=False):
         "packet->c2h_id == R23BE_C2H_BT_INFO",
         "!binding->net->sc->sc_btc.initialized",
         "packet->c2h_id == R23BE_C2H_BT_MP",
-        "!binding->net->sc->sc_btc_mp.initialized",
-        "!binding->net->sc->sc_btc_mp.active",
+        "!rtwn8723be_btc_mp_native_rx_ready(binding->net->sc)",
     )
+    # MP readiness must be sampled under the same IPL_SOFTNET lock used
+    # by activate/stop, not by a racy struct bool load from RX softint.
+    mp_rx_ready = mp_source.split(
+        "rtwn8723be_btc_mp_native_rx_ready(", 1)[1].split("\n}\n", 1)[0]
+    if not all(token in mp_rx_ready for token in (
+            "mutex_enter(&mp->lock);",
+            "ready = mp->active && !mp->faulted && !mp->cancelled;",
+            "mutex_exit(&mp->lock);")):
+        raise ValueError("BT MP RX admission lacks serialized lifecycle gate")
     gate = receive.find("return rtwn8723be_c2h_native_receive(")
     if (publish < 0 or gate < 0 or
             any(t not in receive[:gate] for t in bt_checks) or

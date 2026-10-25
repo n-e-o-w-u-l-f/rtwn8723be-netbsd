@@ -50,6 +50,11 @@ int rtwn8723be_btc_mp_native_activate(struct rtwn8723be_softc *);
  */
 int rtwn8723be_btc_mp_native_request(struct rtwn8723be_softc *, uint8_t,
     const uint8_t *, size_t, bool, struct rtwn8723be_btc_mp_reply *);
+/* IPL_SOFTNET-safe snapshot of MP activation for the RX C2H admission
+ * point. The lifecycle excludes fini until hard+soft IRQ have drained.
+ * This is a state test, not MCU activation or lifetime acquisition.
+ */
+bool rtwn8723be_btc_mp_native_rx_ready(struct rtwn8723be_softc *);
 int rtwn8723be_btc_mp_native_receive(struct rtwn8723be_softc *,
     const struct rtwn8723be_c2h_event *);
 /* Exact callback ABI for rtwn8723be_c2h_handlers.bt_mp. No activation

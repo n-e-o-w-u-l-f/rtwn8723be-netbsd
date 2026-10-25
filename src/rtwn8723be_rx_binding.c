@@ -49,8 +49,7 @@ rtwn8723be_rx_binding_c2h(void *arg, const uint8_t *data,
             !binding->net->sc->sc_btc.initialized)
             return EAGAIN;
         if (packet->c2h_id == R23BE_C2H_BT_MP &&
-            (!binding->net->sc->sc_btc_mp.initialized ||
-             !binding->net->sc->sc_btc_mp.active))
+            !rtwn8723be_btc_mp_native_rx_ready(binding->net->sc))
             return EAGAIN;
     }
     return rtwn8723be_c2h_native_receive(&binding->firmware,

@@ -154,7 +154,7 @@ int
 rtwn8723be_rfkill_native_radio_on(struct rtwn8723be_softc *sc, bool *on)
 {
     struct rtwn8723be_rfkill_native *n;
-    bool active, valid, value;
+    bool active, pending, valid, value;
     int error;
 
     if (sc == NULL || on == NULL)
@@ -165,12 +165,18 @@ rtwn8723be_rfkill_native_radio_on(struct rtwn8723be_softc *sc, bool *on)
 
     mutex_enter(&n->lock);
     active = n->active;
+    pending = n->work_queued;
     valid = n->last_valid;
     value = n->last_radio_on;
     error = n->last_error;
     mutex_exit(&n->lock);
 
-    if (!active || !valid || error != 0)
+    /*
+     * A queued/in-flight GPIO read supersedes the older sample. Return
+     * unknown until the workqueue actually verifies the physical switch.
+     * Otherwise ifconfig UP could race a pending radio-off observation.
+     */
+    if (!active || pending || !valid || error != 0)
         return EAGAIN;
     *on = value;
     return 0;

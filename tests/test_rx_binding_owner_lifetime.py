@@ -34,8 +34,7 @@ def source_contract(rx: str, native: str) -> None:
         "packet->c2h_id == R23BE_C2H_BT_INFO",
         "!binding->net->sc->sc_btc.initialized",
         "packet->c2h_id == R23BE_C2H_BT_MP",
-        "!binding->net->sc->sc_btc_mp.initialized",
-        "!binding->net->sc->sc_btc_mp.active",
+        "!rtwn8723be_btc_mp_native_rx_ready(binding->net->sc)",
         "return EAGAIN;",
     ):
         assert x in recv, x
@@ -90,6 +89,8 @@ cases = (
                 "/* publish suppressed */", 1), N),
     (RX.replace("packet->c2h_id == R23BE_C2H_BT_MP",
                 "false", 1), N),
+    (RX.replace("!rtwn8723be_btc_mp_native_rx_ready(binding->net->sc)",
+                "false", 1), N),
     (RX.replace("!binding->net->sc->sc_btc.initialized",
                 "false", 1), N),
     (RX.replace("sc->sc_irq_requested ||", "", 1), N),
@@ -110,4 +111,4 @@ for i, (rx, native) in enumerate(cases, 1):
     except (ValueError, AssertionError):
         continue
     raise AssertionError(f"unsafe RX ownership mutation {i} accepted")
-print("RTL_RX_BINDING_FIVE_OWNER_SOURCE_OK negatives=9")
+print("RTL_RX_BINDING_FIVE_OWNER_SOURCE_OK negatives=10")

@@ -2,6 +2,28 @@
 
 Date: 2026-10-25 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — SERIALIZED BT MP C2H / PENDING RFKILL (2026-10-26)
+
+The RX C2H bridge no longer reads the MP transaction `active`
+flag without locking: a new real native gate snapshots active,
+faulted and cancelled under the MP owner IPL_SOFTNET mutex, which
+also serializes firmware activation, timeout, cancellation and STOP.
+This does not bypass external MP fini/softint drain requirements.
+
+The RFKill net80211 start predicate also rejects
+`sc_rfkill_native.work_queued` while a newer GPIO sample is
+pending or in flight, instead of allowing the previous radio-on
+sample to authorize a hardware start.
+
+On a disposable Linux x86_64 checkout at
+`eac9d8322de848272b7d4e64d40a1ae2bdea4eef`,
+**52/52 portable permitted tests passed** with no timeouts;
+12 target/reference-dependent tests were not executed (64 total).
+The new production MP gate compiled and passed C11/UBSan owner-lock
+negative cases. **HP NetBSD kernel link and WLAN tests remain OPEN**;
+four lifecycle slots remain unbound. See
+`docs/BT_MP_RFKILL_PENDING_20261026.md`.
+
 ## SOURCE CHECKPOINT — RFKILL-VALIDATED NET80211 START (2026-10-25)
 
 An invalid or failed GPIO poll now revokes the previous valid RFKill
