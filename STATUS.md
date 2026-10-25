@@ -14,10 +14,19 @@ journal records only confirmed reverse-release steps so a later serialized
 retry can resume without guessing what was freed. Started, failed-start
 and STOPPING/STOPPED paths remain barred.
 
-Fourteen portable regression scripts (including the actual C11/UBSan
-compensator broker, three fault-injected retry paths and corrupt-journal
-negative cases) passed on legion / Linux x86_64 in a disposable checkout
-at `57cee09303f37bf80d83f23d3c5282c8cd26cd3a`. These are source/portable tests;
+The host also confirmed a DMA32 lease bug: releasing the owned
+bus_dma subregion restored the parent DMA tag but left
+`sc_dma_32bit` true. The release now clears this flag; an additional
+regression checks the critical order and negative mutations. The post-
+registration probe preflight now also refuses teardown while a
+datapath dispatcher still owns the IRQ binding and its TX mutex.
+
+A comprehensive Linux x86_64 test pass from
+`4dd84afc877971aa415923945a9c3127113f9e75` executed all 60
+Python test scripts: **48 passed**, **12 required HP/NetBSD or pinned
+reference trees not present in this sandbox**, and there were no
+other test failures. These results include C11/UBSan compensator retry
+tests and source contract checks. These are source/portable tests;
 no matching HP NetBSD object/kernel build or real RFKill/IRQ/net80211
 runtime validation exists for this revision. Four lifecycle slots remain
 unbound; the full source-closure/hardware gates are still OPEN.
