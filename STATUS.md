@@ -2,6 +2,24 @@
 
 Date: 2026-10-25 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — UNSTARTED PROBE ROLLBACK (2026-10-25)
+
+The native PCI probe cleanup now reverses a partially registered but
+**unstarted** interface, after a pure fail-closed owner/state preflight.
+Order is real IRQ disestablishment, RFKill callout/workqueue drain,
+net80211 unregister, BT-MP/H2C close, descriptor-ring/DMA release, BAR
+unmap and PCI restoration. Each failure retains the remaining hardware
+resources and returns an incomplete detach (EBUSY); started, failed-start
+and STOPPING/STOPPED paths remain explicitly barred.
+
+Seven portable regression scripts (including the actual C11/UBSan
+compensator broker and fault-injected negative cases) passed on legion /
+Linux x86_64 in a disposable checkout. These are source/portable tests;
+no matching HP NetBSD object/kernel build or real RFKill/IRQ/net80211
+runtime validation exists for this revision. Four lifecycle slots remain
+unbound; the full source-closure/hardware gates are still OPEN.
+See `docs/POST_REGISTRATION_PROBE_UNWIND_20261025.md`.
+
 ## SOURCE CHECKPOINT — PROBE ADMISSION (2026-10-25)
 
 The native PCI attachment now performs a real 15-field softc ownership
