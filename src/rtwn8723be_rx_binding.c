@@ -41,12 +41,12 @@ rtwn8723be_rx_binding_c2h(void *arg, const uint8_t *data,
      * policy/MP owner is not active until the later BT start transition.
      * Publishing callbacks is NOT permission to handle BT notifications.
      * The ring callback only borrows these bytes; never queue an event
-     * into a not-yet-activated or already-closing BT owner.
+     * into a not-yet-initialized owner. The real BT event enqueue still
+     * checks events_enabled/closing under its own IPL_SOFTNET mutex.
      */
     if (binding->net->sc->sc_btcoexist) {
         if (packet->c2h_id == R23BE_C2H_BT_INFO &&
-            (!binding->net->sc->sc_btc.initialized ||
-             !binding->net->sc->sc_btc.events_enabled))
+            !binding->net->sc->sc_btc.initialized)
             return EAGAIN;
         if (packet->c2h_id == R23BE_C2H_BT_MP &&
             (!binding->net->sc->sc_btc_mp.initialized ||
