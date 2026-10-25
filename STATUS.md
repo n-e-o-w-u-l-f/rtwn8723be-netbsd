@@ -2,6 +2,30 @@
 
 Date: 2026-10-25 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — STAGED RX/C2H & BINDING OWNER (2026-10-25)
+
+A real probe/start ordering deadlock was removed at source level:
+net80211 and shared RX/IRQ callbacks can be prepared before the firmware-
+dependent Bluetooth coexistence/MP owners have been activated. The actual
+RX C2H callback rejects premature BT_INFO/BT_MP events with EAGAIN before
+forwarding borrowed DMA data; native BTC event admission still occurs under
+its own lock. No real Bluetooth activation is fabricated.
+
+The shared RX binding now has a single softc owner and a checked fini
+requiring IRQ and datapath shutdown. Post-registration teardown journals
+NONE → IRQ → DATAPATH → RX_BINDING → RFKILL → NET80211. Native PCI probe
+success also requires RX and datapath callback identity consistency.
+
+In a disposable clone on legion Linux x86_64 at
+`cab2f716b532d00245c3fc22f4030b2227d5dd4f`, **50 of 50
+permitted portable regression scripts passed**; 12 of 62 require the
+HP/NetBSD target or missing pinned Linux reference checkouts. Both the
+RX binding and five-compensator broker were actually compiled under
+strict portable C11/UBSan. This is **not** a NetBSD/HP kernel link or
+hardware WLAN acceptance. Full net80211 methods, RFKill state
+publication, BTC/DM lifecycle and four unbound callbacks remain OPEN.
+See `docs/RX_C2H_STAGED_ADMISSION_20261025.md`.
+
 ## SOURCE CHECKPOINT — DATAPATH/TX LIFETIME (2026-10-25)
 
 The native softc now records the unique prepared datapath bridge owner
