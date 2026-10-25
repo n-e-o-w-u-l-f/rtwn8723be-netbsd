@@ -156,6 +156,8 @@ rtwn8723be_native_post_registration_unwind(struct rtwn8723be_softc *sc)
         .being_init_adapter = sc->sc_linux.being_init_adapter,
         .fw_ready = sc->sc_linux.fw_ready,
         .hal_started = sc->sc_hal_started,
+        .datapath_bound = sc->sc_irq_dispatch_ready ||
+            sc->sc_irq_arg != NULL,
         .irq_requested = sc->sc_irq_requested,
         .irq_enabled = sc->sc_irq_enabled,
         .irq_handles_coherent = all_irq || no_irq,
