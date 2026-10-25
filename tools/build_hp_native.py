@@ -22,6 +22,8 @@ parser.add_argument("--netbsd-tree", type=Path, required=True)
 parser.add_argument("--objdir", type=Path, required=True)
 parser.add_argument("--target", choices=("objects", "kernel"), default="objects")
 args = parser.parse_args()
+if args.target == "kernel":
+    sys.exit("REFUSED: legacy kernel target disabled; use the isolated shadow 48-link gate")
 if platform.system() != "NetBSD" or not socket.gethostname().startswith("hp-tpnw121"):
     sys.exit("REFUSED: this build is authorized only on HP/NetBSD")
 tree = args.netbsd_tree.resolve(strict=True)
@@ -87,6 +89,7 @@ try:
     config.write_text('include "arch/amd64/conf/GENERIC"\n'
                       'ident "HP-RTL-NATIVE-20261005"\n'
                       'no rtwn*\n'
+                      'no i915drmkms*\n'
                       'rtwn8723be_native* at pci? dev ? function ?\n', encoding="utf-8")
     # Keep /usr/tools and its source-root-specific wrapper untouched.
     tools.mkdir(exist_ok=True)
