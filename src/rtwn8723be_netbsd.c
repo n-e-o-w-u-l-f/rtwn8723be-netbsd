@@ -83,6 +83,12 @@ rtwn8723be_netbsd_context_fini(struct rtwn8723be_softc *sc)
     if (sc == NULL)
         return;
     /*
+     * The prepared bridge owns an IPL_NET TX mutex and IRQ callbacks.
+     * Never retire the softc while that external owner is still bound.
+     */
+    KASSERT(sc->sc_datapath == NULL);
+    KASSERT(sc->sc_irq_arg == NULL && !sc->sc_irq_dispatch_ready);
+    /*
      * Native detach has already quiesced and disestablished both hard
      * and soft IRQ before either spin mutex or MMIO may be released.
      */
