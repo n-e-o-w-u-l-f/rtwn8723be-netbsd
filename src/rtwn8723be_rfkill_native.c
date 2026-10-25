@@ -141,6 +141,38 @@ rtwn8723be_rfkill_native_init(void *arg)
     return 0;
 }
 
+/*
+ * The registered interface may start only on a fresh, valid physical-radio
+ * sample. Never confuse a stale last-known value after a busy/failing poll
+ * with a proven current RF switch state. The external net80211 lifecycle
+ * excludes concurrent fini while this spin-lock-protected snapshot runs.
+ */
+int
+rtwn8723be_rfkill_native_radio_on(struct rtwn8723be_softc *sc, bool *on)
+{
+    struct rtwn8723be_rfkill_native *n;
+    bool active, valid, value;
+    int error;
+
+    if (sc == NULL || on == NULL)
+        return EINVAL;
+    n = &sc->sc_rfkill_native;
+    if (!n->initialized)
+        return ENXIO;
+
+    mutex_enter(&n->lock);
+    active = n->active;
+    valid = n->last_valid;
+    value = n->last_radio_on;
+    error = n->last_error;
+    mutex_exit(&n->lock);
+
+    if (!active || !valid || error != 0)
+        return EAGAIN;
+    *on = value;
+    return 0;
+}
+
 int
 rtwn8723be_rfkill_native_fini(struct rtwn8723be_softc *sc)
 {
