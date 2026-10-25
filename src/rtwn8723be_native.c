@@ -113,7 +113,16 @@ rtwn8723be_native_unwind_irq(void *arg)
 static int
 rtwn8723be_native_unwind_rfkill(void *arg)
 {
-    return rtwn8723be_rfkill_native_fini(arg);
+    struct rtwn8723be_softc *sc = arg;
+    int error;
+
+    error = rtwn8723be_rfkill_native_fini(sc);
+    if (error != 0)
+        return error;
+    if (sc->sc_rfkill_native.initialized ||
+        sc->sc_rfkill_native.active || sc->sc_rfkill_native.wq != NULL)
+        return EBUSY;
+    return 0;
 }
 
 static int
@@ -121,7 +130,14 @@ rtwn8723be_native_unwind_net80211(void *arg)
 {
     struct rtwn8723be_softc *sc = arg;
 
-    return rtwn8723be_net80211_unregister(&sc->sc_net80211);
+    int error;
+
+    error = rtwn8723be_net80211_unregister(&sc->sc_net80211);
+    if (error != 0)
+        return error;
+    if (sc->sc_net80211.registered || sc->sc_net80211.sc != NULL)
+        return EBUSY;
+    return 0;
 }
 
 static int
@@ -133,6 +149,7 @@ rtwn8723be_native_post_registration_unwind(struct rtwn8723be_softc *sc)
         sc->sc_soft_ih == NULL && sc->sc_pihp == NULL;
     const struct rtwn8723be_probe_unwind_snapshot snapshot = {
         .stage = sc->sc_linux.stage,
+        .progress = sc->sc_probe_unwind_progress,
         .pci_snapshot = sc->sc_initial_pci_saved,
         .bar_mapped = sc->sc_mapped,
         .started = sc->sc_linux.started,
@@ -157,7 +174,7 @@ rtwn8723be_native_post_registration_unwind(struct rtwn8723be_softc *sc)
     };
 
     return rtwn8723be_probe_unwind_post_registration(
-        &snapshot, &ops, sc);
+        &snapshot, &sc->sc_probe_unwind_progress, &ops, sc);
 }
 
 /*
@@ -247,6 +264,7 @@ rtwn8723be_native_probe_cleanup(struct rtwn8723be_softc *sc)
     sc->sc_core_initialized = false;
     sc->sc_pcie_cap_valid = false;
     sc->sc_linux.stage = R23BE_STAGE_IDLE;
+    sc->sc_probe_unwind_progress = R23BE_PROBE_UNWIND_NONE;
     sc->sc_linux.fw_ready = false;
     sc->sc_linux.mac_func_enable = false;
     sc->sc_linux.started = false;
