@@ -56,6 +56,8 @@ struct rtwn8723be_irq_dispatch {
     void (*power_event)(void *);
 };
 
+struct rtwn8723be_datapath; /* Owned by its attach lifecycle, never copied. */
+
 struct rtwn8723be_softc {
     device_t sc_dev;
     struct ethercom sc_ec;
@@ -114,6 +116,8 @@ struct rtwn8723be_softc {
 
     struct rtwn8723be_irq_dispatch sc_irq_dispatch;
     void *sc_irq_arg;
+    /* Sole prepared IRQ/TX bridge owner: cleared only by unprepare. */
+    struct rtwn8723be_datapath *sc_datapath;
 
     struct rtwn8723be_linux_state sc_linux;
     enum rtwn8723be_probe_unwind_progress sc_probe_unwind_progress;

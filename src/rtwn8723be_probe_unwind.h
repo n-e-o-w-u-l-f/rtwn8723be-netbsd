@@ -16,6 +16,7 @@
 enum rtwn8723be_probe_unwind_progress {
     R23BE_PROBE_UNWIND_NONE = 0,
     R23BE_PROBE_UNWIND_IRQ,
+    R23BE_PROBE_UNWIND_DATAPATH,
     R23BE_PROBE_UNWIND_RFKILL,
     R23BE_PROBE_UNWIND_NET80211,
 };
@@ -30,6 +31,8 @@ struct rtwn8723be_probe_unwind_snapshot {
     bool fw_ready;
     bool hal_started;
     bool datapath_bound;          /* Prepared TX lock/IRQ dispatch still owned */
+    bool datapath_owner_valid;    /* IRQ callbacks and owner pointer agree */
+    bool datapath_tx_enabled;     /* Unprepare requires TX quiescence */
     bool irq_requested;
     bool irq_enabled;
     bool irq_handles_coherent;
@@ -43,6 +46,7 @@ struct rtwn8723be_probe_unwind_snapshot {
 
 struct rtwn8723be_probe_unwind_ops {
     int (*disestablish_irq)(void *);
+    int (*unprepare_datapath)(void *);
     int (*drain_rfkill)(void *);
     int (*unregister_net80211)(void *);
 };
@@ -60,8 +64,8 @@ rtwn8723be_probe_unwind_eligible(
         s->stage > R23BE_STAGE_PROBED ||
         (unsigned int)s->progress > R23BE_PROBE_UNWIND_NET80211 ||
         s->started || s->being_init_adapter || s->fw_ready ||
-        s->hal_started || s->datapath_bound ||
-        s->irq_requested || s->irq_enabled ||
+        s->hal_started || !s->datapath_owner_valid ||
+        s->datapath_tx_enabled || s->irq_requested || s->irq_enabled ||
         !s->irq_handles_coherent)
         return false;
 
@@ -82,7 +86,9 @@ rtwn8723be_probe_unwind_eligible(
          s->rfkill_initialized))
         return false;
 
-    if ((s->progress >= R23BE_PROBE_UNWIND_IRQ &&
+    if ((s->progress >= R23BE_PROBE_UNWIND_DATAPATH &&
+         s->datapath_bound) ||
+        (s->progress >= R23BE_PROBE_UNWIND_IRQ &&
          s->irq_handles_present) ||
         (s->progress < R23BE_PROBE_UNWIND_IRQ &&
          s->stage == R23BE_STAGE_PROBED &&
@@ -115,6 +121,7 @@ rtwn8723be_probe_unwind_post_registration(
         !rtwn8723be_probe_unwind_eligible(s))
         return EBUSY;
     if (ops == NULL || ops->disestablish_irq == NULL ||
+        ops->unprepare_datapath == NULL ||
         ops->drain_rfkill == NULL || ops->unregister_net80211 == NULL)
         return ENOSYS;
 
@@ -123,6 +130,12 @@ rtwn8723be_probe_unwind_post_registration(
         if (error != 0)
             return error;
         *progress = R23BE_PROBE_UNWIND_IRQ;
+    }
+    if (*progress < R23BE_PROBE_UNWIND_DATAPATH) {
+        error = ops->unprepare_datapath(owner);
+        if (error != 0)
+            return error;
+        *progress = R23BE_PROBE_UNWIND_DATAPATH;
     }
     if (*progress < R23BE_PROBE_UNWIND_RFKILL) {
         error = ops->drain_rfkill(owner);

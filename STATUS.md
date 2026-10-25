@@ -2,6 +2,30 @@
 
 Date: 2026-10-25 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — DATAPATH/TX LIFETIME (2026-10-25)
+
+The native softc now records the unique prepared datapath bridge owner
+(`sc_datapath`). Prepare publishes the owner only after initializing its
+TX mutex and before wiring the IRQ callbacks. Unprepare verifies the same
+owner and callback identity, no running TX or live IRQ handles, then unbinds
+the dispatch, clears the softc owner, destroys the TX mutex and retires the
+bridge. A mismatched or still-active owner fails closed.
+
+Both pre-registration rollback and the post-registration journal now
+release the real datapath **after IRQ and before RFKill/net80211 and DMA**.
+The post-registration journal is NONE → IRQ → DATAPATH → RFKILL → NET80211.
+The native successful-probe guard requires the actual prepared owner and
+the context destructor asserts that no IRQ/datapath owner remains.
+
+On legion (Linux x86_64), at `d8c7dadec637a3b574ed99e3513d87afa43b5a70`,
+**49/49 permitted portable regression scripts passed** on a disposable
+clone; 12 additional scripts were excluded as HP/NetBSD-only or dependent
+on pinned reference checkout paths. The included C11/UBSan broker verifies
+four compensators, all four failure injections and safe retry behavior.
+**No HP NetBSD object/kernel link or hardware/race validation was run.**
+The four Linux lifecycle callbacks remain intentionally unbound. See
+`docs/DATAPATH_OWNER_UNWIND_20261025.md`.
+
 ## SOURCE CHECKPOINT — UNSTARTED PROBE ROLLBACK (2026-10-25)
 
 The native PCI probe cleanup now reverses a partially registered but
@@ -47,7 +71,7 @@ cases and source-level negative controls are included in CI. A GitHub-source
 readback confirms the mapping, admission ordering and CI wiring, but **native
 NetBSD compilation, CI success and HP hardware tests have not been verified**
 for this change. Four lifecycle owners remain intentionally unbound, and the
-post-registration rollback remains blocked. See
+runtime start/stop rollback remains blocked. See
 `docs/PROBE_ADMISSION_20261025.md`. F77 and i915 safeguards are unchanged.
 
 ## IST

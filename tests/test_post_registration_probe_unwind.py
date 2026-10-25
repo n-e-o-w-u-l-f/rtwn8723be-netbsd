@@ -18,6 +18,7 @@ netbsd = (SRC / "rtwn8723be_netbsd.c").read_text()
 assert '#include "rtwn8723be_probe_unwind.h"' in native
 for function, effect in (
     ("rtwn8723be_native_unwind_irq", "rtwn8723be_netbsd_disestablish_irq(sc)"),
+    ("rtwn8723be_native_unwind_datapath", "rtwn8723be_datapath_unprepare(sc->sc_datapath)"),
     ("rtwn8723be_native_unwind_rfkill", "rtwn8723be_rfkill_native_fini(sc)"),
     ("rtwn8723be_native_unwind_net80211", "rtwn8723be_net80211_unregister(&sc->sc_net80211)"),
 ):
@@ -28,8 +29,10 @@ assert ".rfkill_queue_present = sc->sc_rfkill_native.wq != NULL" in native
 assert ".irq_handles_coherent = all_irq || no_irq" in native
 assert ".hal_started = sc->sc_hal_started" in native
 assert ".irq_requested = sc->sc_irq_requested" in native
-assert ".datapath_bound = sc->sc_irq_dispatch_ready ||" in native
-assert "sc->sc_irq_arg != NULL," in native
+assert ".datapath_bound = dp != NULL," in native
+assert ".datapath_owner_valid = dp != NULL ?" in native
+assert ".datapath_tx_enabled = dp != NULL && dp->tx_enabled," in native
+assert ".unprepare_datapath = rtwn8723be_native_unwind_datapath," in native
 assert ".progress = sc->sc_probe_unwind_progress" in native
 assert "&sc->sc_probe_unwind_progress, &ops, sc" in native
 assert "sc->sc_probe_unwind_progress = R23BE_PROBE_UNWIND_NONE;" in native
@@ -40,6 +43,8 @@ cleanup = cleanup.split("rtwn8723be_native_detach(", 1)[0]
 assert cleanup.index("if (stage == R23BE_STAGE_IDLE)") < cleanup.index(
     "if (stage >= R23BE_STAGE_IEEE80211_REGISTER)")
 assert cleanup.index("rtwn8723be_native_post_registration_unwind(sc)") < (
+    cleanup.index("rtwn8723be_btc_mp_native_fini(sc)"))
+assert cleanup.index("rtwn8723be_native_unwind_datapath(sc)") < (
     cleanup.index("rtwn8723be_btc_mp_native_fini(sc)"))
 assert cleanup.index("rtwn8723be_btc_mp_native_fini(sc)") < (
     cleanup.index("rtwn8723be_h2c_native_fini(sc)"))
@@ -63,38 +68,42 @@ for slot in ("register_ieee80211", "init_rfkill", "bt_prepare", "dm_init"):
 HARNESS = r'''
 #include <assert.h>
 #include <errno.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include "rtwn8723be_probe_unwind.h"
 
 struct fixture {
     int calls;
-    int order[3];
+    int order[4];
     int fail_on;
 };
 static int
 effect(void *arg, int step)
 {
     struct fixture *f = arg;
-    assert(f->calls < 3);
+    assert(f->calls < 4);
     f->order[f->calls++] = step;
     return f->fail_on == step ? EIO : 0;
 }
 static int irq(void *p) { return effect(p, 1); }
-static int rfkill(void *p) { return effect(p, 2); }
-static int n80211(void *p) { return effect(p, 3); }
+static int datapath(void *p) { return effect(p, 2); }
+static int rfkill(void *p) { return effect(p, 3); }
+static int n80211(void *p) { return effect(p, 4); }
 
 static const struct rtwn8723be_probe_unwind_ops ops = {
-    irq, rfkill, n80211
+    irq, datapath, rfkill, n80211
 };
 static struct rtwn8723be_probe_unwind_snapshot
-baseline(enum rtwn8723be_linux_stage stage)
+baseline(enum rtwn8723be_linux_stage stage, bool dp)
 {
     struct rtwn8723be_probe_unwind_snapshot s = {0};
     s.stage = stage;
     s.progress = R23BE_PROBE_UNWIND_NONE;
     s.pci_snapshot = true;
     s.bar_mapped = true;
+    s.datapath_owner_valid = true;
+    s.datapath_bound = dp;
     s.irq_handles_coherent = true;
     s.net80211_registered = stage > R23BE_STAGE_IEEE80211_REGISTER;
     s.net80211_owned = s.net80211_registered;
@@ -105,9 +114,9 @@ baseline(enum rtwn8723be_linux_stage stage)
     return s;
 }
 static void
-passes(enum rtwn8723be_linux_stage stage)
+passes(enum rtwn8723be_linux_stage stage, bool dp)
 {
-    struct rtwn8723be_probe_unwind_snapshot s = baseline(stage);
+    struct rtwn8723be_probe_unwind_snapshot s = baseline(stage, dp);
     enum rtwn8723be_probe_unwind_progress progress = R23BE_PROBE_UNWIND_NONE;
     struct fixture f = {0};
 
@@ -115,11 +124,12 @@ passes(enum rtwn8723be_linux_stage stage)
     assert(rtwn8723be_probe_unwind_post_registration(
         &s, &progress, &ops, &f) == 0);
     assert(progress == R23BE_PROBE_UNWIND_NET80211);
-    assert(f.calls == 3 && f.order[0] == 1 &&
-        f.order[1] == 2 && f.order[2] == 3);
+    assert(f.calls == 4);
+    for (int j = 0; j < 4; j++)
+        assert(f.order[j] == j + 1);
 
-    for (int fail = 1; fail <= 3; fail++) {
-        s = baseline(stage);
+    for (int fail = 1; fail <= 4; fail++) {
+        s = baseline(stage, dp);
         progress = R23BE_PROBE_UNWIND_NONE;
         memset(&f, 0, sizeof(f));
         f.fail_on = fail;
@@ -130,10 +140,12 @@ passes(enum rtwn8723be_linux_stage stage)
         for (int j = 0; j < fail; j++)
             assert(f.order[j] == j + 1);
 
-        /* Simulate the postconditions the real NetBSD callbacks verified. */
+        /* Simulate successful native owner postconditions on retry. */
         s.progress = progress;
         if (progress >= R23BE_PROBE_UNWIND_IRQ)
             s.irq_handles_present = false;
+        if (progress >= R23BE_PROBE_UNWIND_DATAPATH)
+            s.datapath_bound = false;
         if (progress >= R23BE_PROBE_UNWIND_RFKILL) {
             s.rfkill_initialized = false;
             s.rfkill_queue_present = false;
@@ -148,13 +160,14 @@ passes(enum rtwn8723be_linux_stage stage)
         assert(rtwn8723be_probe_unwind_post_registration(
             &s, &progress, &ops, &f) == 0);
         assert(progress == R23BE_PROBE_UNWIND_NET80211);
-        assert(f.calls == 4 - fail);
+        assert(f.calls == 5 - fail);
         for (int j = 0; j < f.calls; j++)
             assert(f.order[j] == fail + j);
 
-        /* Reentrant successful teardown is an actual no-op. */
+        /* A completed owner graph must be a true no-op on reentry. */
         s.progress = progress;
         s.irq_handles_present = false;
+        s.datapath_bound = false;
         s.rfkill_initialized = false;
         s.rfkill_queue_present = false;
         s.rfkill_active = false;
@@ -184,28 +197,33 @@ int main(void)
     struct fixture f = {0};
 
     assert(!rtwn8723be_probe_unwind_eligible(NULL));
-    passes(R23BE_STAGE_IEEE80211_REGISTER);
-    passes(R23BE_STAGE_RFKILL);
-    passes(R23BE_STAGE_IRQ_ESTABLISH);
-    passes(R23BE_STAGE_PROBED);
+    passes(R23BE_STAGE_IEEE80211_REGISTER, false);
+    passes(R23BE_STAGE_RFKILL, false);
+    passes(R23BE_STAGE_IRQ_ESTABLISH, false);
+    passes(R23BE_STAGE_PROBED, false);
+    passes(R23BE_STAGE_IEEE80211_REGISTER, true);
+    passes(R23BE_STAGE_RFKILL, true);
+    passes(R23BE_STAGE_IRQ_ESTABLISH, true);
+    passes(R23BE_STAGE_PROBED, true);
 
-    s = baseline(R23BE_STAGE_IEEE80211_REGISTER);
+    s = baseline(R23BE_STAGE_IEEE80211_REGISTER, true);
     s.net80211_registered = true;
     s.net80211_owned = true;
     assert(rtwn8723be_probe_unwind_eligible(&s));
-    s = baseline(R23BE_STAGE_RFKILL);
+    s = baseline(R23BE_STAGE_RFKILL, false);
     s.rfkill_initialized = true;
     s.rfkill_queue_present = true;
     s.rfkill_active = true;
     assert(rtwn8723be_probe_unwind_eligible(&s));
-    s = baseline(R23BE_STAGE_IRQ_ESTABLISH);
+    s = baseline(R23BE_STAGE_IRQ_ESTABLISH, false);
     s.irq_handles_present = true;
     assert(rtwn8723be_probe_unwind_eligible(&s));
 
-    s = baseline(R23BE_STAGE_PROBED);
+    s = baseline(R23BE_STAGE_PROBED, true);
 #define REJECT_FIELD(field) do { other = s; other.field = false; reject(other); } while (0)
     REJECT_FIELD(pci_snapshot);
     REJECT_FIELD(bar_mapped);
+    REJECT_FIELD(datapath_owner_valid);
     REJECT_FIELD(irq_handles_coherent);
     REJECT_FIELD(net80211_registered);
     REJECT_FIELD(net80211_owned);
@@ -218,7 +236,7 @@ int main(void)
     TRUE_REJECT_FIELD(being_init_adapter);
     TRUE_REJECT_FIELD(fw_ready);
     TRUE_REJECT_FIELD(hal_started);
-    TRUE_REJECT_FIELD(datapath_bound);
+    TRUE_REJECT_FIELD(datapath_tx_enabled);
     TRUE_REJECT_FIELD(irq_requested);
     TRUE_REJECT_FIELD(irq_enabled);
 #undef TRUE_REJECT_FIELD
@@ -229,29 +247,35 @@ int main(void)
     other = s; other.stage = R23BE_STAGE_IDLE; reject(other);
     other = s; other.stage = R23BE_STAGE_PCI_RINGS; reject(other);
 
-    s = baseline(R23BE_STAGE_IEEE80211_REGISTER);
+    s = baseline(R23BE_STAGE_IEEE80211_REGISTER, false);
     other = s; other.net80211_registered = true; reject(other);
     other = s; other.rfkill_initialized = true;
     other.rfkill_queue_present = true; reject(other);
     other = s; other.irq_handles_present = true; reject(other);
-    s = baseline(R23BE_STAGE_RFKILL);
+    s = baseline(R23BE_STAGE_RFKILL, false);
     other = s; other.irq_handles_present = true; reject(other);
     other = s; other.rfkill_active = true; reject(other);
     other = s; other.rfkill_queue_present = true; reject(other);
 
-    s = baseline(R23BE_STAGE_PROBED);
-    missing.drain_rfkill = NULL;
+    s = baseline(R23BE_STAGE_PROBED, true);
+    other = s;
+    other.progress = R23BE_PROBE_UNWIND_DATAPATH;
+    other.irq_handles_present = false;
+    reject(other); /* A journalled datapath cannot remain prepared. */
+
+    s = baseline(R23BE_STAGE_PROBED, false);
+    missing.unprepare_datapath = NULL;
     assert(rtwn8723be_probe_unwind_post_registration(
         &s, &progress, &missing, &f) == ENOSYS && f.calls == 0);
     assert(rtwn8723be_probe_unwind_post_registration(
         &s, &progress, NULL, &f) == ENOSYS && f.calls == 0);
     assert(rtwn8723be_probe_unwind_post_registration(
         &s, NULL, &ops, &f) == EBUSY && f.calls == 0);
-    progress = R23BE_PROBE_UNWIND_IRQ; /* Journal mismatch is forbidden. */
+    progress = R23BE_PROBE_UNWIND_IRQ;
     assert(rtwn8723be_probe_unwind_post_registration(
         &s, &progress, &ops, &f) == EBUSY && f.calls == 0);
     other = s;
-    other.progress = R23BE_PROBE_UNWIND_IRQ; /* Must see the released IRQ. */
+    other.progress = R23BE_PROBE_UNWIND_IRQ;
     reject(other);
     other = s;
     other.progress = (enum rtwn8723be_probe_unwind_progress)99;
@@ -259,7 +283,7 @@ int main(void)
     other = s;
     other.progress = (enum rtwn8723be_probe_unwind_progress)-1;
     reject(other);
-    puts("RTL_POSTREG_PROBE_UNWIND_C11_OK callbacks=3 retry=3");
+    puts("RTL_POSTREG_PROBE_UNWIND_C11_OK callbacks=4 retry=4");
     return 0;
 }
 '''

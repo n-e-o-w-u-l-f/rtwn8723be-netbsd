@@ -22,6 +22,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "rtwn8723be_netbsd.h"
 #include "rtwn8723be_probe_admission.h"
 #include "rtwn8723be_probe_unwind.h"
+#include "rtwn8723be_datapath.h"
 
 static int
 rtwn8723be_native_match(device_t parent, cfdata_t cf, void *aux)
@@ -62,7 +63,11 @@ rtwn8723be_native_probe_resources_ready(struct rtwn8723be_softc *sc)
             sc->sc_net80211.methods.tx_start != NULL,
         .rfkill_initialized = sc->sc_rfkill_native.initialized,
         .rfkill_active = sc->sc_rfkill_native.active,
-        .irq_dispatch_ready = sc->sc_irq_dispatch_ready,
+        .irq_dispatch_ready = sc->sc_irq_dispatch_ready &&
+            sc->sc_datapath != NULL &&
+            sc->sc_datapath->sc == sc &&
+            sc->sc_datapath->prepared &&
+            sc->sc_irq_arg == sc->sc_datapath,
         .irq_handlers_owned = sc->sc_ih != NULL &&
             sc->sc_soft_ih != NULL && sc->sc_pihp != NULL,
         .irq_disabled = !sc->sc_irq_enabled,
@@ -110,6 +115,27 @@ rtwn8723be_native_unwind_irq(void *arg)
     return 0;
 }
 
+/* The TX mutex and callback pointers outlive IRQ handlers, not DMA rings. */
+static int
+rtwn8723be_native_unwind_datapath(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+    int error;
+
+    if (sc->sc_datapath != NULL) {
+        error = rtwn8723be_datapath_unprepare(sc->sc_datapath);
+        if (error != 0)
+            return error;
+    }
+    /* No foreign callbacks or stale bridge may survive into ring release. */
+    if (sc->sc_datapath != NULL || sc->sc_irq_arg != NULL ||
+        sc->sc_irq_dispatch_ready || sc->sc_irq_dispatch.rx != NULL ||
+        sc->sc_irq_dispatch.tx_done != NULL ||
+        sc->sc_irq_dispatch.power_event != NULL)
+        return EBUSY;
+    return 0;
+}
+
 static int
 rtwn8723be_native_unwind_rfkill(void *arg)
 {
@@ -147,6 +173,7 @@ rtwn8723be_native_post_registration_unwind(struct rtwn8723be_softc *sc)
         sc->sc_soft_ih != NULL && sc->sc_pihp != NULL;
     const bool no_irq = sc->sc_ih == NULL &&
         sc->sc_soft_ih == NULL && sc->sc_pihp == NULL;
+    struct rtwn8723be_datapath *dp = sc->sc_datapath;
     const struct rtwn8723be_probe_unwind_snapshot snapshot = {
         .stage = sc->sc_linux.stage,
         .progress = sc->sc_probe_unwind_progress,
@@ -156,8 +183,17 @@ rtwn8723be_native_post_registration_unwind(struct rtwn8723be_softc *sc)
         .being_init_adapter = sc->sc_linux.being_init_adapter,
         .fw_ready = sc->sc_linux.fw_ready,
         .hal_started = sc->sc_hal_started,
-        .datapath_bound = sc->sc_irq_dispatch_ready ||
-            sc->sc_irq_arg != NULL,
+        .datapath_bound = dp != NULL,
+        .datapath_owner_valid = dp != NULL ?
+            (dp->prepared && dp->sc == sc &&
+             sc->sc_irq_arg == dp && sc->sc_irq_dispatch_ready &&
+             sc->sc_irq_dispatch.rx != NULL &&
+             sc->sc_irq_dispatch.tx_done != NULL) :
+            (sc->sc_irq_arg == NULL && !sc->sc_irq_dispatch_ready &&
+             sc->sc_irq_dispatch.rx == NULL &&
+             sc->sc_irq_dispatch.tx_done == NULL &&
+             sc->sc_irq_dispatch.power_event == NULL),
+        .datapath_tx_enabled = dp != NULL && dp->tx_enabled,
         .irq_requested = sc->sc_irq_requested,
         .irq_enabled = sc->sc_irq_enabled,
         .irq_handles_coherent = all_irq || no_irq,
@@ -171,6 +207,7 @@ rtwn8723be_native_post_registration_unwind(struct rtwn8723be_softc *sc)
     };
     const struct rtwn8723be_probe_unwind_ops ops = {
         .disestablish_irq = rtwn8723be_native_unwind_irq,
+        .unprepare_datapath = rtwn8723be_native_unwind_datapath,
         .drain_rfkill = rtwn8723be_native_unwind_rfkill,
         .unregister_net80211 = rtwn8723be_native_unwind_net80211,
     };
@@ -221,9 +258,21 @@ rtwn8723be_native_probe_cleanup(struct rtwn8723be_softc *sc)
         }
     }
 
-    if (sc->sc_irq_enabled || sc->sc_ih != NULL ||
-        sc->sc_soft_ih != NULL || sc->sc_pihp != NULL)
-        rtwn8723be_netbsd_disestablish_irq(sc);
+    if (stage < R23BE_STAGE_IEEE80211_REGISTER) {
+        if ((sc->sc_irq_requested || sc->sc_irq_enabled ||
+             sc->sc_ih != NULL || sc->sc_soft_ih != NULL ||
+             sc->sc_pihp != NULL) &&
+            rtwn8723be_native_unwind_irq(sc) != 0) {
+            aprint_error_dev(sc->sc_dev,
+                "retaining PCI resources: IRQ teardown incomplete\n");
+            return;
+        }
+        if (rtwn8723be_native_unwind_datapath(sc) != 0) {
+            aprint_error_dev(sc->sc_dev,
+                "retaining PCI resources: datapath still owned\n");
+            return;
+        }
+    }
 
     /* Probe has no external entrants; IRQ callbacks are already quiesced. */
     if (rtwn8723be_btc_mp_native_fini(sc) != 0) {
