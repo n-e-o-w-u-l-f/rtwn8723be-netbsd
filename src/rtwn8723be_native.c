@@ -63,7 +63,11 @@ rtwn8723be_native_probe_resources_ready(struct rtwn8723be_softc *sc)
             sc->sc_net80211.methods.tx_start != NULL,
         .rfkill_initialized = sc->sc_rfkill_native.initialized,
         .rfkill_active = sc->sc_rfkill_native.active,
-        .irq_dispatch_ready = sc->sc_irq_dispatch_ready,
+        .irq_dispatch_ready = sc->sc_irq_dispatch_ready &&
+            sc->sc_datapath != NULL &&
+            sc->sc_datapath->sc == sc &&
+            sc->sc_datapath->prepared &&
+            sc->sc_irq_arg == sc->sc_datapath,
         .irq_handlers_owned = sc->sc_ih != NULL &&
             sc->sc_soft_ih != NULL && sc->sc_pihp != NULL,
         .irq_disabled = !sc->sc_irq_enabled,
