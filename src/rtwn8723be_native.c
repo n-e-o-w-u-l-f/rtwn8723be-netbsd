@@ -20,6 +20,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <dev/pci/pcidevs.h>
 
 #include "rtwn8723be_netbsd.h"
+#include "rtwn8723be_probe_admission.h"
 
 static int
 rtwn8723be_native_match(device_t parent, cfdata_t cf, void *aux)
@@ -30,6 +31,43 @@ rtwn8723be_native_match(device_t parent, cfdata_t cf, void *aux)
     (void)cf;
     return PCI_VENDOR(pa->pa_id) == PCI_VENDOR_REALTEK &&
         PCI_PRODUCT(pa->pa_id) == 0xb723;
+}
+
+/*
+ * Require evidence of real resource acquisition, not only a zero return
+ * from the Linux-order callback controller. The predicate has NO side
+ * effects. A failed admission retains the entire unstarted probe context
+ * for explicit recovery; partially acquired owners are never guessed away.
+ *
+ * Keep this guard even after the remaining callbacks gain native bindings.
+ */
+static bool
+rtwn8723be_native_probe_resources_ready(struct rtwn8723be_softc *sc)
+{
+    const struct rtwn8723be_probe_admission a = {
+        .phase_probed = sc->sc_linux.stage == R23BE_STAGE_PROBED,
+        .quiescent = !sc->sc_linux.started &&
+            !sc->sc_linux.being_init_adapter && !sc->sc_linux.fw_ready,
+        .pci_snapshot = sc->sc_initial_pci_saved,
+        .bar_mapped = sc->sc_mapped,
+        .core_initialized = sc->sc_core_initialized,
+        .dma32_configured = sc->sc_dma_32bit && sc->sc_dmat != NULL,
+        .rings_allocated = sc->sc_rings_allocated,
+        .net80211_registered = sc->sc_net80211.registered,
+        .net80211_owned = sc->sc_net80211.sc == sc,
+        .net80211_methods_ready =
+            sc->sc_net80211.methods.hw_start != NULL &&
+            sc->sc_net80211.methods.hw_stop != NULL &&
+            sc->sc_net80211.methods.tx_start != NULL,
+        .rfkill_initialized = sc->sc_rfkill_native.initialized,
+        .rfkill_active = sc->sc_rfkill_native.active,
+        .irq_dispatch_ready = sc->sc_irq_dispatch_ready,
+        .irq_handlers_owned = sc->sc_ih != NULL &&
+            sc->sc_soft_ih != NULL && sc->sc_pihp != NULL,
+        .irq_disabled = !sc->sc_irq_enabled,
+    };
+
+    return rtwn8723be_probe_admission_ok(&a);
 }
 
 /*
@@ -224,6 +262,12 @@ rtwn8723be_native_attach(device_t parent, device_t self, void *aux)
      * rollback are implemented. This entry cannot be enabled for runtime
      * testing until the parent full-scope contract authorizes it.
      */
+    if (!rtwn8723be_native_probe_resources_ready(sc)) {
+        aprint_error_dev(self,
+            "native RTL8723BE probe returned success without complete "
+            "resource ownership; retaining probe state, WLAN not accepted\\n");
+        return;
+    }
     aprint_normal_dev(self, "native RTL8723BE probe completed\n");
 }
 
