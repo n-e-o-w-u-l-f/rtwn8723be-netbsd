@@ -32,8 +32,27 @@ rtwn8723be_rx_binding_c2h(void *arg, const uint8_t *data,
     struct rtwn8723be_rx_binding *binding = arg;
 
     if (binding == NULL || binding->net == NULL ||
-        !binding->net->registered)
+        !binding->net->registered || binding->net->sc == NULL)
         return ENXIO;
+    if (packet == NULL || data == NULL)
+        return EINVAL;
+    /*
+     * RX/IRQ dispatch must exist BEFORE firmware start, but a Bluetooth
+     * policy/MP owner is not active until the later BT start transition.
+     * Publishing callbacks is NOT permission to handle BT notifications.
+     * The ring callback only borrows these bytes; never queue an event
+     * into a not-yet-activated or already-closing BT owner.
+     */
+    if (binding->net->sc->sc_btcoexist) {
+        if (packet->c2h_id == R23BE_C2H_BT_INFO &&
+            (!binding->net->sc->sc_btc.initialized ||
+             !binding->net->sc->sc_btc.events_enabled))
+            return EAGAIN;
+        if (packet->c2h_id == R23BE_C2H_BT_MP &&
+            (!binding->net->sc->sc_btc_mp.initialized ||
+             !binding->net->sc->sc_btc_mp.active))
+            return EAGAIN;
+    }
     return rtwn8723be_c2h_native_receive(&binding->firmware,
         data, length, packet);
 }
@@ -62,18 +81,13 @@ rtwn8723be_rx_binding_init(struct rtwn8723be_rx_binding *binding,
         return ENOSYS;
 
     /*
-     * A non-NULL handler pointer is not a live Bluetooth consumer.
-     * Initialization and real MCU-ready/old-RX-drain MP activation must
-     * precede publishing the shared RX callbacks on coexistence boards.
-     * The external lifecycle owner serializes this admission against
-     * STOPPING, MP/BTC fini and IRQ/softint quiescence.
+     * Preparing the dispatch is a probe-stage resource action. A REAL
+     * Bluetooth owner becomes active only after firmware/BT initialization
+     * at adapter start, so checking activation here deadlocks the probe
+     * ordering. The C2H callback itself gates each BT event by the actual
+     * runtime owner's initialized/active state, before forwarding bytes.
+     * No early BT event is considered successfully consumed.
      */
-    if (net->sc->sc_btcoexist &&
-        (!net->sc->sc_btc.initialized ||
-         !net->sc->sc_btc_mp.initialized ||
-         !net->sc->sc_btc_mp.active))
-        return EAGAIN;
-
     /* The caller must provide zero-initialized, IRQ-quiesced storage. */
     memset(binding, 0, sizeof(*binding));
     binding->net = net;
