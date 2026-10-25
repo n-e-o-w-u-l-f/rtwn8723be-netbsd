@@ -10,6 +10,10 @@
  * callbacks. The owning PCI/net80211 adapter keeps this storage live until
  * IRQ + softint have been fully disestablished and RX has stopped.
  * This function does NOT activate DMA, register net80211 or start hardware.
+ * Probe-time binding does NOT imply that BT C2H events can be processed.
+ * The frame/C2H functions gate actual BT event consumption until its
+ * corresponding runtime owner is initialized/activated; the native BT
+ * event queue separately checks admission under its own lock.
  */
 struct rtwn8723be_rx_binding {
     struct rtwn8723be_net80211 *net;
