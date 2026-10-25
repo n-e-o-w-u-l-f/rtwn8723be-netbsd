@@ -39,11 +39,17 @@ The native attachment wires this broker to actual NetBSD operations:
    BT MP drain, H2C close, TX/RX ring freeing, DMA tag release, ASPM/PCI
    restore, BAR unmap, and final PCI config/power rollback
 
-Errors are **first-error fail-closed**. An unsuccessful compensator skips
-all later compensators and **all underlying PCI/MMIO release**. The retained
-stage and PCI snapshot ensure `native_detach` returns `EBUSY`, rather
-than acknowledging a partly released device. Already completed compensators
-are idempotent on reentry when their resources are absent.
+Errors are **first-error fail-closed**. A per-softc monotonic journal
+(`NONE → IRQ → RFKILL → NET80211`) advances only after each actual owner
+callback has returned success **and the native wrapper has verified its
+postconditions**. An unsuccessful compensator skips all later owners and
+**all underlying PCI/MMIO release**. The retained stage and PCI snapshot
+ensure `native_detach` returns `EBUSY`, rather than acknowledging a
+partly released device. A later explicitly serialized recovery attempt
+can resume at the first unfinished compensator: the snapshot must match
+the journal and independently prove already-released resources are absent.
+Inconsistent or fabricated progress is refused, not inferred from a NULL
+handle. On successful full PCI rollback the journal resets to `NONE`.
 
 The preflight expressly rejects `RUNNING`, `STOPPING`, `STOPPED`, and
 all failed pre-`RUNNING` startup stages: those paths need the separate
@@ -51,9 +57,10 @@ real DM/BTC, firmware and hardware stop/recovery owners.
 
 ## Executed source evidence
 
-On 2026-10-25 the new branch was cloned into a disposable temporary
-directory on **legion / Linux x86_64** and these **seven portable scripts**
-completed with exit 0:
+On 2026-10-25 the current branch at
+`57cee09303f37bf80d83f23d3c5282c8cd26cd3a` was cloned into a
+disposable temporary directory on **legion / Linux x86_64**. **Fourteen
+portable regression scripts** completed with exit 0:
 
 - `test_port_closure_inventory.py`
 - `test_source_negative_guards.py`
@@ -62,12 +69,21 @@ completed with exit 0:
 - `test_net80211_unstarted_rollback.py`
 - `test_kernel_source_integrity.py`
 - `test_kernel_shadow_manifest.py`
+- `test_irq_shutdown_race_contract.py`
+- `test_pre_running_recovery.py`
+- `test_dma_mem_unwind.py`
+- `test_rx_dma_bounds.py`
+- `test_net80211_unpublished_registration.py`
+- `test_net80211_owner_storage.py`
+- `test_net80211_rx_no_phy.py`
 
 The new regression compiles the actual production C11 broker under
 `-std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=undefined` and
 tests all four admissible checkpoints, NULL/invalid ownership, rejected
 running/failed-start states, all three injected compensator failures,
-strict IRQ→RFKill→net80211 order, and no downstream effects after a failure.
+strict IRQ→RFKill→net80211 order, no downstream effects after a failure,
+successful resumed unwind for every injection point, and rejection of
+corrupt/stale journal states.
 The source-contract portion validates the native adapters and physical
 resource-release ordering.
 
