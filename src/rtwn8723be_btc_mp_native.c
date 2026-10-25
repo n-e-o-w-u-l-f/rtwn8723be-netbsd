@@ -158,6 +158,30 @@ rtwn8723be_btc_mp_native_request(struct rtwn8723be_softc *sc,
     return error;
 }
 
+
+/*
+ * RX softint may check the MP activation gate while the thread side
+ * deactivates the firmware transaction on timeout or STOP. The active,
+ * faulted and cancelled bits are protected by mp->lock: reading these
+ * independently from the RX binding is a data race. The external driver
+ * lifetime guarantees that initialized storage cannot be destroyed until
+ * PCI hard/soft interrupts have fully drained.
+ */
+bool
+rtwn8723be_btc_mp_native_rx_ready(struct rtwn8723be_softc *sc)
+{
+    struct rtwn8723be_btc_mp_native *mp;
+    bool ready;
+
+    if (sc == NULL || !sc->sc_btc_mp.initialized || cpu_intr_p())
+        return false;
+    mp = &sc->sc_btc_mp;
+    mutex_enter(&mp->lock);
+    ready = mp->active && !mp->faulted && !mp->cancelled;
+    mutex_exit(&mp->lock);
+    return ready;
+}
+
 int
 rtwn8723be_btc_mp_native_receive(struct rtwn8723be_softc *sc,
     const struct rtwn8723be_c2h_event *event)
