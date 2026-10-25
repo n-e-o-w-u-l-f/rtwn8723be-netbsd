@@ -8,13 +8,16 @@ The native PCI probe cleanup now reverses a partially registered but
 **unstarted** interface, after a pure fail-closed owner/state preflight.
 Order is real IRQ disestablishment, RFKill callout/workqueue drain,
 net80211 unregister, BT-MP/H2C close, descriptor-ring/DMA release, BAR
-unmap and PCI restoration. Each failure retains the remaining hardware
-resources and returns an incomplete detach (EBUSY); started, failed-start
-and STOPPING/STOPPED paths remain explicitly barred.
+unmap and PCI restoration. Each failure retains the remaining hardware resources and
+returns an incomplete detach (EBUSY); an explicit per-device monotonic
+journal records only confirmed reverse-release steps so a later serialized
+retry can resume without guessing what was freed. Started, failed-start
+and STOPPING/STOPPED paths remain barred.
 
-Seven portable regression scripts (including the actual C11/UBSan
-compensator broker and fault-injected negative cases) passed on legion /
-Linux x86_64 in a disposable checkout. These are source/portable tests;
+Fourteen portable regression scripts (including the actual C11/UBSan
+compensator broker, three fault-injected retry paths and corrupt-journal
+negative cases) passed on legion / Linux x86_64 in a disposable checkout
+at `57cee09303f37bf80d83f23d3c5282c8cd26cd3a`. These are source/portable tests;
 no matching HP NetBSD object/kernel build or real RFKill/IRQ/net80211
 runtime validation exists for this revision. Four lifecycle slots remain
 unbound; the full source-closure/hardware gates are still OPEN.
