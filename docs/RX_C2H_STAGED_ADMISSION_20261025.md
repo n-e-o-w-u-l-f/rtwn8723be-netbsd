@@ -70,6 +70,44 @@ device test.** Kernel concurrency, firmware/C2H timing, unregistered
 interfaces, 802.11 TX node lifetime, RFKill publication and BTC provider
 lifetime remain unproven.
 
+## RFKill start and stale-GPIO follow-up
+
+This branch also fixes a concrete RFKill state-lifetime bug in
+`rtwn8723be_rfkill_worker`: a poll with error or an invalid GPIO sample
+now sets `last_valid = false`, not merely `last_error`. Retaining an
+older `last_valid = true` after a failed later sample could otherwise
+advertise a stale radio-on reading.
+
+A new lock-protected `rtwn8723be_rfkill_native_radio_on` snapshot
+returns `ENXIO` for an uninitialized owner, `EAGAIN` for inactive,
+unknown or failed/busy samples, and outputs the actual boolean only
+on success. The net80211 `if_init` method now checks this snapshot
+**before** calling the real hardware-start method and checks it **again
+after** successful hardware initialization but **before** publishing
+`IFF_RUNNING`. Definitive switch-off returns `ENETDOWN`. If the radio
+changes or becomes unreadable during a sleeping hardware start, it
+invokes the real `hw_stop` and propagates failure while retaining
+ownership on unsuccessful stop.
+
+The new `tests/test_rfkill_net80211_start.py` compiles the production
+worker, snapshot getter and net80211 start function using C11 with
+`-Wall -Wextra -Werror -pedantic -fsanitize=undefined`. It tests
+successful/invalid/busy and stale worker polls, initial physical RF-off,
+a failed/partial start, switch-off during start, invalid new samples
+and the case where compensating hardware stop fails.
+
+On a fresh disposable branch clone on legion / Linux x86_64 at
+`658b286e14cf5483fbc74d81be935d1e6ce89e0b`, **51/51 portable
+tests permitted on that host passed**. Twelve more scripts in the
+63-script inventory require HP/NetBSD or pinned local Linux trees and
+were excluded. This remains host/portable evidence, not NetBSD code
+generation, native kernel link, or physical GPIO acceptance.
+
+**Major remaining RFKill gap:** asynchronous switch-off *after*
+`IFF_RUNNING` is published still needs a fully serialized worker →
+net80211 notification/stop lifecycle. This change does not pretend
+the one-time startup gate implements that behavior.
+
 ## Full port completion is still blocked by
 
 - **48-unit native NetBSD 11.0 object and full kernel link:** must be
