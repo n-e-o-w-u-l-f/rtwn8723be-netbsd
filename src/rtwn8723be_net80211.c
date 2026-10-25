@@ -34,6 +34,7 @@ rtwn8723be_n80211_ifinit(struct ifnet *ifp)
 {
     struct rtwn8723be_net80211 *n = ifp->if_softc;
     struct rtwn8723be_softc *sc;
+    bool radio_on;
     int error;
 
     if (n == NULL || !n->registered || n->sc == NULL)
@@ -50,6 +51,17 @@ rtwn8723be_n80211_ifinit(struct ifnet *ifp)
         return EAGAIN;
 
     /*
+     * A live RFKill poller is a prerequisite to bringing up net80211.
+     * A failing/busy last GPIO sample cannot authorize hardware start,
+     * even if the last *older* successful sample reported radio-on.
+     */
+    error = rtwn8723be_rfkill_native_radio_on(sc, &radio_on);
+    if (error != 0)
+        return error;
+    if (!radio_on)
+        return ENETDOWN;
+
+    /*
      * hw_start must complete Linux-order hw_init(), irq enable, RX config,
      * mark_hal_start and the datapath bridge's start + unwind on failure.
      * A partially initialized device must NEVER be marked IFF_RUNNING.
@@ -61,6 +73,21 @@ rtwn8723be_n80211_ifinit(struct ifnet *ifp)
         sc->sc_linux.stage != R23BE_STAGE_RUNNING) {
         int stop_error = n->methods.hw_stop(sc);
         return stop_error != 0 ? stop_error : EIO;
+    }
+    /*
+     * The physical RF switch could have changed while hw_start was
+     * sleeping. Do not publish IFF_RUNNING unless the post-start sample
+     * still authorizes radio-on. A failed stop is propagated (and the
+     * remaining hardware lifetime stays owned for explicit recovery).
+     * Asynchronous switch-off after publication needs a separate,
+     * fully serialized RFKill/net80211 notification owner.
+     */
+    error = rtwn8723be_rfkill_native_radio_on(sc, &radio_on);
+    if (error != 0 || !radio_on) {
+        int stop_error = n->methods.hw_stop(sc);
+        if (stop_error != 0)
+            return stop_error;
+        return error != 0 ? error : ENETDOWN;
     }
     ifp->if_flags |= IFF_RUNNING;
     ifp->if_flags &= ~IFF_OACTIVE;
