@@ -120,7 +120,12 @@ def main() -> None:
     originals = {"pci": sha256(source_manifest), "kernel": sha256(live_kernel)}
     if bootcfg.exists():
         originals["bootcfg"] = sha256(bootcfg)
-    sources = {name: sha256(ROOT / "src" / name) for name in units}
+    # Snapshot the full selected translation-unit inputs, not only .c files.
+    # A concurrent header/inline change invalidates the private build too.
+    input_files = ([manifest] + [ROOT / "src" / name for name in units] +
+                   sorted((ROOT / "src").glob("rtwn8723be*.h")) +
+                   sorted((ROOT / "src").glob("rtwn8723be*.inc")))
+    sources = {str(path.relative_to(ROOT)): sha256(path) for path in input_files}
     report = {
         "state": "RUNNING", "source_head": head,
         "selected_sources": units, "manifest_sha256": sha256(manifest),
@@ -139,8 +144,8 @@ def main() -> None:
             raise RuntimeError("immutable PCI manifest or F77 kernel changed")
         if "bootcfg" in originals and sha256(bootcfg) != originals["bootcfg"]:
             raise RuntimeError("boot configuration changed")
-        if any(sha256(ROOT / "src" / name) != digest
-               for name, digest in sources.items()):
+        if any(sha256(ROOT / relative) != digest
+               for relative, digest in sources.items()):
             raise RuntimeError("driver sources changed during build")
         if "i915" in makefile.read_text().lower():
             raise RuntimeError("i915 appeared in generated Makefile")
