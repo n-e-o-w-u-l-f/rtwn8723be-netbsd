@@ -57,8 +57,7 @@ rtwn8723be_probe_unwind_eligible(
     if (s == NULL || !s->pci_snapshot || !s->bar_mapped ||
         s->stage < R23BE_STAGE_IEEE80211_REGISTER ||
         s->stage > R23BE_STAGE_PROBED ||
-        s->progress < R23BE_PROBE_UNWIND_NONE ||
-        s->progress > R23BE_PROBE_UNWIND_NET80211 ||
+        (unsigned int)s->progress > R23BE_PROBE_UNWIND_NET80211 ||
         s->started || s->being_init_adapter || s->fw_ready ||
         s->hal_started || s->irq_requested || s->irq_enabled ||
         !s->irq_handles_coherent)
