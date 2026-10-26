@@ -120,6 +120,10 @@ jobs:
         run: python3 tests/test_net80211_unpublished_registration.py
       - name: Net80211 unstarted probe rollback (strict C11)
         run: python3 tests/test_net80211_unstarted_rollback.py
+      - name: Reject false-success adapter start and unsafe retry (C11 / UBSan)
+        run: |
+          python3 tests/test_net80211_prestart_quarantine.py
+          python3 tests/test_rfkill_net80211_start.py
       - name: Reject net80211 RX and TX after runtime stop (C11 / UBSan)
         run: python3 tests/test_net80211_late_rx_stop.py
       - name: Retain hardware stop owner on net80211 failure (C11 / UBSan)
