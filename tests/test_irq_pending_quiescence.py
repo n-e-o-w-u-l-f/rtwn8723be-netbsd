@@ -67,8 +67,10 @@ mutations = (
                    "true, true, &inta, &intb",1),
     SOURCE.replace("        rtwn8723be_irq_pending_clear(sc->sc_irq_pending);",
                    "        /* left over stale events */",1),
-    SOURCE.replace("    softint_disestablish(sc->sc_soft_ih);",
-                   "    /* did not actually drain softint */",1),
+    SOURCE.replace("    if (sc->sc_soft_ih != NULL) {\n"
+                   "        softint_disestablish(sc->sc_soft_ih);",
+                   "    if (sc->sc_soft_ih != NULL) {\n"
+                   "        /* did not actually drain softint */",1),
 )
 for i, candidate in enumerate(mutations, 1):
     assert candidate != SOURCE, ("mutation did not apply", i)
