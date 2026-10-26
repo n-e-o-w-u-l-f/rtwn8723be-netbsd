@@ -65,8 +65,31 @@ main(void)
     state.stage = R23BE_STAGE_PROBED;
     state.started = true;
     assert(!rtwn8723be_net80211_unstarted_detach_allowed(&state));
+    assert(!rtwn8723be_net80211_start_checkpoint_ok(&state));
+    state.started = false;
+
+    /* A supposedly unstarted state may still own live firmware/MAC. */
+    state.fw_ready = true;
+    assert(!rtwn8723be_net80211_unstarted_detach_allowed(&state));
+    assert(!rtwn8723be_net80211_start_checkpoint_ok(&state));
+    state.fw_ready = false;
+    state.mac_func_enable = true;
+    assert(!rtwn8723be_net80211_unstarted_detach_allowed(&state));
+    assert(!rtwn8723be_net80211_start_checkpoint_ok(&state));
+    state.mac_func_enable = false;
+    state.being_init_adapter = true;
+    assert(!rtwn8723be_net80211_unstarted_detach_allowed(&state));
+    assert(!rtwn8723be_net80211_start_checkpoint_ok(&state));
+    state.being_init_adapter = false;
+    assert(rtwn8723be_net80211_start_checkpoint_ok(&state));
+    state.stage = R23BE_STAGE_STOPPED;
+    assert(rtwn8723be_net80211_start_checkpoint_ok(&state));
+    state.stage = R23BE_STAGE_IEEE80211_REGISTER;
+    assert(!rtwn8723be_net80211_start_checkpoint_ok(&state));
+
+    assert(!rtwn8723be_net80211_start_checkpoint_ok(NULL));
     assert(!rtwn8723be_net80211_unstarted_detach_allowed(NULL));
-    puts("RTL_NET80211_UNSTARTED_ROLLBACK_C11_OK");
+    puts("RTL_NET80211_QUIESCENT_CHECKPOINT_C11_OK");
     return 0;
 }
 '''
