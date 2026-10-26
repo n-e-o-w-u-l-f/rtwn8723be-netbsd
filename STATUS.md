@@ -2,6 +2,31 @@
 
 Date: 2026-10-25 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — NET80211 LATE RX/STOP PUBLICATION (2026-10-26)
+
+Native RX ingress revalidates net80211 registration, softc ownership,
+IFF_RUNNING and the actual started/RUNNING lifecycle *under splnet*
+after the bounded `m_devget` copy and before any 802.11 node lookup
+or packet injection. A concurrent STOP mid-copy now drops the mbuf
+rather than delivering a stale frame. The if_start bridge also requires
+a genuine started/RUNNING device before any TX handoff. Ifstop rejects
+an orphaned registered softc and retains actual hardware ownership
+on failure; no fake hardware stop is credited.
+
+A disposable Linux x86_64 checkout at
+`9c867298c9e7f6efd6eb61dab4f822a63ad54093` executed
+**55/55 host-permitted regression tests successfully**; 12 more
+require HP/NetBSD or unavailable pinned reference checkout paths
+(67 scripts total). Two new tests compile real net80211 RX, TX
+and stop production function bodies under strict C11 and UBSan
+and reject 13 unsafe source mutations. The base-branch
+`git diff --check` passed.
+
+**Not native NetBSD 11 compilation, full kernel link, hardware RX/TX
+or actual softint/detach concurrency evidence.** Full runtime
+stop/rollback and the four missing lifecycle callbacks remain
+unbound. See `docs/NET80211_RX_STOP_ADMISSION_20261026.md`.
+
 ## SOURCE CHECKPOINT — IRQ PENDING-BIT DRAIN (2026-10-26)
 
 NetBSD hard IRQ and SOFTINT_NET now use the same IPL_NET
