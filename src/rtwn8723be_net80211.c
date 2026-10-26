@@ -350,7 +350,9 @@ rtwn8723be_net80211_input(struct rtwn8723be_net80211 *n,
      */
     s = splnet();
     if (!n->registered || n->sc == NULL ||
-        (n->sc->sc_ec.ec_if.if_flags & IFF_RUNNING) == 0) {
+        (n->sc->sc_ec.ec_if.if_flags & IFF_RUNNING) == 0 ||
+        !n->sc->sc_linux.started ||
+        n->sc->sc_linux.stage != R23BE_STAGE_RUNNING) {
         splx(s);
         m_freem(m);
         return ENETDOWN;
