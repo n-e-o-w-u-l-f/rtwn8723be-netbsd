@@ -37,6 +37,8 @@ def verify(rx_source: str, tx_source: str) -> None:
     deliver = rx_source.index("ieee80211_find_rxnode(")
     assert copied < locked < gate < deliver
     assert "(n->sc->sc_ec.ec_if.if_flags & IFF_RUNNING) == 0" in rx_source[gate:deliver]
+    assert "!n->sc->sc_linux.started" in rx_source[gate:deliver]
+    assert "n->sc->sc_linux.stage != R23BE_STAGE_RUNNING" in rx_source[gate:deliver]
     assert "m_freem(m);" in rx_source[gate:deliver]
     assert "return ENETDOWN;" in rx_source[gate:deliver]
     assert "splx(s);" in rx_source[gate:deliver]
@@ -60,6 +62,9 @@ unsafe = (
                 "false) {", 1), tx),
     (rx.replace("        m_freem(m);\n        return ENETDOWN;",
                 "        return ENETDOWN;", 1), tx),
+    (rx.replace("        !n->sc->sc_linux.started ||\n", "", 1), tx),
+    (rx.replace("        n->sc->sc_linux.stage != R23BE_STAGE_RUNNING) {",
+                "        false) {", 1), tx),
     (rx, tx.replace("!n->sc->sc_linux.started ||", "", 1)),
     (rx, tx.replace("n->sc->sc_linux.stage != R23BE_STAGE_RUNNING ||",
                     "", 1)),
@@ -134,6 +139,10 @@ static struct mbuf *m_devget(char *data, int length, int ignored,
         global_net->registered = false;
     if (stopped_during_copy == 3)
         global_net->sc = NULL;
+    if (stopped_during_copy == 4)
+        global_net->sc->sc_linux.started = false;
+    if (stopped_during_copy == 5)
+        global_net->sc->sc_linux.stage = 99;
     return &backing;
 }
 static void m_freem(struct mbuf *m) { assert(m == &backing); frees++; }
@@ -188,7 +197,7 @@ int main(void)
     rtwn8723be_n80211_ifstart(&sc.sc_ec.ec_if);
     assert(tx_calls == 1);
 
-    for (int mode = 1; mode <= 3; mode++) {
+    for (int mode = 1; mode <= 5; mode++) {
         reset(&sc,&n);
         stopped_during_copy = mode;
         unsigned int olddel = deliveries, oldlook = node_lookups;
@@ -257,4 +266,4 @@ with tempfile.TemporaryDirectory(prefix="rtl-n80211-late-rx-") as path:
         str(src), "-o", str(out),
     ], check=True)
     subprocess.run([str(out)], check=True)
-print("RTL_NET80211_LATE_RX_SOURCE_MUTATIONS_OK negatives=6")
+print("RTL_NET80211_LATE_RX_SOURCE_MUTATIONS_OK negatives=8")
