@@ -124,8 +124,10 @@ rtwn8723be_n80211_ifstart(struct ifnet *ifp)
 {
     struct rtwn8723be_net80211 *n = ifp->if_softc;
 
-    if (n == NULL || !n->registered ||
+    if (n == NULL || !n->registered || n->sc == NULL ||
         (ifp->if_flags & (IFF_RUNNING | IFF_OACTIVE)) != IFF_RUNNING ||
+        !n->sc->sc_linux.started ||
+        n->sc->sc_linux.stage != R23BE_STAGE_RUNNING ||
         n->methods.tx_start == NULL)
         return;
     /* Real 802.11 framing/TX node lifetime is owned by the HW method. */
@@ -337,8 +339,23 @@ rtwn8723be_net80211_input(struct rtwn8723be_net80211 *n,
         &n->sc->sc_ec.ec_if);
     if (m == NULL)
         return ENOBUFS;
-    ic = &n->sc->sc_ic;
+    /*
+     * A hardware stop may clear IFF_RUNNING while m_devget copies a
+     * borrowed DMA frame. Revalidate under the same splnet boundary
+     * used by ifstop/unregister; never inject a late frame into
+     * net80211 after STOP has revoked receive publication.
+     *
+     * PCI detach must separately quiesce all RX softints before freeing
+     * softc: splnet is not a borrowed-callback lifetime reference.
+     */
     s = splnet();
+    if (!n->registered || n->sc == NULL ||
+        (n->sc->sc_ec.ec_if.if_flags & IFF_RUNNING) == 0) {
+        splx(s);
+        m_freem(m);
+        return ENETDOWN;
+    }
+    ic = &n->sc->sc_ic;
     ni = ieee80211_find_rxnode(ic,
         mtod(m, struct ieee80211_frame_min *));
     if (ni == NULL) {
