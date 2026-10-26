@@ -43,9 +43,14 @@ rtwn8723be_n80211_ifinit(struct ifnet *ifp)
     if (n->methods.hw_start == NULL || n->methods.hw_stop == NULL ||
         n->methods.tx_start == NULL)
         return ENOSYS;
-    /* NetBSD ifconfig down/up must permit a clean restarted adapter. */
-    if ((sc->sc_linux.stage != R23BE_STAGE_PROBED &&
-        sc->sc_linux.stage != R23BE_STAGE_STOPPED) ||
+    /*
+     * A failed/partial earlier hardware start owns the residual firmware,
+     * MAC and DMA state until a specifically journalled recovery drains it.
+     * Only a truly quiescent PROBED/STOPPED owner may start again.
+     */
+    if ((ifp->if_flags & IFF_RUNNING) != 0)
+        return EBUSY;
+    if (!rtwn8723be_net80211_start_checkpoint_ok(&sc->sc_linux) ||
         !sc->sc_irq_dispatch_ready || sc->sc_ih == NULL ||
         !sc->sc_rings_allocated || !sc->sc_mapped)
         return EAGAIN;
@@ -71,8 +76,14 @@ rtwn8723be_n80211_ifinit(struct ifnet *ifp)
         return error;
     if (!sc->sc_linux.started || !sc->sc_linux.fw_ready ||
         sc->sc_linux.stage != R23BE_STAGE_RUNNING) {
-        int stop_error = n->methods.hw_stop(sc);
-        return stop_error != 0 ? stop_error : EIO;
+        /*
+         * A false-success start is NOT a completed RUNNING adapter.
+         * linux_adapter_stop() requires started + RUNNING and cannot
+         * safely compensate an incomplete firmware/MAC transition.
+         * Keep the actual failed stage for the separate pre-RUNNING
+         * journal; never fabricate STOPPED or try generic hw_stop.
+         */
+        return EIO;
     }
     /*
      * The physical RF switch could have changed while hw_start was
