@@ -126,6 +126,11 @@ static int hw_start(struct rtwn8723be_softc *sc)
         sc->sc_linux.fw_ready = true;
         return 0; /* partial start; not started */
     }
+    if (change_on_start == 4) {
+        sc->sc_linux.stage = R23BE_STAGE_RUNNING;
+        sc->sc_linux.started = true;
+        return 0; /* false success: firmware not ready */
+    }
     sc->sc_linux.stage = R23BE_STAGE_RUNNING;
     sc->sc_linux.started = true;
     sc->sc_linux.fw_ready = true;
@@ -264,18 +269,22 @@ int main(void)
     assert(rtwn8723be_n80211_ifinit(&ifp) == EIO &&
         starts == 1 && stops == 0);
 
-    for (int mode = 1; mode <= 3; mode++) {
+    for (int mode = 1; mode <= 4; mode++) {
         reset(&sc,&n,&ifp);
         change_on_start = mode;
         ret = rtwn8723be_n80211_ifinit(&ifp);
         assert(ret == (mode == 1 ? ENETDOWN :
             mode == 2 ? EAGAIN : EIO));
-        assert(starts == 1 && stops == (mode == 3 ? 0 : 1) &&
+        assert(starts == 1 && stops == (mode >= 3 ? 0 : 1) &&
             (ifp.if_flags & IFF_RUNNING) == 0);
-        if (mode == 3) {
-            assert(sc.sc_linux.stage == R23BE_STAGE_PROBED &&
-                !sc.sc_linux.started && sc.sc_linux.fw_ready);
-            /* Incomplete firmware lifetime is not a fresh PROBED device. */
+        if (mode == 3 || mode == 4) {
+            if (mode == 3)
+                assert(sc.sc_linux.stage == R23BE_STAGE_PROBED &&
+                    !sc.sc_linux.started && sc.sc_linux.fw_ready);
+            else
+                assert(sc.sc_linux.stage == R23BE_STAGE_RUNNING &&
+                    sc.sc_linux.started && !sc.sc_linux.fw_ready);
+            /* Incomplete firmware or corrupt RUNNING is never restartable. */
             assert(rtwn8723be_n80211_ifinit(&ifp) == EAGAIN);
             assert(starts == 1 && stops == 0);
         }
