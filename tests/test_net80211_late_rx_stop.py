@@ -58,8 +58,8 @@ verify(rx, tx)
 unsafe = (
     (rx.replace("if (!n->registered || n->sc == NULL ||",
                 "if (false ||", 1), tx),
-    (rx.replace("(n->sc->sc_ec.ec_if.if_flags & IFF_RUNNING) == 0) {",
-                "false) {", 1), tx),
+    (rx.replace("(n->sc->sc_ec.ec_if.if_flags & IFF_RUNNING) == 0 ||",
+                "false ||", 1), tx),
     (rx.replace("        m_freem(m);\n        return ENETDOWN;",
                 "        return ENETDOWN;", 1), tx),
     (rx.replace("        !n->sc->sc_linux.started ||\n", "", 1), tx),
