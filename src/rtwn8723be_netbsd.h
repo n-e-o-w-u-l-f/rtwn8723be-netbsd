@@ -102,6 +102,7 @@ struct rtwn8723be_softc {
 
     uint32_t sc_irq_mask[2];
     uint32_t sc_sys_irq_mask;
+    /* Pending RX/TX bits use sc_irq_lock; cleared after IRQ drain. */
     volatile uint32_t sc_irq_pending[2];
     /*
      * A hard IRQ temporarily masks HIMR/HIMRE until SOFTINT_NET drains.
