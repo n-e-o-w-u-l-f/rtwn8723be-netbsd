@@ -27,6 +27,7 @@ def verify_native(src: str) -> None:
     soft = body(src, "rtwn8723be_netbsd_softintr")
     release = body(src, "rtwn8723be_netbsd_disestablish_irq")
     assert '#include "rtwn8723be_irq_pending.h"' in src
+    assert "if (!rtwn8723be_irq_pending_record(sc->sc_irq_pending," in hard
     record = hard.index("rtwn8723be_irq_pending_record(sc->sc_irq_pending,")
     assert hard.index("mutex_enter(&sc->sc_irq_lock);", hard.index(
         "if (inta == 0 || inta == 0xffffU)")) < record
@@ -36,6 +37,7 @@ def verify_native(src: str) -> None:
     assert "sc->sc_irq_pending[0] |=" not in hard
     assert "sc->sc_irq_pending[1] |=" not in hard
 
+    assert "if (!rtwn8723be_irq_pending_take(sc->sc_irq_pending," in soft
     take = soft.index("rtwn8723be_irq_pending_take(sc->sc_irq_pending,")
     assert soft.index("mutex_enter(&sc->sc_irq_lock);") < take
     assert take < soft.index("mutex_exit(&sc->sc_irq_lock);", take)
