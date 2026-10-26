@@ -2,6 +2,26 @@
 
 Date: 2026-10-25 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — IRQ PENDING-BIT DRAIN (2026-10-26)
+
+NetBSD hard IRQ and SOFTINT_NET now use the same IPL_NET
+`sc_irq_lock` for publishing and consuming `sc_irq_pending[2]`.
+The production source-shared C11 helper refuses pending work after
+the owner revokes IRQs, atomically discards stale callbacks when STOP
+preceded the softint snapshot, and clears residual bits only after
+hard and soft handler disestablishment. `context_fini` requires an
+empty IRQ ledger.
+
+At a disposable Linux x86_64 branch revision
+`45cbeeeefd9c99813f2fb43cae248fbce27e47b5`,
+**53/53 host-permitted portable tests passed**, with 12 of 65
+target/reference-specific tests not run. The new IRQ pending helper
+was actually compiled with strict C11 and UBSan; six negative source
+mutations reject unsafe hard/soft IRQ order. This is not a native
+NetBSD kernel compile or physical IRQ race validation. The external
+runtime stop must still drain any softint already executing.
+See `docs/IRQ_PENDING_QUIESCENCE_20261026.md`.
+
 ## SOURCE CHECKPOINT — SERIALIZED BT MP C2H / PENDING RFKILL (2026-10-26)
 
 The RX C2H bridge no longer reads the MP transaction `active`

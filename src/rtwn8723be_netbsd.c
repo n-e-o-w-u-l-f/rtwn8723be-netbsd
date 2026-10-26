@@ -26,6 +26,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "rtwn8723be_calibration_native.h"
 #include "rtwn8723be_h2c_native.h"
 #include "rtwn8723be_runtime_owner.h"
+#include "rtwn8723be_irq_pending.h"
 #include "rtwn8723be_regdomain.h"
 
 static int rtwn8723be_netbsd_intr(void *);
@@ -98,6 +99,8 @@ rtwn8723be_netbsd_context_fini(struct rtwn8723be_softc *sc)
         KASSERT(!sc->sc_irq_requested);
         KASSERT(!sc->sc_irq_enabled);
         KASSERT(sc->sc_ih == NULL && sc->sc_soft_ih == NULL);
+        KASSERT(sc->sc_irq_pending[0] == 0 &&
+            sc->sc_irq_pending[1] == 0);
         mutex_exit(&sc->sc_irq_lock);
         mutex_destroy(&sc->sc_irq_lock);
         sc->sc_irq_lock_initialized = false;
@@ -1155,6 +1158,17 @@ rtwn8723be_netbsd_disestablish_irq(struct rtwn8723be_softc *sc)
         softint_disestablish(sc->sc_soft_ih);
         sc->sc_soft_ih = NULL;
     }
+
+    /*
+     * Hard IRQ and softint have both returned. Nothing can append or
+     * consume a stale packet/BT/TX completion from the old IRQ lifetime.
+     * Reset under the same IPL_NET lock used for both producer and drain.
+     */
+    if (sc->sc_irq_lock_initialized) {
+        mutex_enter(&sc->sc_irq_lock);
+        rtwn8723be_irq_pending_clear(sc->sc_irq_pending);
+        mutex_exit(&sc->sc_irq_lock);
+    }
 }
 
 /*
@@ -1278,8 +1292,18 @@ rtwn8723be_netbsd_intr(void *arg)
         return 0;
     }
 
-    sc->sc_irq_pending[0] |= inta;
-    sc->sc_irq_pending[1] |= intb;
+    /*
+     * The permanent STOP may have revoked requested while MMIO status
+     * was read. Recheck under the owner lock rather than queue a stale
+     * completion for a softint that must no longer access RX/TX rings.
+     */
+    mutex_enter(&sc->sc_irq_lock);
+    if (!rtwn8723be_irq_pending_record(sc->sc_irq_pending,
+        sc->sc_irq_requested, sc->sc_irq_dispatch_ready, inta, intb)) {
+        mutex_exit(&sc->sc_irq_lock);
+        return 0;
+    }
+    mutex_exit(&sc->sc_irq_lock);
     softint_schedule(sc->sc_soft_ih);
     return 1;
 }
@@ -1292,13 +1316,18 @@ rtwn8723be_netbsd_softintr(void *arg)
     uint8_t hsisr;
 
     /*
-     * Device IRQs remain masked while this snapshot is consumed, so no
-     * additional device interrupt can race these pending words.
+     * The pending ledger is protected by the SAME IPL_NET lock in hard
+     * IRQ, SOFTINT_NET and STOP. Drop old work if the interface was
+     * stopped before this softint began; never invoke stale callbacks.
      */
-    inta = sc->sc_irq_pending[0];
-    intb = sc->sc_irq_pending[1];
-    sc->sc_irq_pending[0] = 0;
-    sc->sc_irq_pending[1] = 0;
+    mutex_enter(&sc->sc_irq_lock);
+    if (!rtwn8723be_irq_pending_take(sc->sc_irq_pending,
+        sc->sc_irq_requested, sc->sc_irq_dispatch_ready, &inta, &intb)) {
+        mutex_exit(&sc->sc_irq_lock);
+        rtwn8723be_netbsd_irq_rearm_if_requested(sc);
+        return;
+    }
+    mutex_exit(&sc->sc_irq_lock);
 
     if ((inta & (R23BE_IMR_ROK | R23BE_IMR_RDU)) != 0 ||
         (intb & R23BE_IMR_RXFOVW) != 0)
