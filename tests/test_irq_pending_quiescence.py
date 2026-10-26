@@ -16,8 +16,8 @@ SOURCE = (ROOT / "src/rtwn8723be_netbsd.c").read_text()
 assert HEADER.exists()
 
 def body(src: str, name: str) -> str:
-    pat = re.compile(r"(?m)^(?:static\\s+)?(?:int|void)\\s*\\n" +
-                     re.escape(name) + r"\\([^;{}]*\\)\\n\\{")
+    pat = re.compile(r"(?m)^(?:static\s+)?(?:int|void)\s*\n" +
+                     re.escape(name) + r"\([^;{}]*\)\n\{")
     matches = list(pat.finditer(src))
     assert len(matches) == 1, (name, len(matches))
     return src[matches[0].start():src.index("\n}\n", matches[0].end())+3]
