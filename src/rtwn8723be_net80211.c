@@ -99,7 +99,7 @@ rtwn8723be_n80211_ifstop(struct rtwn8723be_net80211 *n)
 {
     struct ifnet *ifp;
 
-    if (n == NULL || !n->registered)
+    if (n == NULL || !n->registered || n->sc == NULL)
         return ENXIO;
     ifp = &n->sc->sc_ec.ec_if;
     /* Stop further net80211 dequeue BEFORE stopping hardware/interrupts. */
