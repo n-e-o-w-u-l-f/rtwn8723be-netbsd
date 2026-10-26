@@ -13,7 +13,6 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = (ROOT / "src/rtwn8723be_net80211.c").read_text()
 marker = "\nrtwn8723be_n80211_ifstop(struct rtwn8723be_net80211 *n)\n{"
 assert SOURCE.count(marker) == 1
-stop = "static int\n" + SOURCE.split(marker, 1)[0].rsplit("static int\n", 1)[-1] if False else None
 fragment = SOURCE.split(marker, 1)[1]
 stop = "static int\nrtwn8723be_n80211_ifstop(struct rtwn8723be_net80211 *n)\n{" + (
     fragment.split("\n}\n", 1)[0] + "\n}")
@@ -151,7 +150,7 @@ int main(void)
 
     reset(&sc,&n);
     sc.sc_linux.started = false;
-    sc.sc_linux.stage = R23BE_STAGE_FW_DOWNLOAD;
+    sc.sc_linux.stage = R23BE_STAGE_FIRMWARE_DOWNLOAD;
     assert(rtwn8723be_n80211_ifstop(&n) == EBUSY &&
         stops == 0);
     puts("RTL_NET80211_STOP_FAILURE_OWNER_C11_UBSAN_OK");
