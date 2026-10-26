@@ -2,6 +2,35 @@
 
 Date: 2026-10-25 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — FALSE-SUCCESS HARDWARE START QUARANTINE (2026-10-26)
+
+A zero-returning hardware start that failed to produce a real
+`started + fw_ready + RUNNING` state no longer calls the normal
+`hw_stop` callback, which requires an actual RUNNING adapter.
+Instead `if_init` returns EIO and preserves the incomplete Linux
+stage for the separate pre-RUNNING recovery owner. This avoids a
+fake STOPPED transition and unsafe speculative MMIO teardown.
+
+A source-shared start predicate now admits retries only from
+truly quiescent PROBED/STOPPED, with no active firmware,
+MAC, adapter initialization or started state. The unstarted
+net80211-detach predicate rejects these residual resources too.
+The genuine post-RUNNING RFKill compensator remains unchanged.
+
+A fresh disposable Linux x86_64 checkout at
+`08ccea0171afdd0c26ba6d3f0af38e736900043f`
+passed **56/56 host-permitted regression scripts** with no
+failures; 12 of 68 scripts require HP/NetBSD or absent pinned
+reference source checkouts. The updated strict C11/UBSan
+production ifinit harness, source-shared checkpoint tests and
+10 unsafe mutation controls passed. `git diff --check` against
+the stacked PR #9 base passed. See
+`docs/NET80211_PRESTART_QUARANTINE_20261026.md`.
+
+**Not a NetBSD kernel compile or HP WLAN hardware result.** The
+actual pre-RUNNING recovery compensators, net80211 start/stop,
+BT/DM and four Linux callback slots remain unbound.
+
 ## SOURCE CHECKPOINT — NET80211 LATE RX/STOP PUBLICATION (2026-10-26)
 
 Native RX ingress revalidates net80211 registration, softc ownership,

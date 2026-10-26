@@ -5,15 +5,33 @@
 #include "rtwn8723be_linux_state.h"
 
 /*
+ * A start retry is admissible only from an entirely quiescent PROBED or
+ * STOPPED adapter. A callback returning failure or a false success after
+ * partial firmware initialization MUST retain its stage and resources;
+ * an ifconfig down/up must not silently overwrite the recovery journal.
+ */
+static inline bool
+rtwn8723be_net80211_start_checkpoint_ok(
+    const struct rtwn8723be_linux_state *state)
+{
+    if (state == NULL || state->started || state->being_init_adapter ||
+        state->fw_ready || state->mac_func_enable)
+        return false;
+    return state->stage == R23BE_STAGE_PROBED ||
+        state->stage == R23BE_STAGE_STOPPED;
+}
+
+/*
  * A net80211 registration can complete before RFKill/IRQ probe setup does.
- * Such an interface has no running hardware to stop, but still owns ifnet
- * resources that a caller must be able to release during reverse probe.
+ * Only an UNSTARTED, hardware-quiescent interface may be released by the
+ * probe rollback without invoking a normal hardware STOP callback.
  */
 static inline bool
 rtwn8723be_net80211_unstarted_detach_allowed(
     const struct rtwn8723be_linux_state *state)
 {
-    if (state == NULL || state->started)
+    if (state == NULL || state->started || state->being_init_adapter ||
+        state->fw_ready || state->mac_func_enable)
         return false;
 
     switch (state->stage) {
