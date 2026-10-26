@@ -120,6 +120,10 @@ jobs:
         run: python3 tests/test_net80211_unpublished_registration.py
       - name: Net80211 unstarted probe rollback (strict C11)
         run: python3 tests/test_net80211_unstarted_rollback.py
+      - name: Reject net80211 RX and TX after runtime stop (C11 / UBSan)
+        run: python3 tests/test_net80211_late_rx_stop.py
+      - name: Retain hardware stop owner on net80211 failure (C11 / UBSan)
+        run: python3 tests/test_net80211_stop_failure_owner.py
       - name: Inert runtime-owner lifecycle foundation
         run: python3 tests/test_runtime_owner.py
       - name: Pure BTC context preparation (strict C11 / UBSan)
