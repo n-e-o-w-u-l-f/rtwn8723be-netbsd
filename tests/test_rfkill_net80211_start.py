@@ -36,6 +36,12 @@ assert start.index("rtwn8723be_rfkill_native_radio_on(sc, &radio_on)") < before
 assert start.rfind("rtwn8723be_rfkill_native_radio_on(sc, &radio_on)") > before
 assert start.rfind("rtwn8723be_rfkill_native_radio_on(sc, &radio_on)") < after
 assert "int stop_error = n->methods.hw_stop(sc);" in start[before:after]
+# An incoherent false-success start must NOT call the normal RUNNING stop.
+false_success = start.index("if (!sc->sc_linux.started ||")
+rfkill_stop = start.index("error = rtwn8723be_rfkill_native_radio_on(sc, &radio_on);", before)
+assert "n->methods.hw_stop(sc)" not in start[false_success:rfkill_stop]
+assert "return EIO;" in start[false_success:rfkill_stop]
+assert "rtwn8723be_net80211_start_checkpoint_ok(&sc->sc_linux)" in start[:before]
 assert "return error != 0 ? error : ENETDOWN;" in start
 assert "n->last_valid = error == 0 && valid;" in worker
 assert worker.index("n->last_error = error;") < worker.index(
@@ -54,14 +60,11 @@ prologue = r'''
 #include <stddef.h>
 #include <errno.h>
 #include <stdio.h>
+#include "rtwn8723be_net80211_state.h"
 
 #define IFF_RUNNING 0x40U
 #define IFF_OACTIVE 0x400U
-#define R23BE_STAGE_PROBED 18
-#define R23BE_STAGE_STOPPED 45
-#define R23BE_STAGE_RUNNING 43
-
-typedef struct { int held; } kmutex_t;
+ typedef struct { int held; } kmutex_t;
 static void mutex_enter(kmutex_t *m) { assert(!m->held); m->held = 1; }
 static void mutex_exit(kmutex_t *m) { assert(m->held); m->held = 0; }
 
@@ -76,7 +79,7 @@ struct rtwn8723be_rfkill_native {
 };
 struct rtwn8723be_softc {
     struct rtwn8723be_rfkill_native sc_rfkill_native;
-    struct { int stage; bool started, fw_ready; } sc_linux;
+    struct rtwn8723be_linux_state sc_linux;
     bool sc_irq_dispatch_ready, sc_rings_allocated, sc_mapped;
     void *sc_ih;
 };
@@ -248,6 +251,15 @@ int main(void)
     assert(rtwn8723be_n80211_ifinit(&ifp) == EAGAIN && starts == 0);
 
     reset(&sc,&n,&ifp);
+    sc.sc_linux.mac_func_enable = true;
+    assert(rtwn8723be_n80211_ifinit(&ifp) == EAGAIN && starts == 0);
+    reset(&sc,&n,&ifp);
+    sc.sc_linux.being_init_adapter = true;
+    assert(rtwn8723be_n80211_ifinit(&ifp) == EAGAIN && starts == 0);
+    reset(&sc,&n,&ifp);
+    ifp.if_flags = IFF_RUNNING;
+    assert(rtwn8723be_n80211_ifinit(&ifp) == EBUSY && starts == 0);
+    reset(&sc,&n,&ifp);
     start_errno = EIO;
     assert(rtwn8723be_n80211_ifinit(&ifp) == EIO &&
         starts == 1 && stops == 0);
@@ -258,8 +270,15 @@ int main(void)
         ret = rtwn8723be_n80211_ifinit(&ifp);
         assert(ret == (mode == 1 ? ENETDOWN :
             mode == 2 ? EAGAIN : EIO));
-        assert(starts == 1 && stops == 1 &&
+        assert(starts == 1 && stops == (mode == 3 ? 0 : 1) &&
             (ifp.if_flags & IFF_RUNNING) == 0);
+        if (mode == 3) {
+            assert(sc.sc_linux.stage == R23BE_STAGE_PROBED &&
+                !sc.sc_linux.started && sc.sc_linux.fw_ready);
+            /* Incomplete firmware lifetime is not a fresh PROBED device. */
+            assert(rtwn8723be_n80211_ifinit(&ifp) == EAGAIN);
+            assert(starts == 1 && stops == 0);
+        }
     }
 
     reset(&sc,&n,&ifp);
@@ -280,5 +299,6 @@ with tempfile.TemporaryDirectory(prefix="rtl-rfkill-start-") as d:
     subprocess.run([
         "cc","-std=c11","-Wall","-Wextra","-Werror","-pedantic",
         "-fsanitize=undefined","-fno-sanitize-recover=all",
+        "-I", str(ROOT / "src"),
         str(source),"-o",str(exe)],check=True)
     subprocess.run([str(exe)],check=True)
