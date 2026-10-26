@@ -99,6 +99,8 @@ rtwn8723be_netbsd_context_fini(struct rtwn8723be_softc *sc)
         KASSERT(!sc->sc_irq_requested);
         KASSERT(!sc->sc_irq_enabled);
         KASSERT(sc->sc_ih == NULL && sc->sc_soft_ih == NULL);
+        KASSERT(sc->sc_irq_pending[0] == 0 &&
+            sc->sc_irq_pending[1] == 0);
         mutex_exit(&sc->sc_irq_lock);
         mutex_destroy(&sc->sc_irq_lock);
         sc->sc_irq_lock_initialized = false;
