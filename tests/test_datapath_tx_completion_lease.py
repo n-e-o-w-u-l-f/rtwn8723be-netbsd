@@ -52,7 +52,8 @@ def contract(done_src: str, stop_src: str, unprepare_src: str,
     assert stop_src.index("mutex_enter(&dp->tx_lock);") < (
         stop_src.index("state->stage = R23BE_STAGE_STOPPING;"))
 
-    check = "if (dp->tx_enabled || dp->stop_pending ||"
+    check = ("if (dp->tx_enabled || dp->stop_pending ||\n"
+             "        dp->tx_callback_active != 0 || dp->rx_callback_active != 0)")
     lock = unprepare_src.index("mutex_enter(&dp->tx_lock);")
     test = unprepare_src.index(check)
     leave_busy = unprepare_src.index("return EBUSY;", test)
@@ -73,8 +74,8 @@ controls = (
     (done.replace("if (error == 0 && reclaimed != 0 && dp->tx_complete != NULL)",
                   "if (reclaimed != 0 && dp->tx_complete != NULL)", 1), stop, unprepare, HDR),
     (done, stop, unprepare.replace(
-        "dp->tx_enabled || dp->tx_callback_active != 0",
-        "dp->tx_enabled", 1), HDR),
+        "dp->tx_callback_active != 0 || dp->rx_callback_active != 0",
+        "dp->rx_callback_active != 0", 1), HDR),
     (done, stop, unprepare.replace("sc->sc_soft_ih != NULL ||", "", 1), HDR),
     (done, stop, unprepare.replace("mutex_enter(&dp->tx_lock);", "", 1), HDR),
     (done, stop.replace("state->stage = R23BE_STAGE_STOPPING;",
