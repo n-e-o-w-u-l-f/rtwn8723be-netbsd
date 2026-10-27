@@ -60,6 +60,8 @@ void rtwn8723be_datapath_stop(struct rtwn8723be_datapath *);
 /*
  * Requires IRQ and softint fully DIS-ESTABLISHED, plus no concurrent
  * ifnet entry, before clearing callbacks/destroying the TX lock.
+ * Also returns EBUSY if an external TX-completion callback still holds
+ * a published reference; the caller must drain/retry OUTSIDE IPL_NET.
  */
 int rtwn8723be_datapath_unprepare(struct rtwn8723be_datapath *);
 
