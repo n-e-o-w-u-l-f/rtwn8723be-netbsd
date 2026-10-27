@@ -21,17 +21,41 @@ rtwn8723be_dp_rx(void *arg)
     size_t delivered = 0;
     int error;
 
-    if (!dp->prepared || dp->rx.frame == NULL || dp->rx.c2h == NULL)
+    if (dp == NULL || !dp->prepared || dp->sc == NULL)
         return;
 
     /*
-     * RX DMA drain re-arms OWN after each callback. The packet pointer
-     * cannot be retained by the frame/C2H consumer.
+     * The IRQ softint borrows the DMA rings and frame/C2H handlers.
+     * Acquire one RX-drain lifetime reference under the SAME TX/STOPPING
+     * serializer before accessing DMA or calling a borrowed consumer.
+     * A STOP that overtakes a queued softint leaves the ring untouched.
+     */
+    mutex_enter(&dp->tx_lock);
+    if (!dp->tx_enabled || dp->sc->sc_datapath != dp ||
+        dp->sc->sc_irq_arg != dp || !dp->sc->sc_irq_dispatch_ready ||
+        !dp->sc->sc_linux.started || !dp->sc->sc_linux.fw_ready ||
+        dp->sc->sc_linux.stage != R23BE_STAGE_RUNNING ||
+        dp->rx.frame == NULL || dp->rx.c2h == NULL) {
+        mutex_exit(&dp->tx_lock);
+        return;
+    }
+    dp->rx_callback_active++;
+    mutex_exit(&dp->tx_lock);
+
+    /*
+     * Never hold the TX spin mutex across RX DMA and net80211 callbacks.
+     * RX ring OWN rearm and borrowed buffers remain the native drain's
+     * responsibility; the outer IRQ owner must still drain softint.
      */
     error = rtwn8723be_rx_native_drain(dp->sc, &dp->rx, &delivered);
+
+    mutex_enter(&dp->tx_lock);
     dp->rx_delivered += delivered;
     if (error != 0 && dp->rx_error == 0)
         dp->rx_error = error;
+    KASSERT(dp->rx_callback_active != 0);
+    dp->rx_callback_active--;
+    mutex_exit(&dp->tx_lock);
 }
 
 static void
@@ -191,6 +215,16 @@ rtwn8723be_datapath_begin_stop(struct rtwn8723be_datapath *dp,
         /* Even an inconsistent owner must not retain TX admission. */
         dp->tx_enabled = false;
         error = EAGAIN;
+    } else if (dp->rx_callback_active != 0 ||
+        dp->tx_callback_active != 0) {
+        /*
+         * Do not begin destructive hardware STOP with borrowed RX DMA
+         * or external TX-completion callbacks still executing. Close
+         * fresh admissions, retain RUNNING ownership, and report EBUSY
+         * for an external sleepable/drain-and-retry controller.
+         */
+        dp->tx_enabled = false;
+        error = EBUSY;
     } else {
         dp->tx_enabled = false;
         state->stage = R23BE_STAGE_STOPPING;
@@ -240,7 +274,8 @@ rtwn8723be_datapath_unprepare(struct rtwn8723be_datapath *dp)
      * completion needs this same mutex to drop its lifetime reference.
      */
     mutex_enter(&dp->tx_lock);
-    if (dp->tx_enabled || dp->tx_callback_active != 0) {
+    if (dp->tx_enabled || dp->tx_callback_active != 0 ||
+        dp->rx_callback_active != 0) {
         mutex_exit(&dp->tx_lock);
         return EBUSY;
     }
