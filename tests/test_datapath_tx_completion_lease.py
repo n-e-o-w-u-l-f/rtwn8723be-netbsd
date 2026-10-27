@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Compile real TX done, atomic begin_stop and unprepare with strict C11/UBSan.
 
-The TX completion callback intentionally enters the STOPPING transition and
-then tries to unprepare the same datapath before the callback returns. The
-production unprepare MUST fail closed with EBUSY and preserve its TX mutex,
-IRQ dispatch and owner storage until the outstanding callback has returned.
+The TX completion callback intentionally attempts STOPPING while holding
+its lifetime reference. The native controller MUST return EBUSY, then
+unprepare must also refuse while the callback runs. After it returns,
+a second begin_stop and unprepare may succeed, preserving the TX mutex,
+IRQ dispatch and owner storage until the reference has been released.
 Actual NetBSD softint_disestablish and kernel scheduling are not simulated.
 """
 from pathlib import Path
