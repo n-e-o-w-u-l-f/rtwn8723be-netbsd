@@ -26,6 +26,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "rtwn8723be_calibration_native.h"
 #include "rtwn8723be_h2c_native.h"
 #include "rtwn8723be_runtime_owner.h"
+#include "rtwn8723be_datapath.h"
 #include "rtwn8723be_irq_pending.h"
 #include "rtwn8723be_regdomain.h"
 
@@ -2325,6 +2326,29 @@ rtwn8723be_netbsd_mark_hal_stop(void *arg)
 }
 
 /*
+ * The hardware stop preflight calls this before any BT/HAL/IRQ teardown.
+ * No RUNNING -> STOPPING store is permitted outside the datapath's IPL_NET
+ * TX serializer; a missing/unowned bridge is a recoverable refusal, not
+ * permission to stop hardware beneath in-flight DMA descriptor producers.
+ *
+ * This transition deliberately does NOT disestablish the soft interrupt.
+ * The external runtime owner must still drain RX, completions and callbacks
+ * before freeing rings or net80211 resources.
+ */
+static int
+rtwn8723be_netbsd_begin_stop(void *arg,
+    struct rtwn8723be_linux_state *state)
+{
+    struct rtwn8723be_softc *sc = arg;
+
+    if (sc == NULL || state == NULL || state != &sc->sc_linux)
+        return EINVAL;
+    if (sc->sc_datapath == NULL)
+        return EAGAIN;
+    return rtwn8723be_datapath_begin_stop(sc->sc_datapath, state);
+}
+
+/*
  * Foundation of the full Linux probe/start state machine.  Unspecified
  * callbacks remain NULL until their exact Linux hardware semantics have been
  * ported; rtwn8723be_linux_state.c will reject such an incomplete transition
@@ -2377,6 +2401,7 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .enable_interrupt = rtwn8723be_netbsd_enable_interrupt,
     .init_rx_config = rtwn8723be_netbsd_init_rx_config,
     .mark_hal_start = rtwn8723be_netbsd_mark_hal_start,
+    .begin_stop = rtwn8723be_netbsd_begin_stop,
     .bt_halt_deinit = rtwn8723be_netbsd_bt_halt_deinit,
     .mark_hal_stop = rtwn8723be_netbsd_mark_hal_stop,
     .disable_interrupt = rtwn8723be_netbsd_disable_interrupt,

@@ -63,7 +63,8 @@ static int
 rtwn8723be_stop_ops_ready(const struct rtwn8723be_linux_ops *ops)
 {
     /* No STOPPING transition until every required teardown step exists. */
-    if (ops->bt_halt_deinit == NULL ||
+    if (ops->begin_stop == NULL ||
+        ops->bt_halt_deinit == NULL ||
         ops->mark_hal_stop == NULL ||
         ops->disable_interrupt == NULL ||
         ops->wait_rf_change_idle == NULL ||
@@ -313,7 +314,17 @@ rtwn8723be_linux_adapter_stop(void *ctx,
     if (error != 0)
         return error;
 
-    state->stage = R23BE_STAGE_STOPPING;
+    /*
+     * RUNNING -> STOPPING must occur only through the platform's TX
+     * serializer. The NetBSD callback atomically disables new descriptor
+     * publication before changing the stage. Never run BT/hardware
+     * teardown while a callback is absent or rejects ownership.
+     */
+    error = ops->begin_stop(ctx, state);
+    if (error != 0)
+        return error;
+    if (!state->started || state->stage != R23BE_STAGE_STOPPING)
+        return EIO;
 
     R23BE_CALL(R23BE_STAGE_STOPPING, ops->bt_halt_deinit, ctx);
     R23BE_CALL(R23BE_STAGE_STOPPING, ops->mark_hal_stop, ctx);

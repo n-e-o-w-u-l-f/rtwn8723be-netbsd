@@ -116,6 +116,12 @@ struct rtwn8723be_linux_ops {
     int (*init_rx_config)(void *);
     int (*mark_hal_start)(void *);
 
+    /*
+     * Mandatory atomic transition RUNNING -> STOPPING, including TX
+     * admission shutdown under the native datapath serializer. A callback
+     * must change state->stage to STOPPING only after closing TX.
+     */
+    int (*begin_stop)(void *, struct rtwn8723be_linux_state *);
     int (*bt_halt_deinit)(void *);
     int (*mark_hal_stop)(void *);
     int (*disable_interrupt)(void *);
