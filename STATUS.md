@@ -2,6 +2,35 @@
 
 Date: 2026-10-25 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — TX START/COMPLETION LOCK SNAPSHOT (2026-10-27)
+
+The native datapath `start` now checks sole device/IRQ owner
+and genuine RUNNING status **under `dp->tx_lock`**, directly
+before publishing `tx_enabled`; stale pre-lock approval no
+longer enables TX after a STOPPING/owner transition.
+
+The native TX completion bridge refuses ring reclaim and
+net80211 callback publication for disabled TX, foreign owner
+or non-RUNNING/firmware-unready state. A successful nonzero
+reclaim may snapshot the completion callback under the TX lock,
+but calls it **outside** the lock to avoid reentrant deadlock.
+Failed partial ring reclamation retains the failure/owner and
+does not advertise a successful completion.
+
+At a disposable Linux x86_64 checkout of
+`e13eb385f2c9cca265a1168d518f4ad30bc79e40`,
+**58/58 host-permitted tests passed**, with 12 excluded of 70
+total scripts. The production-function C11/UBSan test injects
+STOPPING and ownership loss exactly at TX mutex acquisition
+and rejects nine unsafe source mutations. The diff against
+stacked PR #11 was clean. See
+`docs/DATAPATH_TX_START_COMPLETION_20261027.md`.
+
+This does **not** yet serialize the Linux STOPPING write with
+`dp->tx_lock`, drain a callback already in progress, or prove
+NetBSD kernel/hardware behavior. The complete runtime lifetime
+owner and four unfinished callback bindings remain open.
+
 ## SOURCE CHECKPOINT — DATAPATH TX STOPPING GATE (2026-10-27)
 
 The actual native datapath `enqueue` now refuses TX unless the
