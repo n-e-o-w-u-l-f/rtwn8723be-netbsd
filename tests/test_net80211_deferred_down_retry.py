@@ -116,7 +116,7 @@ prologue = r'''
 #include <stdio.h>
 #include <errno.h>
 #include <assert.h>
-#include "rtwn8723be_linux_state.h"
+#include "rtwn8723be_net80211_state.h"
 
 #define IFF_UP 0x1U
 #define IFF_RUNNING 0x40U
@@ -124,7 +124,6 @@ prologue = r'''
 #define SIOCSIFFLAGS 0x100U
 #define SIOCADDMULTI 0x101U
 #define SIOCDELMULTI 0x102U
-#define ENETRESET 1023
 typedef unsigned long u_long;
 typedef struct { bool held; } kmutex_t;
 struct rtwn8723be_datapath;
