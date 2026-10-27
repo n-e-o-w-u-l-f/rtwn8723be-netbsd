@@ -10,6 +10,12 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <sys/systm.h>
 #include <sys/errno.h>
 
+/*
+ * rx_binding.h intentionally only forwards the PCI softc, but this
+ * translation unit accesses its fields and calls the native MP owner.
+ * Include the complete NetBSD softc before any such dereference.
+ */
+#include "rtwn8723be_netbsd.h"
 #include "rtwn8723be_rx_binding.h"
 
 static int
