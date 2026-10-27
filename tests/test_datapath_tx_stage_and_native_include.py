@@ -48,9 +48,9 @@ def contract(start_body: str, enqueue_body: str, rx_source: str):
     assert enqueue_body.index("rtwn8723be_tx_native_enqueue(") < (
         enqueue_body.index("mutex_exit(&dp->tx_lock);"))
 
-    # The separate RX C file needs the complete native softc definition:
-    # rx_binding.h intentionally holds only a net80211 pointer and its
-    # transitive header only forward-declares the PCI device softc.
+    # The RX translation unit requires the full softc. rx_native.h does
+    # currently include netbsd.h transitively, but that unrelated include
+    # must not be the only contract protecting these field accesses.
     assert "struct rtwn8723be_softc {" in NETH
     assert "struct rtwn8723be_softc {" not in RXH
     assert '#include "rtwn8723be_netbsd.h"' in rx_source
