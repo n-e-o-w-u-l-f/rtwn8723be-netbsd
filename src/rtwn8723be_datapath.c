@@ -38,23 +38,46 @@ static void
 rtwn8723be_dp_tx_done(void *arg, unsigned int qid)
 {
     struct rtwn8723be_datapath *dp = arg;
+    void (*notify)(void *, unsigned int, size_t) = NULL;
+    void *notify_arg = NULL;
     size_t reclaimed = 0;
     int error;
 
-    if (!dp->prepared || qid >= RTWN8723BE_TX_QUEUE_COUNT)
+    if (dp == NULL || !dp->prepared ||
+        qid >= RTWN8723BE_TX_QUEUE_COUNT)
         return;
 
     /* Serialize ring consumer against concurrent ifnet send producer. */
     mutex_enter(&dp->tx_lock);
+    /*
+     * A late softint after STOPPING must not DMA-sync a retired ring or
+     * wake net80211. Leave remaining descriptors to the explicit device
+     * quiesce/recovery owner; never reclaim speculatively after stop.
+     */
+    if (!dp->tx_enabled || dp->sc == NULL ||
+        dp->sc->sc_datapath != dp || dp->sc->sc_irq_arg != dp ||
+        !dp->sc->sc_linux.started || !dp->sc->sc_linux.fw_ready ||
+        dp->sc->sc_linux.stage != R23BE_STAGE_RUNNING) {
+        mutex_exit(&dp->tx_lock);
+        return;
+    }
     error = rtwn8723be_tx_native_reclaim(dp->sc, qid, &reclaimed);
     if (error != 0 && dp->tx_error == 0)
         dp->tx_error = error;
     dp->tx_reclaimed += reclaimed;
+    if (error == 0 && reclaimed != 0 && dp->tx_complete != NULL) {
+        notify = dp->tx_complete;
+        notify_arg = dp->tx_complete_arg;
+    }
     mutex_exit(&dp->tx_lock);
 
-    /* Caller may wake a stopped net80211 queue outside the TX spin lock. */
-    if (reclaimed != 0 && dp->tx_complete != NULL)
-        dp->tx_complete(dp->tx_complete_arg, qid, reclaimed);
+    /*
+     * Do not invoke net80211 under the TX lock: it may enqueue again.
+     * The owner must still drain this already admitted callback before
+     * detach; the snapshot alone is not a lifetime lease.
+     */
+    if (notify != NULL)
+        notify(notify_arg, qid, reclaimed);
 }
 
 int
@@ -103,23 +126,34 @@ int
 rtwn8723be_datapath_start(struct rtwn8723be_datapath *dp)
 {
     struct rtwn8723be_softc *sc;
+    int error = 0;
 
     if (dp == NULL || !dp->prepared || dp->sc == NULL)
         return EINVAL;
     sc = dp->sc;
+
+    /*
+     * Validate owner and runtime state under the SAME lock that publishes
+     * tx_enabled and serializes descriptor enqueue and reclaim. A STOP
+     * or owner transition before mutex acquisition must not reenable TX
+     * using the stale pre-lock snapshot.
+     *
+     * The external runtime owner still must serialize its STOPPING state
+     * transition with this mutex; this check does not invent that owner.
+     */
+    mutex_enter(&dp->tx_lock);
     if (sc->sc_datapath != dp || sc->sc_irq_arg != dp)
-        return EBUSY;
-    if (!sc->sc_linux.started ||
+        error = EBUSY;
+    else if (!sc->sc_linux.started ||
         sc->sc_linux.stage != R23BE_STAGE_RUNNING ||
         !sc->sc_linux.fw_ready ||
         !sc->sc_irq_dispatch_ready || sc->sc_ih == NULL ||
         !sc->sc_mapped || !sc->sc_rings_allocated)
-        return EAGAIN;
-
-    mutex_enter(&dp->tx_lock);
-    dp->tx_enabled = true;
+        error = EAGAIN;
+    else
+        dp->tx_enabled = true;
     mutex_exit(&dp->tx_lock);
-    return 0;
+    return error;
 }
 
 void
