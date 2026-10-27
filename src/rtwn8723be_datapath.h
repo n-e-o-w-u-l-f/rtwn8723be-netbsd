@@ -59,6 +59,13 @@ int rtwn8723be_datapath_start(struct rtwn8723be_datapath *);
 int rtwn8723be_datapath_begin_stop(struct rtwn8723be_datapath *,
     struct rtwn8723be_linux_state *);
 
+/*
+ * A previously rejected, quiescence-delayed STOP can be reattempted from
+ * an already DOWN ifnet without restoring IFF_RUNNING. Snapshot owner,
+ * stage and stop_pending under the same IPL_NET TX serializer.
+ */
+bool rtwn8723be_datapath_stop_retry_ready(struct rtwn8723be_datapath *);
+
 /* Disables new TX; caller must quiesce/disestablish IRQ independently. */
 void rtwn8723be_datapath_stop(struct rtwn8723be_datapath *);
 
