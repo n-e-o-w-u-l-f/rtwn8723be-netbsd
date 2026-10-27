@@ -156,6 +156,40 @@ rtwn8723be_datapath_start(struct rtwn8723be_datapath *dp)
     return error;
 }
 
+/*
+ * A complete RUNNING hardware owner must close TX descriptor admission
+ * and enter STOPPING as ONE transition. The stage is shared with the
+ * Linux-order stop controller, which will subsequently disable IRQ and
+ * unwind hardware. The outer lifecycle owns softint/callback draining.
+ */
+int
+rtwn8723be_datapath_begin_stop(struct rtwn8723be_datapath *dp,
+    struct rtwn8723be_linux_state *state)
+{
+    struct rtwn8723be_softc *sc;
+    int error = 0;
+
+    if (dp == NULL || !dp->prepared || dp->sc == NULL || state == NULL)
+        return EINVAL;
+    sc = dp->sc;
+    if (state != &sc->sc_linux)
+        return EINVAL;
+
+    mutex_enter(&dp->tx_lock);
+    if (sc->sc_datapath != dp || sc->sc_irq_arg != dp ||
+        !sc->sc_irq_dispatch_ready)
+        error = EBUSY;
+    else if (!state->started || !state->fw_ready ||
+        state->stage != R23BE_STAGE_RUNNING)
+        error = EAGAIN;
+    else {
+        dp->tx_enabled = false;
+        state->stage = R23BE_STAGE_STOPPING;
+    }
+    mutex_exit(&dp->tx_lock);
+    return error;
+}
+
 void
 rtwn8723be_datapath_stop(struct rtwn8723be_datapath *dp)
 {
