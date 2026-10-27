@@ -2,6 +2,41 @@
 
 Date: 2026-10-25 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — RX/TX IN-FLIGHT STOP REFUSAL (2026-10-27)
+
+The native SOFTINT_NET RX bridge now admits a ring DMA drain
+only under the existing IPL_NET TX/STOPPING serializer. It
+holds a new `rx_callback_active` reference across all RX DMA
+and borrowed net80211/C2H callback operations, and releases
+that reference on success or failure after reacquiring the
+same lock.
+
+The atomic native `begin_stop` now fails with `EBUSY`
+**before hardware teardown** whenever an RX drain or external
+TX completion callback is still running. It closes fresh
+RX/TX admission and latches `stop_pending`; a concurrent
+`datapath_start` cannot reopen TX in this state.
+`datapath_unprepare` also refuses nonzero callback references
+or an outstanding pending STOP. A subsequent successful
+STOPPING entry clears the latch.
+
+At a disposable Linux x86_64 checkout of
+`bddf08bac056daf6e7012af3e0c6d7a6f993287e`,
+**61/61 host-permitted tests passed**, zero failed, with
+12 of 73 target/pinned-source tests not run. A new strict
+C11/UBSan test compiles real RX softint, begin-stop and
+unprepare functions; the RX drain recursively attempts STOP
+and teardown, expects EBUSY, and verifies a safe retry after
+the callback returns. Ten unsafe source mutations are rejected.
+Existing TX lease, atomic STOP and start-pending tests passed.
+See `docs/RX_TX_INFLIGHT_STOP_GATE_20261027.md`.
+
+**Still not a complete runtime STOP:** an outer lifecycle owner
+must retry after transient EBUSY, drain IRQ/softint and handle
+pre-RUNNING firmware C2H, DMA and final net80211 references.
+Native NetBSD compilation, hardware WLAN validation and four
+missing lifecycle callbacks remain open.
+
 ## SOURCE CHECKPOINT — IN-FLIGHT TX COMPLETION LEASE (2026-10-27)
 
 The native TX completion bridge now holds an explicit reference
