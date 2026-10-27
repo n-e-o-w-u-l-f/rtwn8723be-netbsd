@@ -10,6 +10,12 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <sys/systm.h>
 #include <sys/errno.h>
 
+/*
+ * This translation unit dereferences the full PCI softc and calls the
+ * native MP owner. Include its definition explicitly rather than rely on
+ * the transitive netbsd.h include through rx_native.h.
+ */
+#include "rtwn8723be_netbsd.h"
 #include "rtwn8723be_rx_binding.h"
 
 static int

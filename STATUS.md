@@ -2,6 +2,34 @@
 
 Date: 2026-10-25 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — DATAPATH TX STOPPING GATE (2026-10-27)
+
+The actual native datapath `enqueue` now refuses TX unless the
+published bridge is the sole device datapath and Linux lifecycle
+is **started + firmware-ready + RUNNING**. This closes a source
+admission hole: `STOPPING` still preserves the earlier started and
+firmware flags until the full Linux stop completes. Native datapath
+`start` also checks the published IRQ/owner identity.
+
+The RX binding translation unit now imports the complete PCI softc
+header explicitly, removing reliance on its previous **already
+working transitive include** through `rx_native.h`. This is
+dependency hygiene, **not evidence of an earlier compile failure**.
+
+A disposable Linux x86_64 checkout at
+`e7a7247a436bfbbe90c903c3f50e5cdf34930a04`
+passed **57/57 host-permitted Python tests**, with 12 of 69
+scripts excluded for target or pinned reference requirements.
+The new strict C11/UBSan test compiles the real production
+datapath start/enqueue function bodies and detects seven unsafe
+mutations. `git diff --check` against PR #10 passed.
+See `docs/NATIVE_RX_SOFTC_TX_STOP_GATE_20261027.md`.
+
+**The actual STOPPING transition still lacks a common runtime lock
+with TX producer; this is not a full race-free stop owner.**
+Native NetBSD compilation/link and HP firmware/WLAN validation
+remain OPEN; the four unfinished lifecycle slots stay unbound.
+
 ## SOURCE CHECKPOINT — FALSE-SUCCESS HARDWARE START QUARANTINE (2026-10-26)
 
 A zero-returning hardware start that failed to produce a real
