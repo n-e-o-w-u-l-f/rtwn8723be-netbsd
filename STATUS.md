@@ -1,6 +1,42 @@
 # RTL8723BE NetBSD project status
 
-Date: 2026-10-25 (last verified HP native build: 2026-10-11)
+Source checkpoint: 2026-10-27 (last verified HP native build: 2026-10-11)
+
+## SOURCE CHECKPOINT — NET80211 EXPLICIT DOWN RETRY (2026-10-27)
+
+The net80211 `SIOCSIFFLAGS` DOWN path can now explicitly
+retry a previously deferred hardware STOP even though the
+first `ifstop` already cleared `IFF_RUNNING`. A new native
+`rtwn8723be_datapath_stop_retry_ready` predicate reads
+the pending-stop latch, disabled TX, valid device/IRQ
+ownership and still-RUNNING Linux state **under the IPL_NET
+datapath TX mutex**. On another explicit DOWN ioctl with
+both IFF_UP and IFF_RUNNING clear, net80211 calls its real
+`hw_stop` method again; the hardware's begin-stop callback
+rechecks callback references atomically and may return
+`EBUSY` again. No fictitious IFF_RUNNING restoration occurs.
+
+The ioctl handler also rejects a registered bridge with a
+NULL native softc before dereferencing it. A new strict C11/
+UBSan regression compiles **the actual production** ifstop,
+ioctl, native retry snapshot and atomic begin-stop functions.
+It executes first/second EBUSY with RX DMA active, explicit
+DOWN completion after RX drains, no redundant further STOP,
+foreign-owner refusal and NULL-softc rejection. Eleven
+unsafe source mutations must be rejected.
+
+At a disposable Linux x86_64 checkout of
+`da8728e45f353a5f200c4fe971711ca345b0e274`,
+**62/62 host-permitted test scripts passed**; 12 of 74
+target-/pinned-source tests were not run. The diff against
+stacked PR #15 was clean. See
+`docs/NET80211_DEFERRED_DOWN_RETRY_20261027.md`.
+
+**This retry requires another explicit DOWN ioctl.** It does
+NOT schedule a retry automatically after callback completion.
+Hardware-specific softint/IRQ drain, automatic stop,
+failed STOPPING recovery and native HP/net80211 testing
+remain OPEN. Four probe/start callbacks remain unbound.
 
 ## SOURCE CHECKPOINT — RX/TX IN-FLIGHT STOP REFUSAL (2026-10-27)
 
