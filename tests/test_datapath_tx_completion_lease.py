@@ -133,7 +133,6 @@ struct rtwn8723be_datapath {
 };
 static int enters, exits, destroys, unbinds, reclaim_calls, notify_calls;
 static int inside_unprepare;
-static int mutex_balanced;
 static void mutex_enter(kmutex_t *lock)
 {
     assert(lock && !lock->held && !lock->destroyed);
