@@ -38,6 +38,7 @@ def contract(stop_body: str, ioctl_body: str, retry_body: str,
              start_stop_body: str, header: str) -> None:
     assert "bool rtwn8723be_datapath_stop_retry_ready(" in header
     assert "ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);" in stop_body
+    assert "if (n == NULL || !n->registered || n->sc == NULL)" in ioctl_body
     assert "return n->methods.hw_stop(n->sc);" in stop_body
     flags = "(ifp->if_flags & (IFF_UP | IFF_RUNNING)) == 0"
     call = "rtwn8723be_datapath_stop_retry_ready("
@@ -100,6 +101,9 @@ negative_controls = (
      begin_stop, HEADER),
     (ifstop, ioctl, retry, begin_stop, HEADER.replace(
         "bool rtwn8723be_datapath_stop_retry_ready(", "bool absent(")),
+    (ifstop, ioctl.replace(
+        "n == NULL || !n->registered || n->sc == NULL",
+        "n == NULL || !n->registered", 1), retry, begin_stop, HEADER),
 )
 for i, mutated in enumerate(negative_controls, 1):
     assert mutated != (ifstop, ioctl, retry, begin_stop, HEADER), i
@@ -269,7 +273,15 @@ int main(void)
     assert(stops == 0);
     balanced(&dp);
 
-    /* 7. Normal first-time successful DOWN still works. */
+    /* 7. A detached or mismatched ifnet cannot dereference NULL sc. */
+    reset(&sc, &dp, &n);
+    n.sc = NULL;
+    assert(rtwn8723be_n80211_ioctl(&sc.sc_ec.ec_if,
+        SIOCSIFFLAGS, &down) == ENXIO);
+    assert(stops == 0 && inits == 0);
+    balanced(&dp);
+
+    /* 8. Normal first-time successful DOWN still works. */
     reset(&sc, &dp, &n);
     assert(rtwn8723be_n80211_ioctl(&sc.sc_ec.ec_if,
         SIOCSIFFLAGS, &down) == 0);
@@ -291,4 +303,4 @@ with tempfile.TemporaryDirectory(prefix="r23be-net80211-down-retry-") as directo
                     "-I", str(ROOT / "src"),
                     str(source), "-o", str(exe)], check=True)
     subprocess.run([str(exe)], check=True)
-print("RTL_NET80211_DOWN_RETRY_SOURCE_NEGATIVES_OK negatives=10")
+print("RTL_NET80211_DOWN_RETRY_SOURCE_NEGATIVES_OK negatives=11")
