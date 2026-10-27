@@ -104,7 +104,7 @@ typedef struct { bool held; } kmutex_t;
 struct rtwn8723be_datapath {
     struct rtwn8723be_softc *sc;
     kmutex_t tx_lock;
-    bool prepared, tx_enabled;
+    bool prepared, tx_enabled, stop_pending;
     unsigned int tx_callback_active, rx_callback_active;
 };
 struct mbuf { unsigned id; };
@@ -202,9 +202,10 @@ int main(void)
     dp.rx_callback_active = 1;
     assert(rtwn8723be_netbsd_begin_stop(&sc, &sc.sc_linux) == EBUSY);
     assert(sc.sc_linux.stage == R23BE_STAGE_RUNNING && !dp.tx_enabled);
+    assert(dp.stop_pending);
     dp.rx_callback_active = 0;
     assert(rtwn8723be_netbsd_begin_stop(&sc, &sc.sc_linux) == 0);
-    assert(sc.sc_linux.stage == R23BE_STAGE_STOPPING);
+    assert(sc.sc_linux.stage == R23BE_STAGE_STOPPING && !dp.stop_pending);
     balanced(&dp);
 
     setup(&sc, &dp);
