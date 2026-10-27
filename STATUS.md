@@ -2,6 +2,36 @@
 
 Date: 2026-10-25 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — ATOMIC TX STOPPING ENTRY (2026-10-27)
+
+The production Linux-order stop controller now **requires a real,
+bound `begin_stop` callback** before BT, HAL, IRQ or MAC teardown.
+The NetBSD implementation delegates to a native datapath entry that
+sets `tx_enabled = false` and changes the actual Linux state from
+RUNNING to STOPPING in **one IPL_NET TX-mutex critical section**.
+This closes the prior race between unguarded STOPPING publication
+and an in-progress descriptor producer. Missing/foreign callbacks
+refuse hardware stop; an incomplete but still owned lifecycle
+also revokes TX admission.
+
+At a disposable Linux x86_64 checkout of
+`5e9e184b92f0a9f6e65df049f62961c03b7def7b`,
+**59 of 59 host-permitted regression scripts passed**, with
+12 of 71 tests excluded for HP/NetBSD or unavailable pinned
+reference requirements. Strict C11/UBSan compiles the **actual
+native STOPPING and TX enqueue bodies** and injects state/owner
+changes at lock acquisition. Ten negative mutation tests protect
+the transition and the existing Linux lifecycle test now
+rejects absent or false-success STOP-entry callbacks.
+The native callback inventory is **54 declared, 50 bound,
+four intentionally missing**, with 48 native C objects unchanged.
+See `docs/SERIALIZED_STOPPING_TX_ENTRY_20261027.md`.
+
+The owner for in-flight callbacks after the TX lock is released,
+IRQ/softint drain, ring teardown, failed STOP recovery and
+native HP kernel validation are **still OPEN**. No active WLAN
+or boot safety claim follows from portable C11 testing.
+
 ## SOURCE CHECKPOINT — TX START/COMPLETION LOCK SNAPSHOT (2026-10-27)
 
 The native datapath `start` now checks sole device/IRQ owner
