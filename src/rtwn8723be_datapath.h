@@ -29,6 +29,8 @@ struct rtwn8723be_datapath {
      * callback returns. Protected exclusively by tx_lock (IPL_NET).
      */
     unsigned int tx_callback_active;
+    /* In-progress RX ring drains and borrowed frame/C2H callbacks. */
+    unsigned int rx_callback_active;
     int rx_error;
     int tx_error;
     uint64_t rx_delivered;
@@ -49,6 +51,7 @@ int rtwn8723be_datapath_start(struct rtwn8723be_datapath *);
 /*
  * Atomically closes TX and transitions the actual Linux lifecycle from
  * RUNNING to STOPPING under the same IPL_NET lock as ring enqueue/reclaim.
+ * Refuses the transition if RX drain or external TX callback is active.
  * Does NOT drain softint or free outstanding mbufs; lifecycle owns those.
  */
 int rtwn8723be_datapath_begin_stop(struct rtwn8723be_datapath *,
@@ -60,8 +63,8 @@ void rtwn8723be_datapath_stop(struct rtwn8723be_datapath *);
 /*
  * Requires IRQ and softint fully DIS-ESTABLISHED, plus no concurrent
  * ifnet entry, before clearing callbacks/destroying the TX lock.
- * Also returns EBUSY if an external TX-completion callback still holds
- * a published reference; the caller must drain/retry OUTSIDE IPL_NET.
+ * Also returns EBUSY while RX drain or an external TX-completion callback
+ * holds a published reference; drain/retry must occur OUTSIDE IPL_NET.
  */
 int rtwn8723be_datapath_unprepare(struct rtwn8723be_datapath *);
 
