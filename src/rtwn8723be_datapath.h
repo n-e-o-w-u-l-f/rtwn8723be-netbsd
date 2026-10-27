@@ -23,6 +23,8 @@ struct rtwn8723be_datapath {
     kmutex_t tx_lock;
     bool prepared;
     bool tx_enabled;
+    /* Latches a denied STOP until all borrowed callbacks return/retry. */
+    bool stop_pending;
     /*
      * Number of external TX completion callbacks executing after the
      * tx_lock release. Increment before publication; decrement only after
