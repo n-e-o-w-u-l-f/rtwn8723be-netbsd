@@ -33,7 +33,7 @@ done = source_body("rtwn8723be_dp_tx_done", "static void")
 def contract(start_body: str, done_body: str) -> None:
     lock = "mutex_enter(&dp->tx_lock);"
     unlock = "mutex_exit(&dp->tx_lock);"
-    owner = "if (sc->sc_datapath != dp || sc->sc_irq_arg != dp)"
+    owner = "if (sc->sc_datapath != dp || sc->sc_irq_arg != dp ||"
     state = "sc->sc_linux.stage != R23BE_STAGE_RUNNING"
     enable = "dp->tx_enabled = true;"
     assert start_body.index(lock) < start_body.index(owner)
@@ -115,7 +115,7 @@ typedef struct { bool held; } kmutex_t;
 struct rtwn8723be_datapath {
     struct rtwn8723be_softc *sc;
     kmutex_t tx_lock;
-    bool prepared, tx_enabled;
+    bool prepared, tx_enabled, stop_pending;
     unsigned int tx_callback_active;
     int rx_error, tx_error;
     uint64_t rx_delivered, tx_reclaimed;
