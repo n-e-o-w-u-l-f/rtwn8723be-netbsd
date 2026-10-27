@@ -105,6 +105,7 @@ struct rtwn8723be_datapath {
     struct rtwn8723be_softc *sc;
     kmutex_t tx_lock;
     bool prepared, tx_enabled;
+    unsigned int tx_callback_active, rx_callback_active;
 };
 struct mbuf { unsigned id; };
 struct rtwn8723be_tx_params { unsigned queue; };
@@ -196,6 +197,23 @@ int main(void)
     assert(rtwn8723be_netbsd_begin_stop(&sc, &foreign) == EINVAL);
     assert(rtwn8723be_datapath_begin_stop(NULL, &sc.sc_linux) == EINVAL);
     assert(rtwn8723be_datapath_begin_stop(&dp, &foreign) == EINVAL);
+
+    setup(&sc, &dp);
+    dp.rx_callback_active = 1;
+    assert(rtwn8723be_netbsd_begin_stop(&sc, &sc.sc_linux) == EBUSY);
+    assert(sc.sc_linux.stage == R23BE_STAGE_RUNNING && !dp.tx_enabled);
+    dp.rx_callback_active = 0;
+    assert(rtwn8723be_netbsd_begin_stop(&sc, &sc.sc_linux) == 0);
+    assert(sc.sc_linux.stage == R23BE_STAGE_STOPPING);
+    balanced(&dp);
+
+    setup(&sc, &dp);
+    dp.tx_callback_active = 1;
+    assert(rtwn8723be_netbsd_begin_stop(&sc, &sc.sc_linux) == EBUSY);
+    assert(sc.sc_linux.stage == R23BE_STAGE_RUNNING && !dp.tx_enabled);
+    dp.tx_callback_active = 0;
+    assert(rtwn8723be_netbsd_begin_stop(&sc, &sc.sc_linux) == 0);
+    balanced(&dp);
 
     setup(&sc, &dp);
     assert(rtwn8723be_datapath_enqueue(&dp, 2, &m, &p, false) == 0);
