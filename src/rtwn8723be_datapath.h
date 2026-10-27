@@ -23,6 +23,12 @@ struct rtwn8723be_datapath {
     kmutex_t tx_lock;
     bool prepared;
     bool tx_enabled;
+    /*
+     * Number of external TX completion callbacks executing after the
+     * tx_lock release. Increment before publication; decrement only after
+     * callback returns. Protected exclusively by tx_lock (IPL_NET).
+     */
+    unsigned int tx_callback_active;
     int rx_error;
     int tx_error;
     uint64_t rx_delivered;
