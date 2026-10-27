@@ -236,6 +236,34 @@ rtwn8723be_datapath_begin_stop(struct rtwn8723be_datapath *dp,
     return error;
 }
 
+/*
+ * Called by net80211 SIOCSIFFLAGS when IFF_UP and IFF_RUNNING are both
+ * clear: a first DOWN may have been refused with EBUSY because a borrowed
+ * RX DMA or external TX completion still held its lifetime reference.
+ * Read stop_pending under the same IPL_NET mutex as begin_stop/start.
+ *
+ * This is only a retry admission snapshot; the actual begin_stop callback
+ * must recheck all owners and activity atomically. It does not perform
+ * any hardware operation, wait, or change the logical ifnet flags.
+ */
+bool
+rtwn8723be_datapath_stop_retry_ready(struct rtwn8723be_datapath *dp)
+{
+    struct rtwn8723be_softc *sc;
+    bool ready;
+
+    if (dp == NULL || !dp->prepared || dp->sc == NULL)
+        return false;
+    sc = dp->sc;
+    mutex_enter(&dp->tx_lock);
+    ready = dp->stop_pending && !dp->tx_enabled &&
+        sc->sc_datapath == dp && sc->sc_irq_arg == dp &&
+        sc->sc_irq_dispatch_ready && sc->sc_linux.started &&
+        sc->sc_linux.stage == R23BE_STAGE_RUNNING;
+    mutex_exit(&dp->tx_lock);
+    return ready;
+}
+
 void
 rtwn8723be_datapath_stop(struct rtwn8723be_datapath *dp)
 {
