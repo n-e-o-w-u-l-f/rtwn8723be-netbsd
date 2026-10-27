@@ -92,9 +92,24 @@ static struct rtwn8723be_linux_ops start_ops(void)
     return o;
 }
 
+/* The portable model must publish STOPPING explicitly like NetBSD. */
+static int begin_stop(void *arg, struct rtwn8723be_linux_state *state)
+{
+    int error = step(arg);
+    if (error == 0)
+        state->stage = R23BE_STAGE_STOPPING;
+    return error;
+}
+static int bad_begin_stop(void *arg, struct rtwn8723be_linux_state *state)
+{
+    (void)arg;
+    (void)state;
+    return 0; /* False success: TX was never quiesced. */
+}
 static struct rtwn8723be_linux_ops stop_ops(void)
 {
     struct rtwn8723be_linux_ops o = {0};
+    o.begin_stop = begin_stop;
     o.bt_halt_deinit = step;
     o.mark_hal_stop = step;
     o.disable_interrupt = step;
@@ -119,8 +134,23 @@ int main(void)
     s = running();
     ops = stop_ops();
     assert(rtwn8723be_linux_adapter_stop(&c, &s, &ops) == 0);
-    assert(c.calls == 6 && s.stage == R23BE_STAGE_STOPPED &&
+    assert(c.calls == 7 && s.stage == R23BE_STAGE_STOPPED &&
            !s.started && !s.fw_ready && !s.mac_func_enable);
+
+    c.calls = 0;
+    s = running();
+    ops = stop_ops();
+    ops.begin_stop = NULL;
+    assert(rtwn8723be_linux_adapter_stop(&c, &s, &ops) == ENOSYS);
+    assert(c.calls == 0 && s.stage == R23BE_STAGE_RUNNING);
+    ops.begin_stop = bad_begin_stop;
+    assert(rtwn8723be_linux_adapter_stop(&c, &s, &ops) == EIO);
+    assert(c.calls == 0 && s.stage == R23BE_STAGE_RUNNING);
+    ops.begin_stop = begin_stop;
+    c.fail_at = 1;
+    assert(rtwn8723be_linux_adapter_stop(&c, &s, &ops) == EIO);
+    assert(c.calls == 1 && s.stage == R23BE_STAGE_RUNNING);
+    c.fail_at = 0;
 
     c.calls = 0;
     s = running();
