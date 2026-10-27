@@ -132,7 +132,7 @@ struct rtwn8723be_datapath {
     struct rtwn8723be_softc *sc;
     struct rtwn8723be_rx_dispatch rx;
     kmutex_t tx_lock;
-    bool prepared, tx_enabled;
+    bool prepared, tx_enabled, stop_pending;
     unsigned int rx_callback_active, tx_callback_active;
     int rx_error, tx_error;
     uint64_t rx_delivered, tx_reclaimed;
@@ -173,6 +173,7 @@ static int rtwn8723be_rx_native_drain(struct rtwn8723be_softc *sc,
     assert(rtwn8723be_datapath_begin_stop(dp, &sc->sc_linux) == EBUSY);
     called_stop_in_rx++;
     assert(sc->sc_linux.stage == R23BE_STAGE_RUNNING && !dp->tx_enabled);
+    assert(dp->stop_pending);
     assert(rtwn8723be_datapath_unprepare(dp) == EBUSY);
     called_unprepare_in_rx++;
     assert(!dp->tx_lock.destroyed && sc->sc_datapath == dp);
@@ -205,8 +206,11 @@ int main(void)
     rtwn8723be_dp_rx(&dp);
     assert(drain_calls == 1 && dp.rx_delivered == 3);
 
+    /* A pending STOP cannot be bypassed by a probe-unwind release. */
+    assert(dp.stop_pending && rtwn8723be_datapath_unprepare(&dp) == EBUSY);
     /* Reattempt STOP after RX lease returned; no false STOPPED claim. */
     assert(rtwn8723be_datapath_begin_stop(&dp, &sc.sc_linux) == 0);
+    assert(!dp.stop_pending);
     assert(sc.sc_linux.stage == R23BE_STAGE_STOPPING);
     rtwn8723be_dp_rx(&dp);
     assert(drain_calls == 1);
