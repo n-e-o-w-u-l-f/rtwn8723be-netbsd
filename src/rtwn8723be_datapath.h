@@ -40,6 +40,14 @@ int rtwn8723be_datapath_prepare(struct rtwn8723be_datapath *,
 /* May only transition to active AFTER Linux lifecycle marked RUNNING. */
 int rtwn8723be_datapath_start(struct rtwn8723be_datapath *);
 
+/*
+ * Atomically closes TX and transitions the actual Linux lifecycle from
+ * RUNNING to STOPPING under the same IPL_NET lock as ring enqueue/reclaim.
+ * Does NOT drain softint or free outstanding mbufs; lifecycle owns those.
+ */
+int rtwn8723be_datapath_begin_stop(struct rtwn8723be_datapath *,
+    struct rtwn8723be_linux_state *);
+
 /* Disables new TX; caller must quiesce/disestablish IRQ independently. */
 void rtwn8723be_datapath_stop(struct rtwn8723be_datapath *);
 
