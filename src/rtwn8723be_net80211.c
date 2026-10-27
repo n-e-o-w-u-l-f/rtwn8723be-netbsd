@@ -153,7 +153,7 @@ rtwn8723be_n80211_ioctl(struct ifnet *ifp, u_long cmd, void *data)
     struct ieee80211com *ic;
     int error = 0, s;
 
-    if (n == NULL || !n->registered)
+    if (n == NULL || !n->registered || n->sc == NULL)
         return ENXIO;
     ic = &n->sc->sc_ic;
     s = splnet();
