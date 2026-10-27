@@ -2,6 +2,38 @@
 
 Date: 2026-10-25 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — IN-FLIGHT TX COMPLETION LEASE (2026-10-27)
+
+The native TX completion bridge now holds an explicit reference
+(`dp->tx_callback_active`) from the successful, nonzero
+reclaim publication through the **entire external callback**,
+including the interval after releasing the IPL_NET TX mutex.
+It decrements that reference only after reacquiring the mutex
+when the callback returns.
+
+`rtwn8723be_datapath_unprepare` now refuses to unpublish its
+IRQ dispatch or destroy the TX mutex with `EBUSY` when that
+reference is still held; neither owner nor callback storage is
+released. It never waits under the IPL_NET spin mutex. The
+external lifecycle must still drain/disestablish IRQ/softint
+and exclude new ifnet entrants before an unprepare can succeed.
+
+At a fresh disposable Linux x86_64 checkout at
+`c5669990d837303dd70284fc126a691aa8d2562e`,
+**60/60 host-permitted tests passed**, 12 of 72 scripts
+excluded for NetBSD/HP or pinned-source requirements. The
+new strict C11/UBSan regression compiles the **actual
+production** TX done, begin-STOPPING and unprepare bodies;
+the external completion callback itself attempts unprepare
+and observes `EBUSY`, then full release succeeds only after
+return. Nine negative source mutations are rejected.
+The stacked PR #13 `git diff --check` passed. See
+`docs/TX_COMPLETION_LIFETIME_LEASE_20261027.md`.
+
+**Not a NetBSD kernel/HP hardware test.** The real
+PCI/softint drain, RX callback lifetime, hardware shutdown
+and the four unbound lifecycle callbacks remain open.
+
 ## SOURCE CHECKPOINT — ATOMIC TX STOPPING ENTRY (2026-10-27)
 
 The production Linux-order stop controller now **requires a real,

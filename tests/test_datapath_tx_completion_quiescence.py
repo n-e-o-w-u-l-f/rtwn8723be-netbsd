@@ -55,8 +55,12 @@ def contract(start_body: str, done_body: str) -> None:
     ):
         assert token in done_body[done_body.index(entry):done_body.index(reclaim)]
     assert done_body.index(reclaim) < done_body.index(notify_capture)
-    assert done_body.index(notify_capture) < done_body.rindex(unlock)
-    assert done_body.rindex(unlock) < done_body.index(callback)
+    publish = done_body.index("dp->tx_callback_active++;")
+    first_release = done_body.index(unlock, publish)
+    assert done_body.index(notify_capture) < publish < first_release
+    assert first_release < done_body.index(callback)
+    assert done_body.index(callback) < done_body.index("dp->tx_callback_active--;")
+    assert done_body.index("dp->tx_callback_active--;") < done_body.rindex(unlock)
     assert "if (notify != NULL)" in done_body
 
 contract(start, done)
@@ -74,8 +78,8 @@ controls = (
     (done.replace("dp->sc->sc_irq_arg != dp", "false", 1), start),
     (done.replace("if (error == 0 && reclaimed != 0 && dp->tx_complete != NULL)",
                   "if (reclaimed != 0 && dp->tx_complete != NULL)", 1), start),
-    (done.replace("if (notify != NULL)\n        notify(",
-                  "if (true)\n        notify(", 1), start),
+    (done.replace("if (notify != NULL) {\n        notify(",
+                  "if (true) {\n        notify(", 1), start),
 )
 for i, (changed_a, changed_b) in enumerate(controls, 1):
     # the last seven controls target done; first four target start
@@ -106,11 +110,13 @@ struct rtwn8723be_softc {
     struct { int stage; bool started, fw_ready; } sc_linux;
     bool sc_irq_dispatch_ready, sc_mapped, sc_rings_allocated;
 };
+#define KASSERT assert
 typedef struct { bool held; } kmutex_t;
 struct rtwn8723be_datapath {
     struct rtwn8723be_softc *sc;
     kmutex_t tx_lock;
     bool prepared, tx_enabled;
+    unsigned int tx_callback_active;
     int rx_error, tx_error;
     uint64_t rx_delivered, tx_reclaimed;
     void (*tx_complete)(void *, unsigned int, size_t);
@@ -151,6 +157,7 @@ static void notify(void *arg, unsigned int qid, size_t reclaimed)
 {
     struct rtwn8723be_datapath *dp = arg;
     assert(dp && !dp->tx_lock.held);
+    assert(dp->tx_callback_active == 1);
     notify_calls++;
     last_qid = qid;
     last_reclaimed = reclaimed;
@@ -217,6 +224,7 @@ int main(void)
     rtwn8723be_dp_tx_done(&dp, 2);
     assert(reclaim_calls == 1 && notify_calls == 1);
     assert(last_qid == 2 && last_reclaimed == 2);
+    assert(dp.tx_callback_active == 0);
     assert(dp.tx_reclaimed == 2);
     balanced(&dp);
 

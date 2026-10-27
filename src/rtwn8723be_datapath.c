@@ -66,18 +66,25 @@ rtwn8723be_dp_tx_done(void *arg, unsigned int qid)
         dp->tx_error = error;
     dp->tx_reclaimed += reclaimed;
     if (error == 0 && reclaimed != 0 && dp->tx_complete != NULL) {
+        /*
+         * Publish a lifetime reference BEFORE releasing the TX lock.
+         * A concurrent unprepare may not retire the callback or destroy
+         * this lock until the externally executing callback returns.
+         */
+        dp->tx_callback_active++;
         notify = dp->tx_complete;
         notify_arg = dp->tx_complete_arg;
     }
     mutex_exit(&dp->tx_lock);
 
-    /*
-     * Do not invoke net80211 under the TX lock: it may enqueue again.
-     * The owner must still drain this already admitted callback before
-     * detach; the snapshot alone is not a lifetime lease.
-     */
-    if (notify != NULL)
+    /* Never invoke a reentrant net80211 completion under the TX lock. */
+    if (notify != NULL) {
         notify(notify_arg, qid, reclaimed);
+        mutex_enter(&dp->tx_lock);
+        KASSERT(dp->tx_callback_active != 0);
+        dp->tx_callback_active--;
+        mutex_exit(&dp->tx_lock);
+    }
 }
 
 int
@@ -218,10 +225,26 @@ rtwn8723be_datapath_unprepare(struct rtwn8723be_datapath *dp)
         sc->sc_irq_dispatch.tx_done != rtwn8723be_dp_tx_done ||
         sc->sc_irq_dispatch.power_event != NULL)
         return EBUSY;
-    if (dp->tx_enabled || sc->sc_irq_requested || sc->sc_irq_enabled ||
+    if (sc->sc_irq_requested || sc->sc_irq_enabled ||
         sc->sc_ih != NULL || sc->sc_soft_ih != NULL ||
         sc->sc_pihp != NULL)
         return EBUSY;
+
+    /*
+     * The actual PCI + softint owner has now drained/disestablished both
+     * handlers and no new ifnet entrant may appear. Still refuse to
+     * retire this bridge while a previously published external TX
+     * completion executes without the TX mutex.
+     *
+     * Never wait while holding an IPL_NET spin lock: an in-flight
+     * completion needs this same mutex to drop its lifetime reference.
+     */
+    mutex_enter(&dp->tx_lock);
+    if (dp->tx_enabled || dp->tx_callback_active != 0) {
+        mutex_exit(&dp->tx_lock);
+        return EBUSY;
+    }
+    mutex_exit(&dp->tx_lock);
     /* External lifecycle excludes TX enqueue/softint before lock destroy. */
     rtwn8723be_netbsd_irq_set_dispatch(sc, NULL, NULL);
     sc->sc_datapath = NULL;
