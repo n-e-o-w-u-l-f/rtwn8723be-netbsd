@@ -55,9 +55,10 @@ def contract(start_body: str, done_body: str) -> None:
     ):
         assert token in done_body[done_body.index(entry):done_body.index(reclaim)]
     assert done_body.index(reclaim) < done_body.index(notify_capture)
-    assert done_body.index(notify_capture) < done_body.index(unlock)
-    assert done_body.index("dp->tx_callback_active++;") < done_body.index(unlock)
-    assert done_body.index(unlock) < done_body.index(callback)
+    publish = done_body.index("dp->tx_callback_active++;")
+    first_release = done_body.index(unlock, publish)
+    assert done_body.index(notify_capture) < publish < first_release
+    assert first_release < done_body.index(callback)
     assert done_body.index(callback) < done_body.index("dp->tx_callback_active--;")
     assert done_body.index("dp->tx_callback_active--;") < done_body.rindex(unlock)
     assert "if (notify != NULL)" in done_body
