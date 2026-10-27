@@ -32,7 +32,7 @@ def body(source: str, name: str, result_type: str) -> str:
 start = body(DP, "rtwn8723be_datapath_start", "int")
 enqueue = body(DP, "rtwn8723be_datapath_enqueue", "int")
 def contract(start_body: str, enqueue_body: str, rx_source: str):
-    assert "if (sc->sc_datapath != dp || sc->sc_irq_arg != dp)" in start_body
+    assert "if (sc->sc_datapath != dp || sc->sc_irq_arg != dp ||" in start_body
     assert "sc->sc_linux.stage != R23BE_STAGE_RUNNING" in start_body
     assert "mutex_enter(&dp->tx_lock);" in start_body
     assert "dp->tx_enabled = true;" in start_body
@@ -107,7 +107,7 @@ struct rtwn8723be_softc {
 struct rtwn8723be_datapath {
     struct rtwn8723be_softc *sc;
     kmutex_t tx_lock;
-    bool prepared, tx_enabled;
+    bool prepared, tx_enabled, stop_pending;
 };
 struct mbuf { int id; };
 struct rtwn8723be_tx_params { unsigned queue; };
