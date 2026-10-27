@@ -47,6 +47,7 @@ def contract(stop_body: str, ioctl_body: str, retry_body: str,
     retry_stop = ioctl_body.index(
         "error = rtwn8723be_n80211_ifstop(n);", ready)
     assert down_gate < ready < retry_stop
+    assert retry_stop < ioctl_body.index("        break;", ready)
     assert ioctl_body.index("ifioctl_common(ifp, cmd, data);") < down_gate
     assert ioctl_body.index("if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) == IFF_UP)") < down_gate
     assert ioctl_body.index("==\n            IFF_RUNNING)") < down_gate
