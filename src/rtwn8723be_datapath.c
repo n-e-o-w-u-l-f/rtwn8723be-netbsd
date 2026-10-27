@@ -180,9 +180,11 @@ rtwn8723be_datapath_begin_stop(struct rtwn8723be_datapath *dp,
         !sc->sc_irq_dispatch_ready)
         error = EBUSY;
     else if (!state->started || !state->fw_ready ||
-        state->stage != R23BE_STAGE_RUNNING)
+        state->stage != R23BE_STAGE_RUNNING) {
+        /* Even an inconsistent owner must not retain TX admission. */
+        dp->tx_enabled = false;
         error = EAGAIN;
-    else {
+    } else {
         dp->tx_enabled = false;
         state->stage = R23BE_STAGE_STOPPING;
     }
