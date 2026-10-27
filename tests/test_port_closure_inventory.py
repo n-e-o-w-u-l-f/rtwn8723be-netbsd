@@ -198,15 +198,17 @@ def check(root, require_closure=False):
             "rtwn8723be_btc_native.c",
             "rtwn8723be_btc_providers_native.c"} <= set(native_units):
         raise ValueError("actual BTC algorithms/native event owner missing from manifest")
-    if len(names) != 53 or len(native_units) != 48:
+    if len(names) != 54 or len(native_units) != 48:
         raise ValueError("source or native build manifest changed; re-inventory required")
     if set(missing) != expected:
         raise ValueError("callback inventory changed: now missing " + repr(missing))
-    if len(bound) != 49:
+    if len(bound) != 50:
         raise ValueError("bound callback count changed; re-inventory required")
     if dict(bound).get("wait_rf_change_idle") != \
             "rtwn8723be_netbsd_wait_rf_change_idle":
         raise ValueError("RF-change wait callback binding changed")
+    if dict(bound).get("begin_stop") != "rtwn8723be_netbsd_begin_stop":
+        raise ValueError("native locked STOPPING gate not bound to Linux stop")
     if dict(bound).get("bt_halt_deinit") != \
             "rtwn8723be_netbsd_bt_halt_deinit":
         raise ValueError("BTC halt/deinit callback binding changed")
