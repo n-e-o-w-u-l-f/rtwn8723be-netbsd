@@ -51,7 +51,7 @@ def contract(done_src: str, stop_src: str, unprepare_src: str,
     assert stop_src.index("mutex_enter(&dp->tx_lock);") < (
         stop_src.index("state->stage = R23BE_STAGE_STOPPING;"))
 
-    check = "if (dp->tx_enabled || dp->tx_callback_active != 0)"
+    check = "if (dp->tx_enabled || dp->tx_callback_active != 0 ||"
     lock = unprepare_src.index("mutex_enter(&dp->tx_lock);")
     test = unprepare_src.index(check)
     leave_busy = unprepare_src.index("return EBUSY;", test)
@@ -125,7 +125,7 @@ struct rtwn8723be_datapath {
     struct rtwn8723be_softc *sc;
     kmutex_t tx_lock;
     bool prepared, tx_enabled;
-    unsigned int tx_callback_active;
+    unsigned int tx_callback_active, rx_callback_active;
     int tx_error;
     uint64_t tx_reclaimed;
     void (*tx_complete)(void *, unsigned int, size_t);
@@ -179,8 +179,8 @@ static void notify(void *arg, unsigned int qid, size_t reclaimed)
     assert(!dp->tx_lock.held);
     assert(dp->tx_callback_active == 1);
     notify_calls++;
-    assert(rtwn8723be_datapath_begin_stop(dp, &sc->sc_linux) == 0);
-    assert(sc->sc_linux.stage == R23BE_STAGE_STOPPING);
+    assert(rtwn8723be_datapath_begin_stop(dp, &sc->sc_linux) == EBUSY);
+    assert(sc->sc_linux.stage == R23BE_STAGE_RUNNING);
     assert(!dp->tx_enabled);
     assert(rtwn8723be_datapath_unprepare(dp) == EBUSY);
     assert(dp->prepared && dp->tx_callback_active == 1);
@@ -209,6 +209,8 @@ int main(void)
     assert(dp.tx_callback_active == 0 && enters == exits);
     assert(!dp.tx_lock.held && !dp.tx_lock.destroyed);
     assert(sc.sc_datapath == &dp && sc.sc_irq_dispatch_ready);
+    assert(rtwn8723be_datapath_begin_stop(&dp, &sc.sc_linux) == 0);
+    assert(sc.sc_linux.stage == R23BE_STAGE_STOPPING);
     assert(rtwn8723be_datapath_unprepare(&dp) == 0);
     assert(destroys == 1 && unbinds == 1 && sc.sc_datapath == NULL);
     assert(!sc.sc_irq_dispatch_ready && sc.sc_irq_arg == NULL);
