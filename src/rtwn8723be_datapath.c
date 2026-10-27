@@ -173,7 +173,8 @@ rtwn8723be_datapath_start(struct rtwn8723be_datapath *dp)
      * transition with this mutex; this check does not invent that owner.
      */
     mutex_enter(&dp->tx_lock);
-    if (sc->sc_datapath != dp || sc->sc_irq_arg != dp)
+    if (sc->sc_datapath != dp || sc->sc_irq_arg != dp ||
+        dp->stop_pending)
         error = EBUSY;
     else if (!sc->sc_linux.started ||
         sc->sc_linux.stage != R23BE_STAGE_RUNNING ||
@@ -224,10 +225,12 @@ rtwn8723be_datapath_begin_stop(struct rtwn8723be_datapath *dp,
          * for an external sleepable/drain-and-retry controller.
          */
         dp->tx_enabled = false;
+        dp->stop_pending = true;
         error = EBUSY;
     } else {
         dp->tx_enabled = false;
         state->stage = R23BE_STAGE_STOPPING;
+        dp->stop_pending = false;
     }
     mutex_exit(&dp->tx_lock);
     return error;
@@ -274,8 +277,8 @@ rtwn8723be_datapath_unprepare(struct rtwn8723be_datapath *dp)
      * completion needs this same mutex to drop its lifetime reference.
      */
     mutex_enter(&dp->tx_lock);
-    if (dp->tx_enabled || dp->tx_callback_active != 0 ||
-        dp->rx_callback_active != 0) {
+    if (dp->tx_enabled || dp->stop_pending ||
+        dp->tx_callback_active != 0 || dp->rx_callback_active != 0) {
         mutex_exit(&dp->tx_lock);
         return EBUSY;
     }
