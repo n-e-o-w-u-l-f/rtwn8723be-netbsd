@@ -107,6 +107,8 @@ rtwn8723be_datapath_start(struct rtwn8723be_datapath *dp)
     if (dp == NULL || !dp->prepared || dp->sc == NULL)
         return EINVAL;
     sc = dp->sc;
+    if (sc->sc_datapath != dp || sc->sc_irq_arg != dp)
+        return EBUSY;
     if (!sc->sc_linux.started ||
         sc->sc_linux.stage != R23BE_STAGE_RUNNING ||
         !sc->sc_linux.fw_ready ||
@@ -169,8 +171,15 @@ rtwn8723be_datapath_enqueue(struct rtwn8723be_datapath *dp,
         m == NULL || p == NULL)
         return EINVAL;
     mutex_enter(&dp->tx_lock);
-    if (!dp->tx_enabled || !dp->sc->sc_linux.started ||
-        !dp->sc->sc_linux.fw_ready)
+    /*
+     * RUNNING is a stronger prerequisite than the persistent started/
+     * firmware flags: during STOPPING the Linux stop controller has not
+     * cleared those bits yet. Never publish another DMA descriptor then.
+     * The external lifecycle still owns TX lock lifetime/teardown.
+     */
+    if (!dp->tx_enabled || dp->sc->sc_datapath != dp ||
+        !dp->sc->sc_linux.started || !dp->sc->sc_linux.fw_ready ||
+        dp->sc->sc_linux.stage != R23BE_STAGE_RUNNING)
         error = EAGAIN;
     else
         error = rtwn8723be_tx_native_enqueue(dp->sc,
