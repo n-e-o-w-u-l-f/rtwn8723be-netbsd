@@ -22,6 +22,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "rtwn8723be_net80211.h"
 #include "rtwn8723be_net80211_state.h"
 #include "rtwn8723be_netbsd.h"
+#include "rtwn8723be_datapath.h"
 
 static int rtwn8723be_n80211_ifinit(struct ifnet *);
 static int rtwn8723be_n80211_ioctl(struct ifnet *, u_long, void *);
@@ -167,6 +168,18 @@ rtwn8723be_n80211_ioctl(struct ifnet *ifp, u_long cmd, void *data)
                 ifp->if_flags &= ~IFF_UP;
         } else if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) ==
             IFF_RUNNING) {
+            error = rtwn8723be_n80211_ifstop(n);
+        } else if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) == 0 &&
+            rtwn8723be_datapath_stop_retry_ready(
+                n->sc->sc_datapath)) {
+            /*
+             * The prior down request closed IFF_RUNNING before a
+             * borrowed RX/TX callback forced begin_stop to return
+             * EBUSY. Keep the interface logically DOWN, but allow
+             * a fresh explicit SIOCSIFFLAGS/down to retry hardware
+             * STOPPING once that callback is gone. Never manufacture
+             * IFF_RUNNING or permit net80211 dequeue for a retry.
+             */
             error = rtwn8723be_n80211_ifstop(n);
         }
         break;
