@@ -97,8 +97,13 @@ contract(DP, NATIVE)
 # Every mutation must target an actual contract token and be rejected.
 controls = (
     (DP.replace("    sc->sc_datapath = dp;", "", 1), NATIVE),
-    (DP.replace("if (sc->sc_datapath != dp || sc->sc_irq_arg != dp ||",
-                "if (false || sc->sc_irq_arg != dp ||", 1), NATIVE),
+    (DP.replace(
+        "if (sc->sc_datapath != dp || sc->sc_irq_arg != dp ||\n"
+        "        !sc->sc_irq_dispatch_ready ||\n"
+        "        sc->sc_irq_dispatch.rx",
+        "if (false || sc->sc_irq_arg != dp ||\n"
+        "        !sc->sc_irq_dispatch_ready ||\n"
+        "        sc->sc_irq_dispatch.rx", 1), NATIVE),
     (DP.replace("sc->sc_irq_requested || ", "", 1), NATIVE),
     (DP.replace("sc->sc_irq_dispatch.rx != rtwn8723be_dp_rx",
                 "false", 1), NATIVE),
