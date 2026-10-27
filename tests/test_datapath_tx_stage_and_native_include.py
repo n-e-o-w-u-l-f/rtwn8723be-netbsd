@@ -36,6 +36,9 @@ def contract(start_body: str, enqueue_body: str, rx_source: str):
     assert "sc->sc_linux.stage != R23BE_STAGE_RUNNING" in start_body
     assert "mutex_enter(&dp->tx_lock);" in start_body
     assert "dp->tx_enabled = true;" in start_body
+    assert "dp->stop_pending" in start_body
+    assert start_body.index("dp->stop_pending") < start_body.index(
+        "dp->tx_enabled = true;")
     gate = enqueue_body.index("if (!dp->tx_enabled ||")
     assert enqueue_body.index("mutex_enter(&dp->tx_lock);") < gate
     required = ("dp->sc->sc_datapath != dp", "!dp->sc->sc_linux.started",
@@ -71,6 +74,7 @@ mutations = (
                             "false", 1), RX),
     (start, enqueue.replace("!dp->sc->sc_linux.fw_ready", "false", 1), RX),
     (start, enqueue, RX.replace('#include "rtwn8723be_netbsd.h"\n', "", 1)),
+    (start.replace("dp->stop_pending", "false", 1), enqueue, RX),
 )
 for i, (a, b, c) in enumerate(mutations, 1):
     assert a != start or b != enqueue or c != RX, i
@@ -159,6 +163,9 @@ int main(void)
     sc.sc_linux.stage = R23BE_STAGE_STOPPING;
     assert(rtwn8723be_datapath_start(&dp) == EAGAIN && !dp.tx_enabled);
     sc.sc_linux.stage = R23BE_STAGE_RUNNING;
+    dp.stop_pending = true;
+    assert(rtwn8723be_datapath_start(&dp) == EBUSY && !dp.tx_enabled);
+    dp.stop_pending = false;
     assert(rtwn8723be_datapath_start(&dp) == 0 && dp.tx_enabled);
     assert(rtwn8723be_datapath_enqueue(&dp,2,&m,&params,false) == 0);
     assert(hardware_tx_calls == 1 && enters == exits);
@@ -204,4 +211,4 @@ with tempfile.TemporaryDirectory(prefix="r23be-datapath-stage-") as temp:
         "-fsanitize=undefined", "-fno-sanitize-recover=all",
         str(source), "-o", str(exe)], check=True)
     subprocess.run([str(exe)], check=True)
-print("RTL_NATIVE_DATAPATH_STAGE_AND_INCLUDE_OK negatives=7")
+print("RTL_NATIVE_DATAPATH_STAGE_AND_INCLUDE_OK negatives=8")
