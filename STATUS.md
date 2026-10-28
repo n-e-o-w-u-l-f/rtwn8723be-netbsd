@@ -2,6 +2,43 @@
 
 Source checkpoint: 2026-10-27 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — NET80211 LATE RX/TX NATIVE OWNER GATE (2026-10-28)
+
+The net80211 `ifstart`/RX-input entry points now use
+the native `rtwn8723be_datapath_running_ready` contract
+rather than relying on potentially stale `IFF_RUNNING`
+and Linux RUNNING state alone. The `ifstart` callback
+refuses dequeue when TX is disabled, `stop_pending`
+is latched, the IRQ owner is foreign, or firmware/DMA
+are not ready. `net80211_input` checks the same native
+owner **before m_devget** and again **inside splnet**
+after frame copying, before `ieee80211_find_rxnode`,
+freeing the mbuf on late revocation.
+
+The strict C11/UBSan
+`tests/test_net80211_late_rx_stop.py` now compiles
+the **actual native datapath_running_ready function**
+together with production RX input and `ifstart`.
+Its scenarios inject ten in-copy lifecycle/owner
+changes and five pre-copy native admissions, plus
+TX dequeue refusal despite stale IFF_RUNNING.
+Eleven source mutation controls protect the native
+and net80211 admission order. Portable CI reuses
+the existing regression with an updated description.
+
+Disposable `legion` Linux x86_64 exact-head
+`34757db5ccccf4fc23273faade95537d07ec2940`:
+**64/64 host-permitted scripts PASS**, zero failed;
+12 of 76 NetBSD/HP or pinned-source scripts excluded.
+`git diff --check` against stacked PR #18 passed.
+See `docs/NET80211_RX_TX_NATIVE_RUNNING_ADMISSION_20261028.md`.
+
+This adds an advisory **locked read-only admission
+snapshot**, not a full net80211 callback lifetime lease
+or hardware IRQ/softint drain. The four unbound probe/start
+callbacks, 48-C-unit native kernel link and real HP WLAN
+tests are still open.
+
 ## SOURCE CHECKPOINT — NATIVE RUNNING PUBLICATION AND RFKILL ROLLBACK (2026-10-28)
 
 After a nominally successful Linux `hw_start`, net80211
