@@ -11,11 +11,13 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = (ROOT / "src/rtwn8723be_net80211.c").read_text()
+DP = (ROOT / "src/rtwn8723be_datapath.c").read_text()
+DHP = (ROOT / "src/rtwn8723be_datapath.h").read_text()
 
-def extract(name: str, declaration: str) -> str:
+def extract(name: str, declaration: str, source: str = SOURCE) -> str:
     marker = "\n" + name + "("
-    assert SOURCE.count(marker) == 1, name
-    fragment = name + "(" + SOURCE.split(marker, 1)[1]
+    assert source.count(marker) == 1, name
+    fragment = name + "(" + source.split(marker, 1)[1]
     start = fragment.index("{")
     depth = 0
     for i in range(start, len(fragment)):
@@ -29,13 +31,20 @@ def extract(name: str, declaration: str) -> str:
 
 rx = extract("rtwn8723be_net80211_input", "int")
 tx = extract("rtwn8723be_n80211_ifstart", "static void")
+ready = extract("rtwn8723be_datapath_running_ready", "bool", DP)
 
-def verify(rx_source: str, tx_source: str) -> None:
+def verify(rx_source: str, tx_source: str, ready_source: str) -> None:
     copied = rx_source.index("m = m_devget(")
     locked = rx_source.index("s = splnet();")
     gate = rx_source.index("if (!n->registered || n->sc == NULL ||", locked)
     deliver = rx_source.index("ieee80211_find_rxnode(")
     assert copied < locked < gate < deliver
+    assert "(n->sc->sc_ec.ec_if.if_flags & IFF_RUNNING) == 0" in rx_source[:copied]
+    readiness = "rtwn8723be_datapath_running_ready(n->sc->sc_datapath)"
+    assert rx_source.count(readiness) == 2
+    assert rx_source.index(readiness) < copied
+    assert locked < rx_source.rindex(readiness) < deliver
+    assert "m_freem(m);" in rx_source[rx_source.rindex(readiness):deliver]
     assert "(n->sc->sc_ec.ec_if.if_flags & IFF_RUNNING) == 0" in rx_source[gate:deliver]
     assert "!n->sc->sc_linux.started" in rx_source[gate:deliver]
     assert "n->sc->sc_linux.stage != R23BE_STAGE_RUNNING" in rx_source[gate:deliver]
@@ -52,8 +61,23 @@ def verify(rx_source: str, tx_source: str) -> None:
         assert token in tx_source, token
     assert tx_source.index("n->sc->sc_linux.stage != R23BE_STAGE_RUNNING") < (
         tx_source.index("n->methods.tx_start(n->sc, ifp);"))
+    assert readiness in tx_source
+    assert tx_source.index(readiness) < tx_source.index(
+        "n->methods.tx_start(n->sc, ifp);")
+    assert "bool rtwn8723be_datapath_running_ready(" in DHP
+    lock = ready_source.index("mutex_enter(&dp->tx_lock);")
+    unlock = ready_source.index("mutex_exit(&dp->tx_lock);")
+    for token in (
+        "dp->tx_enabled", "!dp->stop_pending",
+        "sc->sc_datapath == dp", "sc->sc_irq_arg == dp",
+        "sc->sc_irq_dispatch_ready", "sc->sc_ih != NULL",
+        "sc->sc_mapped", "sc->sc_rings_allocated",
+        "sc->sc_linux.started", "sc->sc_linux.fw_ready",
+        "sc->sc_linux.stage == R23BE_STAGE_RUNNING",
+    ):
+        assert lock < ready_source.index(token) < unlock
 
-verify(rx, tx)
+verify(rx, tx, ready)
 
 unsafe = (
     (rx.replace("if (!n->registered || n->sc == NULL ||",
@@ -63,17 +87,20 @@ unsafe = (
     (rx.replace("        m_freem(m);\n        return ENETDOWN;",
                 "        return ENETDOWN;", 1), tx),
     (rx.replace("        !n->sc->sc_linux.started ||\n", "", 1), tx),
-    (rx.replace("        n->sc->sc_linux.stage != R23BE_STAGE_RUNNING) {",
-                "        false) {", 1), tx),
+    (rx.replace("        n->sc->sc_linux.stage != R23BE_STAGE_RUNNING ||",
+                "        false ||", 1), tx),
     (rx, tx.replace("!n->sc->sc_linux.started ||", "", 1)),
     (rx, tx.replace("n->sc->sc_linux.stage != R23BE_STAGE_RUNNING ||",
                     "", 1)),
     (rx, tx.replace("n->sc == NULL ||", "", 1)),
+    (rx.replace("rtwn8723be_datapath_running_ready(n->sc->sc_datapath)", "true", 1), tx),
+    (rx.replace("rtwn8723be_datapath_running_ready(n->sc->sc_datapath)", "true", 2), tx),
+    (rx, tx.replace("rtwn8723be_datapath_running_ready(n->sc->sc_datapath)", "true", 1)),
 )
 for i, (mutated_rx, mutated_tx) in enumerate(unsafe, 1):
     assert mutated_rx != rx or mutated_tx != tx, i
     try:
-        verify(mutated_rx, mutated_tx)
+        verify(mutated_rx, mutated_tx, ready)
     except (AssertionError, ValueError):
         continue
     raise AssertionError(f"unsafe late RX/TX mutation {i} accepted")
@@ -92,6 +119,13 @@ prologue = r'''
 #define IFF_OACTIVE 0x400U
 #define R23BE_STAGE_RUNNING 43
 
+typedef struct { bool locked; } kmutex_t;
+struct rtwn8723be_softc;
+struct rtwn8723be_datapath {
+    struct rtwn8723be_softc *sc;
+    kmutex_t tx_lock;
+    bool prepared, tx_enabled, stop_pending;
+};
 struct ifnet { void *if_softc; unsigned int if_flags; };
 struct ieee80211_frame_min { uint8_t octets[24]; };
 struct ieee80211_node { int key; };
@@ -100,7 +134,11 @@ struct mbuf { uint8_t data[4096]; int length; };
 struct rtwn8723be_softc {
     struct { struct ifnet ec_if; } sc_ec;
     struct ieee80211com sc_ic;
-    struct { bool started; int stage; } sc_linux;
+    struct { bool started, fw_ready; int stage; } sc_linux;
+    struct rtwn8723be_datapath bridge;
+    struct rtwn8723be_datapath *sc_datapath;
+    void *sc_irq_arg, *sc_ih;
+    bool sc_irq_dispatch_ready, sc_mapped, sc_rings_allocated;
 };
 struct rtwn8723be_net80211_methods {
     void (*tx_start)(struct rtwn8723be_softc *, struct ifnet *);
@@ -117,8 +155,12 @@ static struct ieee80211_node node = { .key = 4 };
 static struct mbuf backing;
 static int stopped_during_copy, allocation_failure, missing_node;
 static unsigned int allocations, frees, deliveries, node_lookups, tx_calls;
-static unsigned int locks, unlocks;
+static unsigned int locks, unlocks, dp_locks, dp_unlocks;
 static int held;
+static void mutex_enter(kmutex_t *m)
+{ assert(m && !m->locked); m->locked = true; dp_locks++; }
+static void mutex_exit(kmutex_t *m)
+{ assert(m && m->locked); m->locked = false; dp_unlocks++; }
 
 static int splnet(void) { assert(!held); held=1; locks++; return 5; }
 static void splx(int s) { assert(s==5 && held); held=0; unlocks++; }
@@ -143,6 +185,16 @@ static struct mbuf *m_devget(char *data, int length, int ignored,
         global_net->sc->sc_linux.started = false;
     if (stopped_during_copy == 5)
         global_net->sc->sc_linux.stage = 99;
+    if (stopped_during_copy == 6)
+        global_net->sc->bridge.stop_pending = true;
+    if (stopped_during_copy == 7)
+        global_net->sc->bridge.tx_enabled = false;
+    if (stopped_during_copy == 8)
+        global_net->sc->sc_irq_arg = NULL;
+    if (stopped_during_copy == 9)
+        global_net->sc->sc_linux.fw_ready = false;
+    if (stopped_during_copy == 10)
+        global_net->sc->sc_datapath = NULL;
     return &backing;
 }
 static void m_freem(struct mbuf *m) { assert(m == &backing); frees++; }
@@ -177,7 +229,15 @@ static void reset(struct rtwn8723be_softc *sc,
     sc->sc_ec.ec_if.if_flags = IFF_RUNNING;
     sc->sc_ec.ec_if.if_softc = n;
     sc->sc_linux.started = true;
+    sc->sc_linux.fw_ready = true;
     sc->sc_linux.stage = R23BE_STAGE_RUNNING;
+    sc->bridge.sc = sc;
+    sc->bridge.prepared = sc->bridge.tx_enabled = true;
+    sc->sc_datapath = &sc->bridge;
+    sc->sc_irq_arg = &sc->bridge;
+    sc->sc_ih = sc;
+    sc->sc_irq_dispatch_ready = sc->sc_mapped =
+        sc->sc_rings_allocated = true;
     n->sc = sc;
     n->registered = true;
     n->methods.tx_start = tx_submit;
@@ -197,7 +257,7 @@ int main(void)
     rtwn8723be_n80211_ifstart(&sc.sc_ec.ec_if);
     assert(tx_calls == 1);
 
-    for (int mode = 1; mode <= 5; mode++) {
+    for (int mode = 1; mode <= 10; mode++) {
         reset(&sc,&n);
         stopped_during_copy = mode;
         unsigned int olddel = deliveries, oldlook = node_lookups;
@@ -211,6 +271,25 @@ int main(void)
     sc.sc_ec.ec_if.if_flags &= ~IFF_RUNNING;
     assert(rtwn8723be_net80211_input(&n,bytes,sizeof(bytes),-64)
         == ENETDOWN);
+
+    /* An invalid native RUNNING bridge refuses RX before allocating an
+     * mbuf, even with stale IFF_RUNNING and Linux RUNNING flags.
+     */
+    for (int mode = 1; mode <= 5; mode++) {
+        reset(&sc, &n);
+        if (mode == 1) sc.bridge.stop_pending = true;
+        if (mode == 2) sc.bridge.tx_enabled = false;
+        if (mode == 3) sc.sc_irq_arg = NULL;
+        if (mode == 4) sc.sc_linux.fw_ready = false;
+        if (mode == 5) sc.sc_datapath = NULL;
+        unsigned int before_allocs = allocations;
+        unsigned int before_lookups = node_lookups;
+        assert(rtwn8723be_net80211_input(&n,bytes,sizeof(bytes),-64)
+            == ENETDOWN);
+        assert(allocations == before_allocs &&
+            node_lookups == before_lookups);
+        assert(!sc.bridge.tx_lock.locked && dp_locks == dp_unlocks);
+    }
 
     reset(&sc,&n);
     missing_node = 1;
@@ -251,7 +330,25 @@ int main(void)
     rtwn8723be_n80211_ifstart(&sc.sc_ec.ec_if);
     assert(tx_calls == 1);
 
+    /* Stale RUNNING flags alone never authorize net80211 dequeue. */
+    reset(&sc,&n);
+    sc.bridge.stop_pending = true;
+    rtwn8723be_n80211_ifstart(&sc.sc_ec.ec_if);
+    assert(tx_calls == 1);
+    sc.bridge.stop_pending = false;
+    sc.bridge.tx_enabled = false;
+    rtwn8723be_n80211_ifstart(&sc.sc_ec.ec_if);
+    assert(tx_calls == 1);
+    sc.bridge.tx_enabled = true;
+    sc.sc_irq_arg = NULL;
+    rtwn8723be_n80211_ifstart(&sc.sc_ec.ec_if);
+    assert(tx_calls == 1);
+    sc.sc_irq_arg = &sc.bridge;
+    sc.sc_linux.fw_ready = false;
+    rtwn8723be_n80211_ifstart(&sc.sc_ec.ec_if);
+    assert(tx_calls == 1);
     assert(locks == unlocks && !held);
+    assert(dp_locks == dp_unlocks && !sc.bridge.tx_lock.locked);
     puts("RTL_NET80211_LATE_RX_STOP_TX_C11_UBSAN_OK");
     return 0;
 }
@@ -259,11 +356,11 @@ int main(void)
 with tempfile.TemporaryDirectory(prefix="rtl-n80211-late-rx-") as path:
     src = Path(path) / "check.c"
     out = Path(path) / "check"
-    src.write_text(prologue + rx + "\n" + tx + "\n" + epilogue)
+    src.write_text(prologue + ready + "\n" + rx + "\n" + tx + "\n" + epilogue)
     subprocess.run([
         "cc", "-std=c11", "-Wall", "-Wextra", "-Werror", "-pedantic",
         "-fsanitize=undefined", "-fno-sanitize-recover=all",
         str(src), "-o", str(out),
     ], check=True)
     subprocess.run([str(out)], check=True)
-print("RTL_NET80211_LATE_RX_SOURCE_MUTATIONS_OK negatives=8")
+print("RTL_NET80211_LATE_RX_SOURCE_MUTATIONS_OK negatives=11")
