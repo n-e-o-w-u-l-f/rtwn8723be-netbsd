@@ -173,9 +173,14 @@ rtwn8723be_n80211_ifstart(struct ifnet *ifp)
         (ifp->if_flags & (IFF_RUNNING | IFF_OACTIVE)) != IFF_RUNNING ||
         !n->sc->sc_linux.started ||
         n->sc->sc_linux.stage != R23BE_STAGE_RUNNING ||
-        n->methods.tx_start == NULL)
+        n->methods.tx_start == NULL ||
+        !rtwn8723be_datapath_running_ready(n->sc->sc_datapath))
         return;
-    /* Real 802.11 framing/TX node lifetime is owned by the HW method. */
+    /*
+     * Do not dequeue if STOP admission was revoked despite stale ifnet
+     * RUNNING flags. This snapshot is advisory: native TX enqueue
+     * must still revalidate ownership under the same IPL_NET mutex.
+     */
     n->methods.tx_start(n->sc, ifp);
 }
 
@@ -407,7 +412,8 @@ rtwn8723be_net80211_input(struct rtwn8723be_net80211 *n,
         length > RTWN8723BE_RX_BUFFER_SIZE ||
         rssi_dbm < -127 || rssi_dbm > 0)
         return EINVAL;
-    if ((n->sc->sc_ec.ec_if.if_flags & IFF_RUNNING) == 0)
+    if ((n->sc->sc_ec.ec_if.if_flags & IFF_RUNNING) == 0 ||
+        !rtwn8723be_datapath_running_ready(n->sc->sc_datapath))
         return ENETDOWN;
 
     m = m_devget((char *)(uintptr_t)frame, (int)length, 0,
@@ -427,7 +433,8 @@ rtwn8723be_net80211_input(struct rtwn8723be_net80211 *n,
     if (!n->registered || n->sc == NULL ||
         (n->sc->sc_ec.ec_if.if_flags & IFF_RUNNING) == 0 ||
         !n->sc->sc_linux.started ||
-        n->sc->sc_linux.stage != R23BE_STAGE_RUNNING) {
+        n->sc->sc_linux.stage != R23BE_STAGE_RUNNING ||
+        !rtwn8723be_datapath_running_ready(n->sc->sc_datapath)) {
         splx(s);
         m_freem(m);
         return ENETDOWN;
