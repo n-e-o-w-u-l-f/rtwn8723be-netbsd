@@ -40,7 +40,7 @@ def contract(s: str, u: str):
         "n->sc->sc_linux.mac_func_enable",
         "n->sc->sc_linux.being_init_adapter",
     ):
-        assert s.index(post) < s.index(guard) < s.index("return EIO;", s.index(post))
+        assert s.index(post) < s.index(guard, s.index(post)) < s.index("return EIO;", s.index(post))
     ordered = (
         "error = rtwn8723be_n80211_ifstop(n);",
         "if (error != 0) {",
@@ -62,7 +62,7 @@ contract(stop, unregister)
 negative = (
     (stop.replace("n->sc->sc_linux.stage != R23BE_STAGE_STOPPED",
                   "false", 1), unregister),
-    (stop.replace("n->sc->sc_linux.started", "false", 1), unregister),
+    (stop.replace("n->sc->sc_linux.started ||", "false ||", 1), unregister),
     (stop.replace("n->sc->sc_linux.fw_ready", "false", 1), unregister),
     (stop.replace("n->sc->sc_linux.mac_func_enable", "false", 1), unregister),
     (stop.replace("n->sc->sc_linux.being_init_adapter", "false", 1), unregister),
