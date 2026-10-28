@@ -189,6 +189,32 @@ rtwn8723be_datapath_start(struct rtwn8723be_datapath *dp)
 }
 
 /*
+ * Net80211 may publish IFF_RUNNING only after the actual datapath bridge
+ * has been started and the IRQ, DMA and Linux RUNNING owners still match.
+ * This is a snapshot, NOT a lifetime lease: enqueue and STOPPING continue
+ * to recheck their own admission under this same TX serializer.
+ */
+bool
+rtwn8723be_datapath_running_ready(struct rtwn8723be_datapath *dp)
+{
+    struct rtwn8723be_softc *sc;
+    bool ready;
+
+    if (dp == NULL || !dp->prepared || dp->sc == NULL)
+        return false;
+    sc = dp->sc;
+    mutex_enter(&dp->tx_lock);
+    ready = dp->tx_enabled && !dp->stop_pending &&
+        sc->sc_datapath == dp && sc->sc_irq_arg == dp &&
+        sc->sc_irq_dispatch_ready && sc->sc_ih != NULL &&
+        sc->sc_mapped && sc->sc_rings_allocated &&
+        sc->sc_linux.started && sc->sc_linux.fw_ready &&
+        sc->sc_linux.stage == R23BE_STAGE_RUNNING;
+    mutex_exit(&dp->tx_lock);
+    return ready;
+}
+
+/*
  * A complete RUNNING hardware owner must close TX descriptor admission
  * and enter STOPPING as ONE transition. The stage is shared with the
  * Linux-order stop controller, which will subsequently disable IRQ and

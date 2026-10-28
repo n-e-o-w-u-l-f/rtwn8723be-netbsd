@@ -51,6 +51,13 @@ int rtwn8723be_datapath_prepare(struct rtwn8723be_datapath *,
 int rtwn8723be_datapath_start(struct rtwn8723be_datapath *);
 
 /*
+ * Read-only, IPL_NET-serialized RUNNING/owner gate for net80211's
+ * IFF_RUNNING publication and advisory if_start preflight. A successful
+ * snapshot does not replace the actual TX enqueue lock/lifetime owner.
+ */
+bool rtwn8723be_datapath_running_ready(struct rtwn8723be_datapath *);
+
+/*
  * Atomically closes TX and transitions the actual Linux lifecycle from
  * RUNNING to STOPPING under the same IPL_NET lock as ring enqueue/reclaim.
  * Refuses the transition if RX drain or external TX callback is active.

@@ -76,7 +76,8 @@ rtwn8723be_n80211_ifinit(struct ifnet *ifp)
     if (error != 0)
         return error;
     if (!sc->sc_linux.started || !sc->sc_linux.fw_ready ||
-        sc->sc_linux.stage != R23BE_STAGE_RUNNING) {
+        sc->sc_linux.stage != R23BE_STAGE_RUNNING ||
+        !rtwn8723be_datapath_running_ready(sc->sc_datapath)) {
         /*
          * A false-success start is NOT a completed RUNNING adapter.
          * linux_adapter_stop() requires started + RUNNING and cannot
@@ -99,8 +100,25 @@ rtwn8723be_n80211_ifinit(struct ifnet *ifp)
         int stop_error = n->methods.hw_stop(sc);
         if (stop_error != 0)
             return stop_error;
+        /*
+         * A false-success RFKill rollback must not hide a still-RUNNING
+         * adapter behind ENETDOWN/EAGAIN. Retain all hardware owners
+         * for explicit recovery; never claim STOPPED without proof.
+         */
+        if (sc->sc_linux.stage != R23BE_STAGE_STOPPED ||
+            sc->sc_linux.started || sc->sc_linux.fw_ready ||
+            sc->sc_linux.mac_func_enable ||
+            sc->sc_linux.being_init_adapter)
+            return EIO;
         return error != 0 ? error : ENETDOWN;
     }
+    /*
+     * RFKill sampling can run while STOP is pending or an owner is
+     * revoked. Recheck the real TX/IRQ/RUNNING bridge immediately before
+     * publishing IFF_RUNNING. Actual TX enqueue rechecks under tx_lock.
+     */
+    if (!rtwn8723be_datapath_running_ready(sc->sc_datapath))
+        return EIO;
     ifp->if_flags |= IFF_RUNNING;
     ifp->if_flags &= ~IFF_OACTIVE;
     return 0;
