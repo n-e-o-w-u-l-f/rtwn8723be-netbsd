@@ -39,6 +39,7 @@ def verify(rx_source: str, tx_source: str, ready_source: str) -> None:
     gate = rx_source.index("if (!n->registered || n->sc == NULL ||", locked)
     deliver = rx_source.index("ieee80211_find_rxnode(")
     assert copied < locked < gate < deliver
+    assert "(n->sc->sc_ec.ec_if.if_flags & IFF_RUNNING) == 0" in rx_source[:copied]
     readiness = "rtwn8723be_datapath_running_ready(n->sc->sc_datapath)"
     assert rx_source.count(readiness) == 2
     assert rx_source.index(readiness) < copied
