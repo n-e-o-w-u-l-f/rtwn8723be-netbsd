@@ -31,6 +31,7 @@ def extract(source: str, name: str, return_type: str) -> str:
 
 ifstop = extract(NET, "rtwn8723be_n80211_ifstop", "static int")
 ioctl = extract(NET, "rtwn8723be_n80211_ioctl", "static int")
+media = extract(NET, "rtwn8723be_n80211_media_change", "static int")
 retry = extract(DP, "rtwn8723be_datapath_stop_retry_ready", "bool")
 begin_stop = extract(DP, "rtwn8723be_datapath_begin_stop", "int")
 
@@ -39,7 +40,10 @@ def contract(stop_body: str, ioctl_body: str, retry_body: str,
     assert "bool rtwn8723be_datapath_stop_retry_ready(" in header
     assert "ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);" in stop_body
     assert "if (n == NULL || !n->registered || n->sc == NULL)" in ioctl_body
-    assert "return n->methods.hw_stop(n->sc);" in stop_body
+    assert "error = n->methods.hw_stop(n->sc);" in stop_body
+    assert "n->sc->sc_linux.stage != R23BE_STAGE_STOPPED" in stop_body
+    assert "n->sc->sc_linux.fw_ready" in stop_body
+    assert "return EIO;" in stop_body
     flags = "(ifp->if_flags & (IFF_UP | IFF_RUNNING)) == 0"
     call = "rtwn8723be_datapath_stop_retry_ready("
     assert flags in ioctl_body
@@ -70,6 +74,43 @@ def contract(stop_body: str, ioctl_body: str, retry_body: str,
     assert "state->stage = R23BE_STAGE_STOPPING;" in start_stop_body
 
 contract(ifstop, ioctl, retry, begin_stop, HEADER)
+
+def reset_contract(media_body: str, ioctl_body: str) -> None:
+    assert "if (n == NULL || !n->registered || n->sc == NULL)" in media_body
+    assert "if (error != ENETRESET)" in media_body
+    assert "error = rtwn8723be_n80211_ifstop(n);" in media_body
+    assert "return rtwn8723be_n80211_ifinit(ifp);" in media_body
+    pending = "rtwn8723be_datapath_stop_retry_ready(n->sc->sc_datapath)"
+    assert pending in media_body
+    assert media_body.index(pending) < media_body.rindex("return EBUSY;")
+    assert media_body.rindex("return EBUSY;") < media_body.rindex("return 0;")
+    branch = ioctl_body.index("if (error == ENETRESET)")
+    pending = "rtwn8723be_datapath_stop_retry_ready("
+    assert pending in ioctl_body[branch:]
+    assert ioctl_body.index("error = EBUSY;", branch) > (
+        ioctl_body.index(pending, branch))
+    assert "if (error == 0)" in ioctl_body[branch:]
+    assert "error = rtwn8723be_n80211_ifinit(ifp);" in ioctl_body[branch:]
+
+reset_contract(media, ioctl)
+reset_negatives = (
+    (media.replace("rtwn8723be_datapath_stop_retry_ready(",
+                   "false && (", 1), ioctl),
+    (media.replace("return EBUSY;", "return 0;", 1), ioctl),
+    (media.replace("n == NULL || !n->registered || n->sc == NULL",
+                   "n == NULL || !n->registered", 1), ioctl),
+    (media, ioctl.replace("error = EBUSY;", "error = 0;", 1)),
+    (media, ioctl.replace(
+        "rtwn8723be_datapath_stop_retry_ready(",
+        "false && (", 2)),
+)
+for i, pair in enumerate(reset_negatives, 1):
+    assert pair != (media, ioctl), i
+    try:
+        reset_contract(*pair)
+    except (AssertionError, ValueError):
+        continue
+    raise AssertionError(f"unsafe media/reset mutation {i} passed")
 negative_controls = (
     (ifstop, ioctl.replace(
         "rtwn8723be_datapath_stop_retry_ready(", "false && (", 1),
@@ -163,6 +204,7 @@ struct rtwn8723be_net80211 {
 };
 struct req { bool up; };
 static int starts, stops, locks, unlocks, inits;
+static int media_error, ioctl_error;
 static void mutex_enter(kmutex_t *l)
 { assert(l && !l->held); l->held = true; locks++; }
 static void mutex_exit(kmutex_t *l)
@@ -179,7 +221,9 @@ static int ifioctl_common(struct ifnet *ifp, u_long cmd, void *data)
 static int ether_ioctl(struct ifnet *ifp, u_long cmd, void *data)
 { (void)ifp; (void)cmd; (void)data; return 0; }
 static int ieee80211_ioctl(struct ieee80211com *ic, u_long cmd, void *data)
-{ (void)ic; (void)cmd; (void)data; return 0; }
+{ (void)ic; (void)cmd; (void)data; return ioctl_error; }
+static int ieee80211_media_change(struct ifnet *ifp)
+{ (void)ifp; return media_error; }
 static int rtwn8723be_n80211_ifinit(struct ifnet *ifp)
 { (void)ifp; inits++; return EAGAIN; }
 static int rtwn8723be_datapath_begin_stop(struct rtwn8723be_datapath *,
@@ -214,7 +258,7 @@ static void reset(struct rtwn8723be_softc *sc,
     sc->sc_ec.ec_if.if_softc = n;
     sc->sc_ec.ec_if.if_flags = IFF_UP | IFF_RUNNING | IFF_OACTIVE;
     sc->sc_ec.ec_if.if_timer = 10;
-    locks=unlocks=starts=stops=inits=0;
+    locks=unlocks=starts=stops=inits=media_error=ioctl_error=0;
 }
 static void balanced(struct rtwn8723be_datapath *dp)
 { assert(!dp->tx_lock.held && locks == unlocks); }
@@ -242,22 +286,38 @@ int main(void)
     assert(stops == 2 && dp.stop_pending && ifp->if_flags == 0);
     balanced(&dp);
 
-    /* 3. An attempted UP is denied while a STOP owns the device. */
+    /* 3. Media reset MUST NOT falsely succeed while STOP is pending. */
+    media_error = ENETRESET;
+    ioctl_error = ENETRESET;
+    assert(rtwn8723be_n80211_media_change(ifp) == EBUSY);
+    assert(rtwn8723be_n80211_ioctl(ifp, 0x199UL, &down) == EBUSY);
+    assert(stops == 2 && dp.stop_pending && sc.sc_linux.started);
+    assert(ifp->if_flags == 0);
+    media_error = ioctl_error = 0;
+    balanced(&dp);
+
+    /* 4. An attempted UP is denied while a STOP owns the device. */
     assert(rtwn8723be_n80211_ioctl(ifp, SIOCSIFFLAGS, &up) == EAGAIN);
     assert(inits == 1 && (ifp->if_flags & IFF_UP) == 0);
     assert(stops == 2 && dp.stop_pending);
     balanced(&dp);
 
-    /* 4. RX callback finished; a new DOWN completes the real STOP. */
+    /* 5. RX callback finished; a new DOWN completes the real STOP. */
     dp.rx_callback_active = 0;
     assert(rtwn8723be_n80211_ioctl(ifp, SIOCSIFFLAGS, &down) == 0);
     assert(stops == 3 && !dp.stop_pending && !dp.tx_enabled);
     assert(sc.sc_linux.stage == R23BE_STAGE_STOPPED);
     assert(!sc.sc_linux.started && !sc.sc_linux.fw_ready);
     assert(!rtwn8723be_datapath_stop_retry_ready(&dp));
+    media_error = ENETRESET;
+    ioctl_error = ENETRESET;
+    assert(rtwn8723be_n80211_media_change(ifp) == 0);
+    assert(rtwn8723be_n80211_ioctl(ifp, 0x199UL, &down) == 0);
+    assert(stops == 3 && inits == 1);
+    media_error = ioctl_error = 0;
     balanced(&dp);
 
-    /* 5. Further DOWN does not repeat STOP after its owner is retired. */
+    /* 6. Further DOWN does not repeat STOP after its owner is retired. */
     assert(rtwn8723be_n80211_ioctl(ifp, SIOCSIFFLAGS, &down) == 0);
     assert(stops == 3 && inits == 1 && ifp->if_flags == 0);
     balanced(&dp);
@@ -273,11 +333,12 @@ int main(void)
     assert(stops == 0);
     balanced(&dp);
 
-    /* 7. A detached or mismatched ifnet cannot dereference NULL sc. */
+    /* 8. A detached or mismatched ifnet cannot dereference NULL sc. */
     reset(&sc, &dp, &n);
     n.sc = NULL;
     assert(rtwn8723be_n80211_ioctl(&sc.sc_ec.ec_if,
         SIOCSIFFLAGS, &down) == ENXIO);
+    assert(rtwn8723be_n80211_media_change(&sc.sc_ec.ec_if) == ENXIO);
     assert(stops == 0 && inits == 0);
     balanced(&dp);
 
@@ -296,11 +357,11 @@ with tempfile.TemporaryDirectory(prefix="r23be-net80211-down-retry-") as directo
     source = Path(directory) / "test.c"
     exe = Path(directory) / "test"
     source.write_text(prologue + "\n" + retry + "\n" + begin_stop + "\n" +
-                      ifstop + "\n" + ioctl + "\n" + epilogue)
+                      ifstop + "\n" + ioctl + "\n" + media + "\n" + epilogue)
     subprocess.run(["cc", "-std=c11", "-Wall", "-Wextra", "-Werror",
                     "-pedantic", "-fsanitize=undefined",
                     "-fno-sanitize-recover=all",
                     "-I", str(ROOT / "src"),
                     str(source), "-o", str(exe)], check=True)
     subprocess.run([str(exe)], check=True)
-print("RTL_NET80211_DOWN_RETRY_SOURCE_NEGATIVES_OK negatives=11")
+print("RTL_NET80211_DOWN_RETRY_SOURCE_NEGATIVES_OK negatives=11 media_negatives=5")

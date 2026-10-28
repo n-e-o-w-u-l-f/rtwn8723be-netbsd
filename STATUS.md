@@ -2,6 +2,43 @@
 
 Source checkpoint: 2026-10-27 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — REAL STOPPED POSTCONDITION AND MEDIA QUARANTINE (2026-10-28)
+
+The production net80211 `ifstop` now checks the actual Linux
+hardware lifecycle **after** a nominally successful `hw_stop`.
+Only `STOPPED` with `started == false`, `fw_ready == false`,
+`mac_func_enable == false` and `being_init_adapter == false`
+counts as success. A false-success callback returns **EIO** and
+retains all net80211 and PCI lifetime owners rather than
+allowing `net80211_unregister` to detach a still-live interface.
+
+Net80211 media-change and generic ioctl ENETRESET fallback
+also refuse an attempted silent reconfiguration with
+**EBUSY** when the locked native `stop_pending` retry
+predicate shows an internally RUNNING but logically DOWN
+adapter. The media-change entry verifies registered softc
+ownership before accessing net80211 state.
+
+A new C11/UBSan regression compiles and executes **actual
+production** `n80211_ifstop` plus `net80211_unregister`
+with a falsely successful hardware stop, failed EBUSY
+stop and genuinely STOPPED runtime. It confirms that
+`ieee80211_ifdetach`/`if_detach` never run on failed
+postconditions; ten unsafe source mutations are rejected.
+The existing DOWN retry test now compiles actual
+`n80211_media_change` and verifies ENETRESET/media false
+success suppression with five extra negative mutations.
+
+Exact disposable Linux `legion` checkout of
+`a151aec6fe4385bd3630fe73cb3bd298b8a1cfb6`:
+**63/63 host-permitted regression scripts passed**, 0 failed,
+12 of 75 scripts excluded for NetBSD/HP or pinned-source
+requirements. The `git diff --check` against stacked PR
+#16 was clean. Full native NetBSD 11 kernel build/link,
+real WLAN/IRQ/DMA behavior and four missing probe/start
+callbacks remain OPEN. See
+`docs/NET80211_STOP_POSTCONDITION_MEDIA_QUARANTINE_20261028.md`.
+
 ## SOURCE CHECKPOINT — NET80211 EXPLICIT DOWN RETRY (2026-10-27)
 
 The net80211 `SIOCSIFFLAGS` DOWN path can now explicitly
