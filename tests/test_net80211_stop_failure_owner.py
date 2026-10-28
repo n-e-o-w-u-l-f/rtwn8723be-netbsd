@@ -167,15 +167,13 @@ int main(void)
         sc.sc_linux.stage == R23BE_STAGE_STOPPED);
 
     /* A false-success STOP is never a valid net80211 release. */
-    for (false_success_mode = 1; false_success_mode <= 4;
-         false_success_mode++) {
-        int mode = false_success_mode;
-        stops = 0;
+    for (int mode = 1; mode <= 4; mode++) {
+        reset(&sc, &n);
+        sc.sc_linux.fw_ready = true;
+        false_success_mode = mode;
         assert(rtwn8723be_n80211_ifstop(&n) == EIO);
         assert(stops == 1);
         assert((sc.sc_ec.ec_if.if_flags & IFF_RUNNING) == 0);
-        reset(&sc, &n);
-        false_success_mode = mode;
     }
     false_success_mode = 0;
 
