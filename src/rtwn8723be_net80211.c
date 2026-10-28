@@ -110,6 +110,7 @@ static int
 rtwn8723be_n80211_ifstop(struct rtwn8723be_net80211 *n)
 {
     struct ifnet *ifp;
+    int error;
 
     if (n == NULL || !n->registered || n->sc == NULL)
         return ENXIO;
@@ -128,7 +129,21 @@ rtwn8723be_n80211_ifstop(struct rtwn8723be_net80211 *n)
         return EBUSY; /* An interrupted stop needs explicit recovery. */
     if (n->methods.hw_stop == NULL)
         return ENOSYS;
-    return n->methods.hw_stop(n->sc);
+    error = n->methods.hw_stop(n->sc);
+    if (error != 0)
+        return error;
+    /*
+     * An allegedly successful hardware STOP must actually retire the
+     * complete Linux RUNNING lifetime before net80211 is allowed to
+     * report success, restart, unregister or release its resources.
+     * A false-success callback retains the actual state for recovery.
+     */
+    if (n->sc->sc_linux.stage != R23BE_STAGE_STOPPED ||
+        n->sc->sc_linux.started || n->sc->sc_linux.fw_ready ||
+        n->sc->sc_linux.mac_func_enable ||
+        n->sc->sc_linux.being_init_adapter)
+        return EIO;
+    return 0;
 }
 
 static void
@@ -201,6 +216,14 @@ rtwn8723be_n80211_ioctl(struct ifnet *ifp, u_long cmd, void *data)
             error = rtwn8723be_n80211_ifstop(n);
             if (error == 0)
                 error = rtwn8723be_n80211_ifinit(ifp);
+        } else if (rtwn8723be_datapath_stop_retry_ready(
+            n->sc->sc_datapath)) {
+            /*
+             * No RUNNING interface exists to restart, but an earlier
+             * STOP was deferred by RX/TX lifetime references. Do not
+             * turn ENETRESET into a false-success reconfiguration.
+             */
+            error = EBUSY;
         }
     }
     splx(s);
@@ -213,6 +236,8 @@ rtwn8723be_n80211_media_change(struct ifnet *ifp)
     struct rtwn8723be_net80211 *n = ifp->if_softc;
     int error;
 
+    if (n == NULL || !n->registered || n->sc == NULL)
+        return ENXIO;
     error = ieee80211_media_change(ifp);
     if (error != ENETRESET)
         return error;
@@ -223,6 +248,14 @@ rtwn8723be_n80211_media_change(struct ifnet *ifp)
             return error;
         return rtwn8723be_n80211_ifinit(ifp);
     }
+    /*
+     * A prior ifstop() may have already cleared IFF_RUNNING but left
+     * a real RUNNING adapter behind when an RX/TX callback held a
+     * lease. Explicit media change is not permission to discard that
+     * pending hardware STOP or claim successful reconfiguration.
+     */
+    if (rtwn8723be_datapath_stop_retry_ready(n->sc->sc_datapath))
+        return EBUSY;
     return 0;
 }
 
