@@ -272,6 +272,25 @@ int main(void)
     assert(rtwn8723be_net80211_input(&n,bytes,sizeof(bytes),-64)
         == ENETDOWN);
 
+    /* An invalid native RUNNING bridge refuses RX before allocating an
+     * mbuf, even with stale IFF_RUNNING and Linux RUNNING flags.
+     */
+    for (int mode = 1; mode <= 5; mode++) {
+        reset(&sc, &n);
+        if (mode == 1) sc.bridge.stop_pending = true;
+        if (mode == 2) sc.bridge.tx_enabled = false;
+        if (mode == 3) sc.sc_irq_arg = NULL;
+        if (mode == 4) sc.sc_linux.fw_ready = false;
+        if (mode == 5) sc.sc_datapath = NULL;
+        unsigned int before_allocs = allocations;
+        unsigned int before_lookups = node_lookups;
+        assert(rtwn8723be_net80211_input(&n,bytes,sizeof(bytes),-64)
+            == ENETDOWN);
+        assert(allocations == before_allocs &&
+            node_lookups == before_lookups);
+        assert(!sc.bridge.tx_lock.locked && dp_locks == dp_unlocks);
+    }
+
     reset(&sc,&n);
     missing_node = 1;
     unsigned int before = frees;
