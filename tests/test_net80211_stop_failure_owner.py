@@ -27,9 +27,17 @@ def contract(text: str) -> None:
     assert "rtwn8723be_net80211_unstarted_detach_allowed(" in text
     assert "n->sc->sc_linux.stage != R23BE_STAGE_RUNNING" in text
     assert "n->methods.hw_stop == NULL" in text
-    assert "return n->methods.hw_stop(n->sc);" in text
+    assert "error = n->methods.hw_stop(n->sc);" in text
+    assert "if (error != 0)" in text
+    guard = text.index("if (n->sc->sc_linux.stage != R23BE_STAGE_STOPPED ||")
+    for token in (
+        "n->sc->sc_linux.started", "n->sc->sc_linux.fw_ready",
+        "n->sc->sc_linux.mac_func_enable",
+        "n->sc->sc_linux.being_init_adapter",
+    ):
+        assert text.index(token, guard) < text.index("return EIO;", guard)
     assert text.index("n->sc->sc_linux.stage != R23BE_STAGE_RUNNING") < (
-        text.index("return n->methods.hw_stop(n->sc);"))
+        text.index("error = n->methods.hw_stop(n->sc);")) < guard
 
 contract(stop)
 mutated = (
@@ -40,7 +48,12 @@ mutated = (
                  "some_unsafe_bypass(", 1),
     stop.replace("n->sc->sc_linux.stage != R23BE_STAGE_RUNNING",
                  "false", 1),
-    stop.replace("return n->methods.hw_stop(n->sc);", "return 0;", 1),
+    stop.replace("error = n->methods.hw_stop(n->sc);",
+                 "error = 0;", 1),
+    stop.replace("n->sc->sc_linux.stage != R23BE_STAGE_STOPPED",
+                 "false", 1),
+    stop.replace("n->sc->sc_linux.mac_func_enable", "false", 1),
+    stop.replace("n->sc->sc_linux.being_init_adapter", "false", 1),
 )
 for i, candidate in enumerate(mutated, 1):
     assert candidate != stop, i
@@ -75,6 +88,7 @@ struct rtwn8723be_net80211 {
 };
 static unsigned int stops;
 static int stop_error;
+static int false_success_mode;
 static int stop_hw(struct rtwn8723be_softc *sc)
 {
     stops++;
@@ -82,6 +96,27 @@ static int stop_hw(struct rtwn8723be_softc *sc)
         sc->sc_linux.stage == R23BE_STAGE_RUNNING);
     if (stop_error != 0)
         return stop_error;
+    if (false_success_mode == 1)
+        return 0; /* Wrong: report success but leave Linux RUNNING. */
+    if (false_success_mode == 2) {
+        sc->sc_linux.stage = R23BE_STAGE_STOPPED;
+        sc->sc_linux.started = false;
+        return 0; /* Wrong: firmware still owned. */
+    }
+    if (false_success_mode == 3) {
+        sc->sc_linux.stage = R23BE_STAGE_STOPPED;
+        sc->sc_linux.started = false;
+        sc->sc_linux.fw_ready = false;
+        sc->sc_linux.mac_func_enable = true;
+        return 0;
+    }
+    if (false_success_mode == 4) {
+        sc->sc_linux.stage = R23BE_STAGE_STOPPED;
+        sc->sc_linux.started = false;
+        sc->sc_linux.fw_ready = false;
+        sc->sc_linux.being_init_adapter = true;
+        return 0;
+    }
     sc->sc_linux.started = false;
     sc->sc_linux.stage = R23BE_STAGE_STOPPED;
     sc->sc_linux.fw_ready = false;
@@ -102,7 +137,7 @@ static void reset(struct rtwn8723be_softc *sc,
     n->sc = sc;
     n->methods.hw_stop = stop_hw;
     stops = 0;
-    stop_error = 0;
+    stop_error = false_success_mode = 0;
 }
 int main(void)
 {
@@ -130,6 +165,19 @@ int main(void)
     assert(rtwn8723be_n80211_ifstop(&n) == 0 && stops == 2);
     assert(!sc.sc_linux.started &&
         sc.sc_linux.stage == R23BE_STAGE_STOPPED);
+
+    /* A false-success STOP is never a valid net80211 release. */
+    for (false_success_mode = 1; false_success_mode <= 4;
+         false_success_mode++) {
+        int mode = false_success_mode;
+        stops = 0;
+        assert(rtwn8723be_n80211_ifstop(&n) == EIO);
+        assert(stops == 1);
+        assert((sc.sc_ec.ec_if.if_flags & IFF_RUNNING) == 0);
+        reset(&sc, &n);
+        false_success_mode = mode;
+    }
+    false_success_mode = 0;
 
     reset(&sc,&n);
     sc.sc_linux.stage = R23BE_STAGE_STOPPING;
@@ -167,4 +215,4 @@ with tempfile.TemporaryDirectory(prefix="rtl-n80211-stop-owner-") as directory:
         "-I", str(ROOT / "src"), str(source), "-o", str(binary)
     ], check=True)
     subprocess.run([str(binary)], check=True)
-print("RTL_NET80211_STOP_FAILURE_SOURCE_OK negatives=5")
+print("RTL_NET80211_STOP_FAILURE_SOURCE_OK negatives=8")
