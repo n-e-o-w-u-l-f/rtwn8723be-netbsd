@@ -2,6 +2,45 @@
 
 Source checkpoint: 2026-10-27 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — NATIVE RUNNING PUBLICATION AND RFKILL ROLLBACK (2026-10-28)
+
+After a nominally successful Linux `hw_start`, net80211
+may now publish IFF_RUNNING only if the **actual native
+datapath TX/IRQ/DMA owner** is ready. The new
+`rtwn8723be_datapath_running_ready` checks the published
+owner, enabled TX, `!stop_pending`, IRQ dispatch/handle,
+mapped DMA, ring allocation and Linux started/firmware-ready
+RUNNING state under `dp->tx_lock` at IPL_NET. Net80211
+checks it both immediately after `hw_start` and again after
+the second RFKill sample, immediately before publication.
+A missing or revoked owner returns EIO, without inventing
+a completed hardware STOP.
+
+When post-start RFKill sampling requires `hw_stop`, its
+nominally successful return now also requires actual Linux
+`STOPPED` plus cleared `started`, `fw_ready`,
+`mac_func_enable` and `being_init_adapter`; otherwise
+`ifinit` returns EIO and retains recovery ownership.
+
+A new strict C11/UBSan test compiles **real production
+function bodies** for native RUNNING readiness and net80211
+ifinit. It injects missing TX admission, foreign IRQ owner,
+pending STOP, revoked dispatch and second-RFKill owner
+changes, along with bogus RFKill rollback success.
+Twelve unsafe source mutations must fail. The existing
+RFKill start test now executes four false-success STOP
+variants. At exact disposable Linux `legion` head
+`f14e4c6f7b56e842f2b45c66d83385a40dba295e`,
+**64/64 host-permitted scripts passed**, zero failures;
+12 of 76 NetBSD/HP/pinned-reference scripts not run.
+`git diff --check` against the stacked PR #17 passed.
+See `docs/NATIVE_RUNNING_PUBLICATION_RFKILL_ROLLBACK_20261028.md`.
+
+Readiness is a **snapshot, not a callback lifetime lease**.
+The four unbound lifecycle callbacks, native 48-C-unit
+full kernel link, top-level IRQ/softint drain, automatic
+STOP retry and HP PCI/WLAN tests all remain open.
+
 ## SOURCE CHECKPOINT — REAL STOPPED POSTCONDITION AND MEDIA QUARANTINE (2026-10-28)
 
 The production net80211 `ifstop` now checks the actual Linux
