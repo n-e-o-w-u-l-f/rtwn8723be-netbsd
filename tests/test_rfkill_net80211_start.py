@@ -36,6 +36,11 @@ assert start.index("rtwn8723be_rfkill_native_radio_on(sc, &radio_on)") < before
 assert start.rfind("rtwn8723be_rfkill_native_radio_on(sc, &radio_on)") > before
 assert start.rfind("rtwn8723be_rfkill_native_radio_on(sc, &radio_on)") < after
 assert "int stop_error = n->methods.hw_stop(sc);" in start[before:after]
+assert start.count("rtwn8723be_datapath_running_ready(sc->sc_datapath)") == 2
+assert start.index("rtwn8723be_datapath_running_ready(sc->sc_datapath)") > before
+assert start.rindex("rtwn8723be_datapath_running_ready(sc->sc_datapath)") < after
+assert "sc->sc_linux.stage != R23BE_STAGE_STOPPED" in start
+assert "sc->sc_linux.mac_func_enable" in start
 # An incoherent false-success start must NOT call the normal RUNNING stop.
 false_success = start.index("if (!sc->sc_linux.started ||")
 rfkill_stop = start.index("error = rtwn8723be_rfkill_native_radio_on(sc, &radio_on);", before)
@@ -69,6 +74,11 @@ static void mutex_enter(kmutex_t *m) { assert(!m->held); m->held = 1; }
 static void mutex_exit(kmutex_t *m) { assert(m->held); m->held = 0; }
 
 struct work { int marker; };
+struct rtwn8723be_softc;
+struct rtwn8723be_datapath {
+    struct rtwn8723be_softc *sc;
+    bool prepared, tx_enabled, stop_pending;
+};
 struct rtwn8723be_rfkill_native {
     kmutex_t lock;
     struct work poll_work;
@@ -80,6 +90,8 @@ struct rtwn8723be_rfkill_native {
 struct rtwn8723be_softc {
     struct rtwn8723be_rfkill_native sc_rfkill_native;
     struct rtwn8723be_linux_state sc_linux;
+    struct rtwn8723be_datapath bridge;
+    struct rtwn8723be_datapath *sc_datapath;
     bool sc_irq_dispatch_ready, sc_rings_allocated, sc_mapped;
     void *sc_ih;
 };
@@ -98,6 +110,14 @@ struct rtwn8723be_net80211 {
     struct rtwn8723be_net80211_methods methods;
 };
 int rtwn8723be_rfkill_native_radio_on(struct rtwn8723be_softc *, bool *);
+static bool rtwn8723be_datapath_running_ready(
+    struct rtwn8723be_datapath *dp)
+{
+    return dp && dp->prepared && dp->tx_enabled && !dp->stop_pending &&
+        dp->sc && dp->sc->sc_datapath == dp &&
+        dp->sc->sc_linux.started && dp->sc->sc_linux.fw_ready &&
+        dp->sc->sc_linux.stage == R23BE_STAGE_RUNNING;
+}
 static int sample_error;
 static bool sample_valid, sample_on;
 static int callout_count;
@@ -118,6 +138,7 @@ static void callout_schedule(int *timer, int frequency)
 '''
 epilogue = r'''
 static int starts, stops, start_errno, stop_errno, change_on_start;
+static int stop_false_success;
 static int hw_start(struct rtwn8723be_softc *sc)
 {
     starts++;
@@ -131,6 +152,7 @@ static int hw_start(struct rtwn8723be_softc *sc)
         sc->sc_linux.started = true;
         return 0; /* false success: firmware not ready */
     }
+    sc->bridge.tx_enabled = change_on_start != 5;
     sc->sc_linux.stage = R23BE_STAGE_RUNNING;
     sc->sc_linux.started = true;
     sc->sc_linux.fw_ready = true;
@@ -144,9 +166,14 @@ static int hw_stop(struct rtwn8723be_softc *sc)
 {
     stops++;
     if (stop_errno) return stop_errno;
+    if (stop_false_success == 1) return 0;
     sc->sc_linux.started = false;
-    sc->sc_linux.fw_ready = false;
+    if (stop_false_success != 2)
+        sc->sc_linux.fw_ready = false;
     sc->sc_linux.stage = R23BE_STAGE_STOPPED;
+    sc->sc_linux.mac_func_enable = stop_false_success == 3;
+    sc->sc_linux.being_init_adapter = stop_false_success == 4;
+    sc->bridge.tx_enabled = false;
     return 0;
 }
 static void tx_start(struct rtwn8723be_softc *sc, struct ifnet *ifp)
@@ -166,6 +193,9 @@ static void reset(struct rtwn8723be_softc *sc,
     sc->sc_rings_allocated = true;
     sc->sc_mapped = true;
     sc->sc_ih = sc;
+    sc->bridge.sc = sc;
+    sc->bridge.prepared = true;
+    sc->sc_datapath = &sc->bridge;
     n->registered = true;
     n->sc = sc;
     n->methods.hw_start = hw_start;
@@ -173,6 +203,7 @@ static void reset(struct rtwn8723be_softc *sc,
     n->methods.tx_start = tx_start;
     ifp->if_softc = n;
     starts = stops = start_errno = stop_errno = change_on_start = 0;
+    stop_false_success = 0;
 }
 int main(void)
 {
@@ -269,7 +300,7 @@ int main(void)
     assert(rtwn8723be_n80211_ifinit(&ifp) == EIO &&
         starts == 1 && stops == 0);
 
-    for (int mode = 1; mode <= 4; mode++) {
+    for (int mode = 1; mode <= 5; mode++) {
         reset(&sc,&n,&ifp);
         change_on_start = mode;
         ret = rtwn8723be_n80211_ifinit(&ifp);
@@ -296,6 +327,14 @@ int main(void)
     assert(rtwn8723be_n80211_ifinit(&ifp) == EIO &&
         starts == 1 && stops == 1 &&
         (ifp.if_flags & IFF_RUNNING) == 0);
+    for (int mode = 1; mode <= 4; mode++) {
+        reset(&sc,&n,&ifp);
+        change_on_start = 1;
+        stop_false_success = mode;
+        assert(rtwn8723be_n80211_ifinit(&ifp) == EIO);
+        assert(starts == 1 && stops == 1 &&
+            (ifp.if_flags & IFF_RUNNING) == 0);
+    }
     puts("RTL_RFKILL_NET80211_TWO_PHASE_START_C11_UBSAN_OK");
     return 0;
 }
