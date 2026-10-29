@@ -11,8 +11,10 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/mutex.h>
+#include <sys/mbuf.h>
 
 #include "rtwn8723be_datapath.h"
+#include "rtwn8723be_tx_frame.h"
 
 static void
 rtwn8723be_dp_rx(void *arg)
@@ -439,4 +441,84 @@ rtwn8723be_datapath_enqueue(struct rtwn8723be_datapath *dp,
             qid, m, ni, p, command);
     mutex_exit(&dp->tx_lock);
     return error;
+}
+
+/*
+ * A pre-encapsulated, contiguous 802.11 MPDU plus one referenced node.
+ * The future net80211 if_start owner must call ieee80211_encap and any
+ * required ieee80211_crypto_encap BEFORE invoking this adapter.
+ *
+ * Success transfers BOTH m and ni to the native TX ring. Every error
+ * leaves BOTH with the caller. No software crypto or rate-control state
+ * is created here. No ifnet queue is consumed by this helper.
+ */
+int
+rtwn8723be_datapath_enqueue_80211(struct rtwn8723be_datapath *dp,
+    struct mbuf *m, struct ieee80211_node *ni, bool sw_crypto_complete,
+    const struct rtwn8723be_tx_params *rate)
+{
+    struct rtwn8723be_tx_frame_plan plan;
+    struct rtwn8723be_tx_params params;
+    unsigned int qid;
+    int error;
+
+    if (dp == NULL || !dp->prepared || dp->sc == NULL ||
+        m == NULL || ni == NULL || rate == NULL)
+        return EINVAL;
+    if (!dp->sc->sc_sw_crypto || !dp->sc->sc_security_policy_valid ||
+        rate->security != 0)
+        return EACCES;
+    if ((m->m_flags & M_PKTHDR) == 0)
+        return EINVAL;
+    if (m->m_next != NULL || m->m_len != m->m_pkthdr.len)
+        return EFBIG; /* Caller must linearize BEFORE ownership transfer. */
+    if (m->m_len <= 0)
+        return EINVAL;
+    error = rtwn8723be_tx_frame_plan(mtod(m, const uint8_t *),
+        (size_t)m->m_pkthdr.len, sw_crypto_complete, &plan);
+    if (error != 0)
+        return error;
+
+    switch (plan.ac) {
+    case R23BE_TX_FRAME_BK:
+        qid = RTWN8723BE_BK_QUEUE;
+        break;
+    case R23BE_TX_FRAME_VI:
+        qid = RTWN8723BE_VI_QUEUE;
+        break;
+    case R23BE_TX_FRAME_VO:
+        qid = RTWN8723BE_VO_QUEUE;
+        break;
+    case R23BE_TX_FRAME_MGMT:
+        qid = RTWN8723BE_MGNT_QUEUE;
+        break;
+    default:
+        qid = RTWN8723BE_BE_QUEUE;
+        break;
+    }
+
+    /*
+     * Never let an external TX rate policy override packet dimensions,
+     * queue selection, sequence, software-key ownership or segmentation.
+     */
+    params = *rate;
+    params.packet_len = (uint16_t)m->m_pkthdr.len;
+    params.buffer_len = (uint16_t)m->m_pkthdr.len;
+    params.fw_queue = plan.fw_queue;
+    params.seq = plan.seq;
+    params.qos_data = plan.qos_data;
+    params.multicast = plan.multicast;
+    params.security = 0; /* WPA/RSN is fully software encrypted by net80211. */
+    params.first_segment = true;
+    params.last_segment = true;
+    params.ampdu = false; /* Aggregate TX requires its own node lifetime. */
+    params.rdg = false;
+    params.data_bw_40 = false;
+    if (plan.management || plan.multicast) {
+        params.hw_rate = 0; /* CCK1 in the actual RTL8723BE rate table. */
+        params.use_driver_rate = true;
+        params.disable_rate_fallback = true;
+    }
+
+    return rtwn8723be_datapath_enqueue(dp, qid, m, ni, &params, false);
 }
