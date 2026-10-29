@@ -31,6 +31,8 @@ struct rtwn8723be_datapath {
      * callback returns. Protected exclusively by tx_lock (IPL_NET).
      */
     unsigned int tx_callback_active;
+    /* Active net80211 if_start method calls after releasing TX mutex. */
+    unsigned int tx_start_active;
     /* In-progress RX ring drains and borrowed frame/C2H callbacks. */
     unsigned int rx_callback_active;
     int rx_error;
@@ -58,9 +60,18 @@ int rtwn8723be_datapath_start(struct rtwn8723be_datapath *);
 bool rtwn8723be_datapath_running_ready(struct rtwn8723be_datapath *);
 
 /*
+ * Atomically lease the RUNNING TX/net80211 owner across the external
+ * if_start/tx_start callback. No callback is invoked under IPL_NET.
+ * The caller must pair a successful acquire with an eventual release.
+ */
+bool rtwn8723be_datapath_tx_start_begin(struct rtwn8723be_datapath *);
+void rtwn8723be_datapath_tx_start_end(struct rtwn8723be_datapath *);
+
+/*
  * Atomically closes TX and transitions the actual Linux lifecycle from
  * RUNNING to STOPPING under the same IPL_NET lock as ring enqueue/reclaim.
- * Refuses the transition if RX drain or external TX callback is active.
+ * Refuses the transition while RX drain, TX completion or net80211
+ * TX start method is executing.
  * Does NOT drain softint or free outstanding mbufs; lifecycle owns those.
  */
 int rtwn8723be_datapath_begin_stop(struct rtwn8723be_datapath *,
@@ -79,8 +90,8 @@ void rtwn8723be_datapath_stop(struct rtwn8723be_datapath *);
 /*
  * Requires IRQ and softint fully DIS-ESTABLISHED, plus no concurrent
  * ifnet entry, before clearing callbacks/destroying the TX lock.
- * Also returns EBUSY while RX drain or an external TX-completion callback
- * holds a published reference; drain/retry must occur OUTSIDE IPL_NET.
+ * Also returns EBUSY while RX drain, an external TX-completion callback,
+ * or net80211 TX start method holds a published reference; drain/retry must occur OUTSIDE IPL_NET.
  */
 int rtwn8723be_datapath_unprepare(struct rtwn8723be_datapath *);
 
