@@ -1,0 +1,151 @@
+{
+  "state": "PASSED",
+  "host": "hp-tpnw121.fritz.box",
+  "started": "2026-10-05T22:41:43.530747+00:00",
+  "tests": [
+    {
+      "name": "test_aspm_native_adapter.py",
+      "exit": 0
+    },
+    {
+      "name": "test_bb_native_adapter.py",
+      "exit": 0
+    },
+    {
+      "name": "test_c2h.py",
+      "exit": 0
+    },
+    {
+      "name": "test_c2h_native.py",
+      "exit": 0
+    },
+    {
+      "name": "test_dma_mem_unwind.py",
+      "exit": 0
+    },
+    {
+      "name": "test_efuse_shadow_bounds.py",
+      "exit": 0
+    },
+    {
+      "name": "test_h2c_mailbox.py",
+      "exit": 0
+    },
+    {
+      "name": "test_h2c_native_binding.py",
+      "exit": 0
+    },
+    {
+      "name": "test_kernel_source_integrity.py",
+      "exit": 0
+    },
+    {
+      "name": "test_late_hw_callbacks.py",
+      "exit": 0
+    },
+    {
+      "name": "test_linux_lifecycle_stop.py",
+      "exit": 0
+    },
+    {
+      "name": "test_mark_hal_start_stage.py",
+      "exit": 0
+    },
+    {
+      "name": "test_net80211_rx_no_phy.py",
+      "exit": 0
+    },
+    {
+      "name": "test_oem.py",
+      "exit": 0
+    },
+    {
+      "name": "test_package.py",
+      "exit": 0
+    },
+    {
+      "name": "test_package_adapter_source.py",
+      "exit": 0
+    },
+    {
+      "name": "test_phy_bb_sequence.py",
+      "exit": 0
+    },
+    {
+      "name": "test_phy_exec.py",
+      "exit": 0
+    },
+    {
+      "name": "test_phy_identity_native.py",
+      "exit": 0
+    },
+    {
+      "name": "test_phy_netbsd_writers.py",
+      "exit": 0
+    },
+    {
+      "name": "test_phy_tables.py",
+      "exit": 0
+    },
+    {
+      "name": "test_port_closure_inventory.py",
+      "exit": 0
+    },
+    {
+      "name": "test_rf_channel_state.py",
+      "exit": 0
+    },
+    {
+      "name": "test_rf_native_adapter.py",
+      "exit": 0
+    },
+    {
+      "name": "test_rf_path.py",
+      "exit": 0
+    },
+    {
+      "name": "test_rf_serial.py",
+      "exit": 0
+    },
+    {
+      "name": "test_rx_binding.py",
+      "exit": 0
+    },
+    {
+      "name": "test_rx_decode.py",
+      "exit": 0
+    },
+    {
+      "name": "test_rx_dma_bounds.py",
+      "exit": 0
+    },
+    {
+      "name": "test_rx_phy.py",
+      "exit": 0
+    },
+    {
+      "name": "test_security_native_adapter.py",
+      "exit": 0
+    },
+    {
+      "name": "test_tx_desc.py",
+      "exit": 0
+    },
+    {
+      "name": "test_tx_queue_lifetime.py",
+      "exit": 0
+    },
+    {
+      "name": "test_txpwr_pg.py",
+      "exit": 0
+    }
+  ],
+  "updated": "2026-10-05T22:42:11.198511+00:00",
+  "updated_checkpoint": "2026-10-05T23:23:43.070768+00:00",
+  "closure": {
+    "declared": 53,
+    "bound": 44,
+    "missing": 9,
+    "state": "OPEN"
+  }
+}

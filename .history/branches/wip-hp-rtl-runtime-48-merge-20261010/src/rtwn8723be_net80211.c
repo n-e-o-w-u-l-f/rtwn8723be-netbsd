@@ -1,0 +1,415 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * NetBSD 11 net80211 interface lifecycle modelled on pinned
+ * NetBSD/src sys/dev/pci/if_rtwn.c; NOT the hardware-specific rtwn driver.
+ */
+#include <sys/cdefs.h>
+__KERNEL_RCSID(0, "$NetBSD$");
+
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/errno.h>
+#include <sys/sockio.h>
+#include <sys/mbuf.h>
+#include <sys/intr.h>
+
+#include <net/if.h>
+#include <net/if_ether.h>
+#include <net/if_media.h>
+#include <net80211/ieee80211_var.h>
+#include <net80211/ieee80211_proto.h>
+
+#include "rtwn8723be_net80211.h"
+
+static int rtwn8723be_n80211_ifinit(struct ifnet *);
+static int rtwn8723be_n80211_ioctl(struct ifnet *, u_long, void *);
+static int rtwn8723be_n80211_media_change(struct ifnet *);
+static void rtwn8723be_n80211_ifstart(struct ifnet *);
+static int rtwn8723be_n80211_ifstop(struct rtwn8723be_net80211 *);
+
+static int
+rtwn8723be_n80211_ifinit(struct ifnet *ifp)
+{
+    struct rtwn8723be_net80211 *n = ifp->if_softc;
+    struct rtwn8723be_softc *sc;
+    int error;
+
+    if (n == NULL || !n->registered || n->sc == NULL)
+        return ENXIO;
+    sc = n->sc;
+    if (n->methods.hw_start == NULL || n->methods.hw_stop == NULL ||
+        n->methods.tx_start == NULL)
+        return ENOSYS;
+    /*
+     * Probe has a live PCI hard/soft interrupt owner, whereas a verified
+     * STOPPED generation has deliberately disestablished all three IRQ
+     * resources.  Linux-order adapter_start() first resets DMA rings with
+     * IRQs absent, prepares BTC, and only then re-establishes PCI IRQ.
+     *
+     * Requiring sc_ih at STOPPED rejects every valid down/up restart with
+     * EAGAIN before that establish_irq callback can run.  Do not weaken
+     * the PROBED invariant or allow a partly quiesced STOPPED owner.
+     */
+    if ((sc->sc_linux.stage != R23BE_STAGE_PROBED &&
+        sc->sc_linux.stage != R23BE_STAGE_STOPPED) ||
+        !sc->sc_irq_dispatch_ready ||
+        !sc->sc_rings_allocated || !sc->sc_mapped)
+        return EAGAIN;
+    if (sc->sc_linux.stage == R23BE_STAGE_PROBED) {
+        if (sc->sc_ih == NULL || sc->sc_soft_ih == NULL ||
+            sc->sc_pihp == NULL)
+            return EAGAIN;
+    } else {
+        if (sc->sc_irq_enabled || sc->sc_ih != NULL ||
+            sc->sc_soft_ih != NULL || sc->sc_pihp != NULL)
+            return EBUSY;
+    }
+
+    /*
+     * hw_start must complete Linux-order hw_init(), irq enable, RX config,
+     * mark_hal_start and the datapath bridge's start + unwind on failure.
+     * A partially initialized device must NEVER be marked IFF_RUNNING.
+     */
+    error = n->methods.hw_start(sc);
+    if (error != 0)
+        return error;
+    if (!sc->sc_linux.started || !sc->sc_linux.fw_ready ||
+        sc->sc_linux.stage != R23BE_STAGE_RUNNING) {
+        int stop_error = n->methods.hw_stop(sc);
+        return stop_error != 0 ? stop_error : EIO;
+    }
+    ifp->if_flags |= IFF_RUNNING;
+    ifp->if_flags &= ~IFF_OACTIVE;
+    return 0;
+}
+
+static int
+rtwn8723be_n80211_ifstop(struct rtwn8723be_net80211 *n)
+{
+    struct ifnet *ifp;
+
+    if (n == NULL || !n->registered)
+        return ENXIO;
+    ifp = &n->sc->sc_ec.ec_if;
+    /* Stop further net80211 dequeue BEFORE stopping hardware/interrupts. */
+    ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+    ifp->if_timer = 0;
+    /*
+     * Linux probe publishes net80211 registration before RF-kill and IRQ.
+     * A failed probe can therefore have a registered but NEVER started
+     * interface while stage is IEEE80211_REGISTER, RFKILL or IRQ_ESTABLISH.
+     * No hardware stop is necessary in those states: accepting this path
+     * allows the owner to unregister the ifnet BEFORE releasing PCI DMA.
+     * Do not apply this shortcut to a partially started device.
+     */
+    if (!n->sc->sc_linux.started &&
+        (n->sc->sc_linux.stage == R23BE_STAGE_IEEE80211_REGISTER ||
+         n->sc->sc_linux.stage == R23BE_STAGE_RFKILL ||
+         n->sc->sc_linux.stage == R23BE_STAGE_IRQ_ESTABLISH ||
+         n->sc->sc_linux.stage == R23BE_STAGE_PROBED ||
+         n->sc->sc_linux.stage == R23BE_STAGE_STOPPED))
+        return 0;
+    if (!n->sc->sc_linux.started ||
+        n->sc->sc_linux.stage != R23BE_STAGE_RUNNING)
+        return EBUSY; /* An interrupted stop needs explicit recovery. */
+    if (n->methods.hw_stop == NULL)
+        return ENOSYS;
+    return n->methods.hw_stop(n->sc);
+}
+
+static void
+rtwn8723be_n80211_ifstart(struct ifnet *ifp)
+{
+    struct rtwn8723be_net80211 *n = ifp->if_softc;
+
+    if (n == NULL || !n->registered ||
+        (ifp->if_flags & IFF_RUNNING) == 0 ||
+        n->methods.tx_start == NULL)
+        return;
+    /*
+     * OACTIVE records shared ifnet backpressure, not the availability of
+     * the independent management descriptor ring. Forward a queued
+     * management frame to the producer even if BE was blocked. Data-only
+     * starts remain suppressed until the completion callback wakes them.
+     */
+    if ((ifp->if_flags & IFF_OACTIVE) != 0 &&
+        n->sc->sc_ic.ic_mgtq.ifq_head == NULL)
+        return;
+    /* Real 802.11 framing/TX node lifetime is owned by the HW method. */
+    n->methods.tx_start(n->sc, ifp);
+}
+
+static int
+rtwn8723be_n80211_ioctl(struct ifnet *ifp, u_long cmd, void *data)
+{
+    struct rtwn8723be_net80211 *n = ifp->if_softc;
+    struct ieee80211com *ic;
+    int error = 0, s;
+
+    if (n == NULL || !n->registered)
+        return ENXIO;
+    ic = &n->sc->sc_ic;
+    s = splnet();
+    switch (cmd) {
+    case SIOCSIFFLAGS:
+        error = ifioctl_common(ifp, cmd, data);
+        if (error != 0)
+            break;
+        if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) == IFF_UP) {
+            /*
+             * The native Linux-order start opens firmware, allocates and
+             * drains worker resources, and may sleep. Never execute it
+             * with the network IPL raised by splnet().
+             */
+            splx(s);
+            error = rtwn8723be_n80211_ifinit(ifp);
+            s = splnet();
+            if (error != 0)
+                ifp->if_flags &= ~IFF_UP;
+        } else if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) ==
+            IFF_RUNNING) {
+            splx(s);
+            error = rtwn8723be_n80211_ifstop(n);
+            s = splnet();
+        }
+        break;
+    case SIOCADDMULTI:
+    case SIOCDELMULTI:
+        error = ether_ioctl(ifp, cmd, data);
+        /* Multicast filter programming requires full hardware callbacks. */
+        if (error == ENETRESET && (ifp->if_flags & IFF_RUNNING) == 0)
+            error = 0;
+        break;
+    default:
+        error = ieee80211_ioctl(ic, cmd, data);
+        break;
+    }
+    if (error == ENETRESET) {
+        error = 0;
+        if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) ==
+            (IFF_UP | IFF_RUNNING)) {
+            /* ENETRESET is a full sleepable hardware stop+restart. */
+            splx(s);
+            error = rtwn8723be_n80211_ifstop(n);
+            if (error == 0)
+                error = rtwn8723be_n80211_ifinit(ifp);
+            s = splnet();
+        }
+    }
+    splx(s);
+    return error;
+}
+
+static int
+rtwn8723be_n80211_media_change(struct ifnet *ifp)
+{
+    struct rtwn8723be_net80211 *n = ifp->if_softc;
+    int error;
+
+    error = ieee80211_media_change(ifp);
+    if (error != ENETRESET)
+        return error;
+    if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) ==
+        (IFF_UP | IFF_RUNNING)) {
+        error = rtwn8723be_n80211_ifstop(n);
+        if (error != 0)
+            return error;
+        return rtwn8723be_n80211_ifinit(ifp);
+    }
+    return 0;
+}
+
+int
+rtwn8723be_net80211_register(struct rtwn8723be_net80211 *n,
+    struct rtwn8723be_softc *sc,
+    const struct rtwn8723be_net80211_methods *methods)
+{
+    struct ieee80211com *ic;
+    struct ifnet *ifp;
+    int error;
+
+    if (n == NULL || sc == NULL || methods == NULL)
+        return EINVAL;
+    if (n->registered)
+        return EALREADY;
+    if (methods->hw_start == NULL || methods->hw_stop == NULL ||
+        methods->tx_start == NULL)
+        return ENOSYS;
+    if (!sc->sc_package_valid || !sc->sc_efuse_autoload_ok ||
+        sc->sc_eeprom_id != R23BE_EEPROM_ID ||
+        (sc->sc_macaddr[0] & 1U) != 0 ||
+        (sc->sc_macaddr[0] == 0 && sc->sc_macaddr[1] == 0 &&
+        sc->sc_macaddr[2] == 0 && sc->sc_macaddr[3] == 0 &&
+        sc->sc_macaddr[4] == 0 && sc->sc_macaddr[5] == 0))
+        return EINVAL;
+
+    ic = &sc->sc_ic;
+    ifp = &sc->sc_ec.ec_if;
+    ic->ic_ifp = ifp;
+    ic->ic_phytype = IEEE80211_T_OFDM;
+    ic->ic_opmode = IEEE80211_M_STA;
+    ic->ic_state = IEEE80211_S_INIT;
+    /*
+     * Station-mode 2.4-GHz software crypto: the frozen NetBSD if_rtwn
+     * reference advertises WPA/RSN and ieee80211_ifattach initializes
+     * the software crypto methods.  Restrict this bridge to WPA2/RSN;
+     * legacy WPA1 and hardware CAM offload are not claimed here.
+     * Successful key installation and actual TX/RX remain separate gates.
+     */
+    ic->ic_caps = IEEE80211_C_SHPREAMBLE | IEEE80211_C_SHSLOT |
+        IEEE80211_C_WPA2;
+    ic->ic_sup_rates[IEEE80211_MODE_11B] = ieee80211_std_rateset_11b;
+    ic->ic_sup_rates[IEEE80211_MODE_11G] = ieee80211_std_rateset_11g;
+    error = rtwn8723be_netbsd_apply_world_regdomain(sc);
+    if (error != 0)
+        return error;
+
+    /* Publish the owner only after regulatory setup cannot fail. */
+    sc->sc_security_policy_valid = false;
+    n->sc = sc;
+    n->methods = *methods;
+    ifp->if_softc = n;
+    ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+    ifp->if_init = rtwn8723be_n80211_ifinit;
+    ifp->if_start = rtwn8723be_n80211_ifstart;
+    ifp->if_ioctl = rtwn8723be_n80211_ioctl;
+    IFQ_SET_READY(&ifp->if_snd);
+    strlcpy(ifp->if_xname, device_xname(sc->sc_dev), IFNAMSIZ);
+    if_initialize(ifp);
+    IEEE80211_ADDR_COPY(ic->ic_myaddr, sc->sc_macaddr);
+    ieee80211_ifattach(ic);
+    /*
+     * Frozen NetBSD if_percpuq_create() uses kmem_zalloc(KM_SLEEP)
+     * and returns its allocated queue, not an ENOMEM status.
+     * In particular, if_detach() may not be used to unwind an
+     * interface that has not yet completed if_register(): doing so
+     * removes a nonexistent ifnet_list entry.  Match if_rtwn.c order.
+     * The driver owner must quiesce and detach after registration.
+     */
+    ifp->if_percpuq = if_percpuq_create(ifp);
+    KASSERT(ifp->if_percpuq != NULL);
+    /*
+     * TX completion calls if_schedule_deferred_start().  Allocate its
+     * softint before publishing the interface; if_detach() drains and
+     * destroys it after the driver owner has stopped TX and IRQs.
+     */
+    if_deferred_start_init(ifp, NULL);
+    if_register(ifp);
+    ieee80211_media_init(ic, rtwn8723be_n80211_media_change,
+        ieee80211_media_status);
+    /* The current net80211 adapter uses the framework's software key methods.
+     * Hardware CAM set/delete and cipher ownership remain a separate full-port
+     * requirement. A future hardware-key adapter must explicitly select policy.
+     */
+    sc->sc_sw_crypto = true;
+    sc->sc_use_sw_sec = true;
+    sc->sc_use_defaultkey = false;
+    sc->sc_security_policy_valid = true;
+    n->registered = true;
+    ieee80211_announce(ic);
+    return 0;
+}
+
+int
+rtwn8723be_net80211_unregister(struct rtwn8723be_net80211 *n)
+{
+    struct ifnet *ifp;
+    int s, error;
+
+    if (n == NULL)
+        return EINVAL;
+    if (!n->registered)
+        return 0;
+    if (n->sc == NULL)
+        return EIO;
+    ifp = &n->sc->sc_ec.ec_if;
+    /*
+     * The driver stop may drain workqueues, DMA, firmware and callouts.
+     * Never hold NetBSD's raised network IPL across a sleepable teardown.
+     * Match the native rtwn detach reference by protecting only the
+     * actual ieee80211_ifdetach()/if_detach() framework transition.
+     * Failed hardware stop must preserve the registered ifnet owner.
+     */
+    error = rtwn8723be_n80211_ifstop(n);
+    if (error != 0)
+        return error; /* Retain registered resources on failed hardware stop. */
+    s = splnet();
+    n->sc->sc_security_policy_valid = false;
+    n->sc->sc_security_configured = false;
+    n->sc->sc_hw_security_enabled = false;
+    ieee80211_ifdetach(&n->sc->sc_ic);
+    if_detach(ifp);
+    n->registered = false;
+    n->sc = NULL;
+    memset(&n->methods, 0, sizeof(n->methods));
+    splx(s);
+    return 0;
+}
+
+int
+rtwn8723be_net80211_input(struct rtwn8723be_net80211 *n,
+    const uint8_t *frame, size_t length, int rssi_dbm)
+{
+    struct ieee80211com *ic;
+    struct ieee80211_node *ni;
+    struct mbuf *m;
+    int s;
+
+    if (n == NULL || !n->registered || n->sc == NULL ||
+        frame == NULL || length < sizeof(struct ieee80211_frame_min) ||
+        length > RTWN8723BE_RX_BUFFER_SIZE ||
+        rssi_dbm < -127 || rssi_dbm > 0)
+        return EINVAL;
+    if ((n->sc->sc_ec.ec_if.if_flags & IFF_RUNNING) == 0)
+        return ENETDOWN;
+
+    m = m_devget((char *)(uintptr_t)frame, (int)length, 0,
+        &n->sc->sc_ec.ec_if);
+    if (m == NULL)
+        return ENOBUFS;
+    /*
+     * Linux RCR_APPFCS (bit 31) includes the trailing CRC in RX length.
+     * NetBSD ieee80211_input strips it before crypto only for M_HASFCS.
+     * Mark the private copy, leaving the borrowed DMA buffer untouched.
+     */
+    if ((n->sc->sc_receive_config & (1U << 31)) != 0)
+        m->m_flags |= M_HASFCS;
+    ic = &n->sc->sc_ic;
+    s = splnet();
+    ni = ieee80211_find_rxnode(ic,
+        mtod(m, struct ieee80211_frame_min *));
+    if (ni == NULL) {
+        splx(s);
+        m_freem(m);
+        return ENOENT;
+    }
+    /* ieee80211_input takes ownership of the COPIED mbuf. */
+    ieee80211_input(ic, m, ni, rssi_dbm, 0);
+    ieee80211_free_node(ni);
+    splx(s);
+    return 0;
+}
+
+int
+rtwn8723be_net80211_rx_frame(void *arg, const uint8_t *frame,
+    size_t length, const struct rtwn8723be_rx_packet *packet)
+{
+    struct rtwn8723be_net80211 *n = arg;
+
+    if (n == NULL || packet == NULL || frame == NULL ||
+        packet->kind != RTWN8723BE_RX_FRAME ||
+        packet->packet_length != length ||
+        packet->crc_error || packet->icv_error)
+        return EINVAL;
+    /*
+     * Pinned NetBSD if_rtwn.c:rtwn_rx_frame() initializes rssi to zero,
+     * then replaces it only when valid PHY status is present. Match that
+     * existing NetBSD no-PHY fallback so management/control/data frames
+     * are not discarded merely because hardware omitted PHYST.
+     *
+     * Zero here is the framework fallback, NOT a measured 0 dBm signal.
+     * The measured/unmeasured distinction remains in packet->rssi_valid.
+     */
+    return rtwn8723be_net80211_input(n, frame, length,
+        packet->rssi_valid ? packet->rssi_dbm : 0);
+}

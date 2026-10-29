@@ -1,0 +1,414 @@
+{
+  "recorded": "2026-10-04T23:57:33.192472+00:00",
+  "linux_pin": "fd179f8a05be3ccae366b9b96e176b51fbe54aab",
+  "netbsd_pin": "03d918f6d0e81fa05b8f1160eca0628ad39988a6",
+  "source_archive_sha256": "3645aca2c1ac9716558075b7747a98583a8e87435f00ff30c786b4b438dbe15b",
+  "rtl_regressions": {
+    "state": "PASSED",
+    "host": "hp-tpnw121.fritz.box",
+    "started": "2026-10-04T23:42:44.517543+00:00",
+    "tests": [
+      {
+        "name": "test_bb_native_adapter.py",
+        "exit": 0
+      },
+      {
+        "name": "test_c2h.py",
+        "exit": 0
+      },
+      {
+        "name": "test_c2h_native.py",
+        "exit": 0
+      },
+      {
+        "name": "test_dma_mem_unwind.py",
+        "exit": 0
+      },
+      {
+        "name": "test_efuse_shadow_bounds.py",
+        "exit": 0
+      },
+      {
+        "name": "test_h2c_mailbox.py",
+        "exit": 0
+      },
+      {
+        "name": "test_h2c_native_binding.py",
+        "exit": 0
+      },
+      {
+        "name": "test_kernel_source_integrity.py",
+        "exit": 0
+      },
+      {
+        "name": "test_late_hw_callbacks.py",
+        "exit": 0
+      },
+      {
+        "name": "test_linux_lifecycle_stop.py",
+        "exit": 0
+      },
+      {
+        "name": "test_mark_hal_start_stage.py",
+        "exit": 0
+      },
+      {
+        "name": "test_net80211_rx_no_phy.py",
+        "exit": 0
+      },
+      {
+        "name": "test_oem.py",
+        "exit": 0
+      },
+      {
+        "name": "test_package.py",
+        "exit": 0
+      },
+      {
+        "name": "test_package_adapter_source.py",
+        "exit": 0
+      },
+      {
+        "name": "test_phy_bb_sequence.py",
+        "exit": 0
+      },
+      {
+        "name": "test_phy_exec.py",
+        "exit": 0
+      },
+      {
+        "name": "test_phy_identity_native.py",
+        "exit": 0
+      },
+      {
+        "name": "test_phy_netbsd_writers.py",
+        "exit": 0
+      },
+      {
+        "name": "test_phy_tables.py",
+        "exit": 0
+      },
+      {
+        "name": "test_port_closure_inventory.py",
+        "exit": 0
+      },
+      {
+        "name": "test_rf_channel_state.py",
+        "exit": 0
+      },
+      {
+        "name": "test_rf_native_adapter.py",
+        "exit": 0
+      },
+      {
+        "name": "test_rf_path.py",
+        "exit": 0
+      },
+      {
+        "name": "test_rf_serial.py",
+        "exit": 0
+      },
+      {
+        "name": "test_rx_binding.py",
+        "exit": 0
+      },
+      {
+        "name": "test_rx_decode.py",
+        "exit": 0
+      },
+      {
+        "name": "test_rx_dma_bounds.py",
+        "exit": 0
+      },
+      {
+        "name": "test_rx_phy.py",
+        "exit": 0
+      },
+      {
+        "name": "test_tx_desc.py",
+        "exit": 0
+      },
+      {
+        "name": "test_tx_queue_lifetime.py",
+        "exit": 0
+      },
+      {
+        "name": "test_txpwr_pg.py",
+        "exit": 0
+      }
+    ],
+    "updated": "2026-10-04T23:43:13.007629+00:00"
+  },
+  "native_objects": {
+    "state": "PASSED",
+    "host": "hp-tpnw121.fritz.box",
+    "target": "objects",
+    "started": "2026-10-04T23:52:30.014808+00:00",
+    "tree": "/root/hp-driver-port-20261005/netbsd-native",
+    "objdir": "/root/hp-driver-port-20261005/native-obj",
+    "commands": [
+      [
+        "/root/hp-driver-port-20261005/native-tools/bin/nbconfig",
+        "-s",
+        "/root/hp-driver-port-20261005/netbsd-native/sys",
+        "-b",
+        "/root/hp-driver-port-20261005/native-obj",
+        "/root/hp-driver-port-20261005/netbsd-native/sys/arch/amd64/conf/HP-RTL-NATIVE-20261005"
+      ],
+      [
+        "/root/hp-driver-port-20261005/native-tools/bin/nbmake-amd64",
+        "-C",
+        "/root/hp-driver-port-20261005/native-obj",
+        "-j2",
+        "rtwn8723be_native.d",
+        "rtwn8723be_netbsd.d",
+        "rtwn8723be_f16_1_dma.d",
+        "rtwn8723be_fw.d",
+        "rtwn8723be_h2c.d",
+        "rtwn8723be_h2c_native.d",
+        "rtwn8723be_linux_state.d",
+        "rtwn8723be_package.d",
+        "rtwn8723be_pwrseq.d",
+        "rtwn8723be_phy_bb_sequence.d",
+        "rtwn8723be_bb_native.d",
+        "rtwn8723be_txpwr_pg.d",
+        "rtwn8723be_phy_exec.d",
+        "rtwn8723be_rf_serial.d",
+        "rtwn8723be_rf_path.d",
+        "rtwn8723be_rf_native.d",
+        "rtwn8723be_rf_channel_state.d",
+        "rtwn8723be_rx_decode.d",
+        "rtwn8723be_c2h.d",
+        "rtwn8723be_c2h_native.d",
+        "rtwn8723be_rx_binding.d",
+        "rtwn8723be_rx_phy.d",
+        "rtwn8723be_rx_native.d",
+        "rtwn8723be_tx_desc.d",
+        "rtwn8723be_tx_native.d",
+        "rtwn8723be_datapath.d",
+        "rtwn8723be_net80211.d",
+        "rtwn8723be_oem.d"
+      ],
+      [
+        "/root/hp-driver-port-20261005/native-tools/bin/nbmake-amd64",
+        "-C",
+        "/root/hp-driver-port-20261005/native-obj",
+        "-j2",
+        "rtwn8723be_native.o",
+        "rtwn8723be_netbsd.o",
+        "rtwn8723be_f16_1_dma.o",
+        "rtwn8723be_fw.o",
+        "rtwn8723be_h2c.o",
+        "rtwn8723be_h2c_native.o",
+        "rtwn8723be_linux_state.o",
+        "rtwn8723be_package.o",
+        "rtwn8723be_pwrseq.o",
+        "rtwn8723be_phy_bb_sequence.o",
+        "rtwn8723be_bb_native.o",
+        "rtwn8723be_txpwr_pg.o",
+        "rtwn8723be_phy_exec.o",
+        "rtwn8723be_rf_serial.o",
+        "rtwn8723be_rf_path.o",
+        "rtwn8723be_rf_native.o",
+        "rtwn8723be_rf_channel_state.o",
+        "rtwn8723be_rx_decode.o",
+        "rtwn8723be_c2h.o",
+        "rtwn8723be_c2h_native.o",
+        "rtwn8723be_rx_binding.o",
+        "rtwn8723be_rx_phy.o",
+        "rtwn8723be_rx_native.o",
+        "rtwn8723be_tx_desc.o",
+        "rtwn8723be_tx_native.o",
+        "rtwn8723be_datapath.o",
+        "rtwn8723be_net80211.o",
+        "rtwn8723be_oem.o"
+      ]
+    ],
+    "updated": "2026-10-04T23:52:46.694823+00:00",
+    "source_sha256": {
+      "rtwn8723be_native.c": "911b165b8de22ff056abbaf6eee14efb31a3bf62969a44c643ecf46e72b00dac",
+      "rtwn8723be_netbsd.c": "7ae32750ce41418712d784e8ab07b5c81f7283afb44c83f7a52d631bb8fe3cd5",
+      "rtwn8723be_f16_1_dma.c": "2216178b4e5bb4d80f17035df75b7dda039442657331282089e497e7cf12ec40",
+      "rtwn8723be_fw.c": "e881341e60e2887830a8c13accf008424c28d83e0205cfa520dfc43a773cba15",
+      "rtwn8723be_h2c.c": "7c26bd58d6c23f5e2e249a03cdc608ae611fe84fb0ac97f98c08f41ec79a1ad0",
+      "rtwn8723be_h2c_native.c": "23e1f8eff527e98aa97e96bf2e7bf9c85947deee7245810ccaa68aee4fba68bd",
+      "rtwn8723be_linux_state.c": "6529af6dc3c285560887f79d0a13d9cd449f107d3b1f2673de5accf8e5497327",
+      "rtwn8723be_package.c": "519196eb90152bb1edd7cae05798738281f53aca86e54f51bc6cf18ecc291bff",
+      "rtwn8723be_pwrseq.c": "95c9118c19903333978d384fcd512c34c5d0cc609a46e5049c5abb41a890eddf",
+      "rtwn8723be_phy_bb_sequence.c": "57bb375edc0a6f5dda32c8043ec2a82d3f919207d3c9712c11e4450c874d318c",
+      "rtwn8723be_bb_native.c": "47ba1328df5f9abf29554582a2132cebefc64074901814a08ebaa2c15f3a4a75",
+      "rtwn8723be_txpwr_pg.c": "2e8a6c781583c30224211421b6944c9a442aab876930255114660ee6c42218d1",
+      "rtwn8723be_phy_exec.c": "931ba3570809642a012414d84a9990843d1b62525712a911448b008a2082a628",
+      "rtwn8723be_rf_serial.c": "86189e2d29df750fb34cc7224f7f72eed344bef6f2061b37a2805879098ff8ae",
+      "rtwn8723be_rf_path.c": "fe4607be089bd4badd7eff805b69e472dd461f7bc0ab6dc1974bf9443b01bb43",
+      "rtwn8723be_rf_native.c": "07814f08728cb79df92a5a84be0e384ae3a4b61b6a973fe4503d4b5e0f37b10a",
+      "rtwn8723be_rf_channel_state.c": "d3d3a027efc59e331ba276c69b865c1887a6ae63d7b7391f1cfffdf994cc0825",
+      "rtwn8723be_rx_decode.c": "9db1a9cb1ac6db48b39241d617ab690d80f088195f39f3d496217c65bbd616ba",
+      "rtwn8723be_c2h.c": "dea82f7618a8b97c7b1922813c9af81b6b730d8522bfd66a3ca81efaf88fea9a",
+      "rtwn8723be_c2h_native.c": "02d47f7e58d93731818e8482c78c6b360583b78c471db5fa35f4dc6eb372d562",
+      "rtwn8723be_rx_binding.c": "4b850ebe04e8a7291621044c599bcf8157f4edbd5f9254fa777fb4cf0ca6081f",
+      "rtwn8723be_rx_phy.c": "f9ac468be59bc99db68615a86d43b781cd6385bde82810f956b3ad2ffe78fbd5",
+      "rtwn8723be_rx_native.c": "9a7459d88bc7c19e55eb0235996dfd311994a2ae80e24c63f4c215476fc95b34",
+      "rtwn8723be_tx_desc.c": "6a0278cbce08cfabe9bc33afdc7ab8d2ce2c48a1024851722f685fa31d3dbd43",
+      "rtwn8723be_tx_native.c": "cee9bba23a1697c4bac05ab2183015724bbb996b28383e0f97d1e94dfd6d82d0",
+      "rtwn8723be_datapath.c": "64e4b31de5fecc75c20cf3487f9bed65368249c77e170c12f095371bf95a2805",
+      "rtwn8723be_net80211.c": "ce716b70a58b6ec797dedc59f49f099e08975956be832df3afe10731c8fcabb4",
+      "rtwn8723be_oem.c": "fd0dfd745c1f376dbfd8264e5213b13bfb6da9665836b44564f01d73e09b0d0b",
+      "rtwn8723be_bb_native.h": "36bf60e73a011f0a96d6cac378a8815d086ce5bf24808a6810b1ca3ff55a16a0",
+      "rtwn8723be_c2h.h": "1f2edcd9f0b78dc0009e815a974558c6079d19257f357c53785f95426fb7ef51",
+      "rtwn8723be_c2h_native.h": "7b1f1735992eb515f6c1917b42cc0d921155c721fe8556081739902ee450cef5",
+      "rtwn8723be_datapath.h": "8e28a2e8e6ed182ec3d512c023ce5e8e118180e7ccca3bfd07f0c64cc8f3a5a4",
+      "rtwn8723be_f16_1.h": "d99c4d4cf76ffcee7c78161c8ed3210ef94bb6593c3e677ce439e0f337bf27d9",
+      "rtwn8723be_fw.h": "cd52427030cecd3c7158811deef59a3d6c859117b78ca35e62fbdc87cdfb7093",
+      "rtwn8723be_h2c.h": "562d4721c80b1fa306e76338d1285a26b81b2fa562fded961e80300b088b70d1",
+      "rtwn8723be_h2c_native.h": "485c29fa86ba34e68f73007f25032d7f91d8bd8b6b9fa7105b05d4824c07197f",
+      "rtwn8723be_linux_state.h": "962cce3d341d65b4b7955bc4e0870fbb465674edccd3447290c14655b2eac63e",
+      "rtwn8723be_mac_table.h": "b76c5ca6be6678c45dbde2cb74588b33b4dad3039fba43451180154eab3623b4",
+      "rtwn8723be_net80211.h": "62e4426510ca5bdde0ba8ccb6a292ddca41e61233b4c4f213a055e328255e03c",
+      "rtwn8723be_netbsd.h": "027b8d731809bd15d01cdc195c1c7508ee81c06f7b225fb05276b490c2a2112d",
+      "rtwn8723be_oem.h": "fc30a52647c9f242a3ea0f5602a10f7bdf7d1713377074b0088cbc97b57f9592",
+      "rtwn8723be_os_compat.h": "9475ce32010944aca36c07d2ac4a5e4eef0b40016898c736347ca84a14a3a240",
+      "rtwn8723be_package.h": "a7e58587024929d3525d29ac34f51e1d3d1441aca2b28e5df49323a85bcd7c19",
+      "rtwn8723be_phy_bb_sequence.h": "42d655960a58cc52ef84c1b54eaf13aa37d9896f4e26e78b40b78af83bee331f",
+      "rtwn8723be_phy_exec.h": "4667e875e40698149d84012e90239b2ec1dd87fb6fee79d120af1d87ba18462a",
+      "rtwn8723be_phy_tables.h": "31cdb6d1063f65c337ddcaa3087df89d8b93cb38a69e148cdae1b0cd718031e0",
+      "rtwn8723be_pwrseq_data.h": "fffc2fbbdcd77bd1eb739e7e8840d58ad8279081bb6e103f59d43cc5b4f1a663",
+      "rtwn8723be_pwrseq_plan.h": "f93dc315cd5036cf7ec8ce98d5b13031729ade995afa6dbf359733de63ee2c44",
+      "rtwn8723be_rf_channel_state.h": "2d3b28764d8eb24fc78ba191908f9d5322fe490aac0c13796ca77f327fe0ff56",
+      "rtwn8723be_rf_native.h": "215d4a96ec14e71d7b0fb7242b0746e5948a92a032cb8089e6453b09e6800dcd",
+      "rtwn8723be_rf_path.h": "bdae3855c9bf5f9f950d6a5f5a3ed43028ced11f0bd51f7132347a3f564a265c",
+      "rtwn8723be_rf_serial.h": "a60f951b56f733e4d0a45d709c7a3c154a7538b9b7971b4d12e7a3082a713da9",
+      "rtwn8723be_rx_binding.h": "70ecf9591e210b1007f45d26edcccc2cd28e4706149439c18f444ef6501ca22f",
+      "rtwn8723be_rx_decode.h": "6affc0dadb2887b78ba798f509e032dd32aec67d3757b171e0aa3b0ad97c9ec9",
+      "rtwn8723be_rx_native.h": "a03fecf5958e94ba3115f85ff2d16889db8439ef0fb771b4a3aed275dcba05ae",
+      "rtwn8723be_rx_phy.h": "8f7d59bdb49460739f50bad3829564db7e988376a7419edcf255e2c2950678ac",
+      "rtwn8723be_tx_desc.h": "4bdb707163de6ae4dd9e0fb69ff1f87c29273d865989ac1a1d7c870ca8e6cb05",
+      "rtwn8723be_tx_native.h": "1da0262d44d875d3c5cd8d4bc52eae94fd627cb45da21df36518490bf13fa468",
+      "rtwn8723be_txpwr_pg.h": "ddc8b613539da8b29c24308823b4a63629f2daa8ef27c00278a152ba48723b3c"
+    },
+    "artifacts": {
+      "rtwn8723be_native.o": {
+        "bytes": 111152,
+        "sha256": "ecbb55e27c0b78ef9f049a9d0bbf9879becbe4dfc37d943726c4610ec8793027"
+      },
+      "rtwn8723be_netbsd.o": {
+        "bytes": 321640,
+        "sha256": "4ae37bf17a385c2a7619d324167f6580f527d475cce77be852ab3d99e648d889"
+      },
+      "rtwn8723be_f16_1_dma.o": {
+        "bytes": 117744,
+        "sha256": "201c6076090333bdf1a75170d70926aeefbd4d199fbf5b158e9a2c251d7210bf"
+      },
+      "rtwn8723be_fw.o": {
+        "bytes": 37120,
+        "sha256": "8135f1a6a28818102cd0d8664d9e9876b33c30329a23496b750cd28235e1365f"
+      },
+      "rtwn8723be_h2c.o": {
+        "bytes": 14080,
+        "sha256": "b641548245c902d8242af62a16a591e7be53584e8e48111fef479f9956170720"
+      },
+      "rtwn8723be_h2c_native.o": {
+        "bytes": 110256,
+        "sha256": "4c2b5da36a28cc77c99edaf7ae32347c5b0ff10b451083ace4f841fcbe798f70"
+      },
+      "rtwn8723be_linux_state.o": {
+        "bytes": 33704,
+        "sha256": "210f0c0cd1e6dd859c0349c64b4d7c04a329a6a56630ad4de1c71f52fda6464a"
+      },
+      "rtwn8723be_package.o": {
+        "bytes": 10544,
+        "sha256": "2b069b8ea7d2ba1a6372c52bbf33666a82205a39e768a59e206d7234cac54fe8"
+      },
+      "rtwn8723be_pwrseq.o": {
+        "bytes": 38104,
+        "sha256": "190a5e214ae2f9ea0400a63cac009b676faf1a90f01817511eca92cfb75e6052"
+      },
+      "rtwn8723be_phy_bb_sequence.o": {
+        "bytes": 11216,
+        "sha256": "6e0b1f39b51a869d44651fff01b06d3828b731f32209957423271a47eb999b5e"
+      },
+      "rtwn8723be_bb_native.o": {
+        "bytes": 110352,
+        "sha256": "ffee9642b8257cb2798c4a0001b842d31f4635bc68f547ecc9f4d331d2545646"
+      },
+      "rtwn8723be_txpwr_pg.o": {
+        "bytes": 25960,
+        "sha256": "cf6bc3102d2ac4e778eec8fdda75a8929eb09604f9d81533e2a15c1cbaed8d5c"
+      },
+      "rtwn8723be_phy_exec.o": {
+        "bytes": 24304,
+        "sha256": "8758b452647b00bb395ff975a6e3d4c9ee2860ec7aac4f15a310054381f738f9"
+      },
+      "rtwn8723be_rf_serial.o": {
+        "bytes": 23856,
+        "sha256": "c58c0f275c912b7f148061b793b58554a4271d534663c4414bf0e49e210e89f8"
+      },
+      "rtwn8723be_rf_path.o": {
+        "bytes": 12928,
+        "sha256": "540ffc0bfd5639d9e203cb21745fe6511ac0b48767ad9b40368657f5b0c604a7"
+      },
+      "rtwn8723be_rf_native.o": {
+        "bytes": 104088,
+        "sha256": "d841dbc492574b060300718c674dfbf556fcba8dcfc156af7f1f79572607be13"
+      },
+      "rtwn8723be_rf_channel_state.o": {
+        "bytes": 8008,
+        "sha256": "0fb6ff59565fa4e2996136d4fc1732236a600e000fb2baf6c2bfca8c9bc64304"
+      },
+      "rtwn8723be_rx_decode.o": {
+        "bytes": 11800,
+        "sha256": "ee46c05d50275179d7921739bcf6856bbb48a408d670b3eb490eeb282d4d2e76"
+      },
+      "rtwn8723be_c2h.o": {
+        "bytes": 11392,
+        "sha256": "9cc39f3905747c47100389ed13e12f240d37f080afeb0382a66bb040c8fbf043"
+      },
+      "rtwn8723be_c2h_native.o": {
+        "bytes": 13016,
+        "sha256": "da8e7f342500691a38fdd083ad3356b8c7e8d81fb8a68a8cd583f24c2e6ee305"
+      },
+      "rtwn8723be_rx_binding.o": {
+        "bytes": 99608,
+        "sha256": "edfcd91b51afd011fe521cb3d9e1ed40e5d9b891672e950d7ddd682354233bdc"
+      },
+      "rtwn8723be_rx_phy.o": {
+        "bytes": 11856,
+        "sha256": "913fe9294d5cca1bb0631f7a173d91fdea079aebcf43fec53230031f467142ec"
+      },
+      "rtwn8723be_rx_native.o": {
+        "bytes": 103416,
+        "sha256": "3e6d1b5edcd3e69ac70c865a5acc2a8d0d387c6c4fcb026bc2c7cb0505e1705e"
+      },
+      "rtwn8723be_tx_desc.o": {
+        "bytes": 14696,
+        "sha256": "d00bb532eeb27a388fcb18544397d764dd878be1c2b34ff4ea47c026ea0a7efc"
+      },
+      "rtwn8723be_tx_native.o": {
+        "bytes": 106368,
+        "sha256": "47258d3b19bae27240cb4a88ed2a798aa392a5783be2c37cb83f83cd9aea0f5a"
+      },
+      "rtwn8723be_datapath.o": {
+        "bytes": 107760,
+        "sha256": "02fad8f5d6524ce86e4b502b6cfca498ad1e3e4260e690163290c7042107b98f"
+      },
+      "rtwn8723be_net80211.o": {
+        "bytes": 116744,
+        "sha256": "e1d15c63a2fb1d15f733cbae1c226155a2d82d8791ce84a66a89014807aeef8f"
+      },
+      "rtwn8723be_oem.o": {
+        "bytes": 6424,
+        "sha256": "883305058c7564028ce4cd1c2c6858ad7b4e6ac759d4fc7f302fcb3d6bb5d01a"
+      }
+    },
+    "limitation": "experimental compile only; full-port and hardware gates remain open"
+  },
+  "callback_closure": {
+    "declared": 53,
+    "bound": 42,
+    "missing": 11,
+    "state": "OPEN"
+  },
+  "kernel_link": "NOT_RUN",
+  "hardware_acceptance": "NOT_RUN",
+  "installation": "NOT_PERFORMED"
+}

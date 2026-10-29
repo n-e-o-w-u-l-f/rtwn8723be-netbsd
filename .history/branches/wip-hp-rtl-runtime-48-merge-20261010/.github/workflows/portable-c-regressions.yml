@@ -1,0 +1,114 @@
+name: RTL8723BE portable C regressions
+
+on:
+  push:
+    paths:
+      - 'src/rtwn8723be_linux_state.*'
+      - 'src/rtwn8723be_rx_decode.*'
+      - 'src/rtwn8723be_tx_desc.*'
+      - 'src/rtwn8723be_netbsd.c'
+      - 'src/rtwn8723be_f16_1.h'
+      - 'src/rtwn8723be_pwrseq_data.h'
+      - 'src/rtwn8723be_netbsd.h'
+      - 'src/rtwn8723be_os_compat.h'
+      - 'src/rtwn8723be_rf_native.c'
+      - 'src/rtwn8723be_rf_native.h'
+      - 'src/rtwn8723be_rf_channel_state.c'
+      - 'src/rtwn8723be_rf_channel_state.h'
+      - 'src/rtwn8723be_h2c.c'
+      - 'src/rtwn8723be_h2c.h'
+      - 'src/rtwn8723be_h2c_native.c'
+      - 'src/rtwn8723be_h2c_native.h'
+      - 'config/files.rtwn8723be_native'
+      - 'src/rtwn8723be_f16_1_dma.c'
+      - 'src/rtwn8723be_rx_native.c'
+      - 'tests/test_linux_lifecycle_stop.py'
+      - 'tests/test_mark_hal_start_stage.py'
+      - 'tests/test_phy_identity_native.py'
+      - 'tests/test_rx_decode.py'
+      - 'tests/test_tx_desc.py'
+      - 'tests/test_efuse_shadow_bounds.py'
+      - 'tests/test_dma_mem_unwind.py'
+      - 'tests/test_rf_native_adapter.py'
+      - 'tests/test_rf_channel_state.py'
+      - 'tests/test_h2c_mailbox.py'
+      - 'tests/test_h2c_native_binding.py'
+      - 'tests/test_kernel_source_integrity.py'
+      - 'tests/test_rx_dma_bounds.py'
+      - '.github/workflows/portable-c-regressions.yml'
+  pull_request:
+    paths:
+      - 'src/rtwn8723be_linux_state.*'
+      - 'src/rtwn8723be_rx_decode.*'
+      - 'src/rtwn8723be_tx_desc.*'
+      - 'src/rtwn8723be_netbsd.c'
+      - 'src/rtwn8723be_f16_1.h'
+      - 'src/rtwn8723be_pwrseq_data.h'
+      - 'src/rtwn8723be_netbsd.h'
+      - 'src/rtwn8723be_os_compat.h'
+      - 'src/rtwn8723be_rf_native.c'
+      - 'src/rtwn8723be_rf_native.h'
+      - 'src/rtwn8723be_rf_channel_state.c'
+      - 'src/rtwn8723be_rf_channel_state.h'
+      - 'src/rtwn8723be_h2c.c'
+      - 'src/rtwn8723be_h2c.h'
+      - 'src/rtwn8723be_h2c_native.c'
+      - 'src/rtwn8723be_h2c_native.h'
+      - 'config/files.rtwn8723be_native'
+      - 'src/rtwn8723be_f16_1_dma.c'
+      - 'src/rtwn8723be_rx_native.c'
+      - 'tests/test_linux_lifecycle_stop.py'
+      - 'tests/test_mark_hal_start_stage.py'
+      - 'tests/test_phy_identity_native.py'
+      - 'tests/test_rx_decode.py'
+      - 'tests/test_tx_desc.py'
+      - 'tests/test_efuse_shadow_bounds.py'
+      - 'tests/test_dma_mem_unwind.py'
+      - 'tests/test_rf_native_adapter.py'
+      - 'tests/test_rf_channel_state.py'
+      - 'tests/test_h2c_mailbox.py'
+      - 'tests/test_h2c_native_binding.py'
+      - 'tests/test_kernel_source_integrity.py'
+      - 'tests/test_rx_dma_bounds.py'
+      - '.github/workflows/portable-c-regressions.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  portable-c11:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Available compiler and Python
+        run: |
+          cc --version | head -n 1
+          python3 --version
+      - name: Linux-order lifecycle preflight and failure states
+        run: python3 tests/test_linux_lifecycle_stop.py
+      - name: HAL-start phase contract (strict C11 / UBSan)
+        run: python3 tests/test_mark_hal_start_stage.py
+      - name: Native PHY identity, RF paths and XTAL (strict C11 / UBSan)
+        run: python3 tests/test_phy_identity_native.py
+      - name: RX/C2H descriptor decoder
+        run: python3 tests/test_rx_decode.py
+      - name: TX descriptor encoder
+        run: python3 tests/test_tx_desc.py
+      - name: EFUSE shadow section bounds (strict C11 / UBSan)
+        run: python3 tests/test_efuse_shadow_bounds.py
+      - name: Native source/header and tool-output integrity
+        run: python3 tests/test_kernel_source_integrity.py
+      - name: Native RF bus_space init adapter (strict C11 / UBSan)
+        run: python3 tests/test_rf_native_adapter.py
+      - name: RF channel state Linux-order and failure atomicity (strict C11 / UBSan)
+        run: python3 tests/test_rf_channel_state.py
+      - name: H2C PCIe mailbox ordering and failures (strict C11 / UBSan)
+        run: python3 tests/test_h2c_mailbox.py
+      - name: Native H2C NetBSD adapter (strict C11 / UBSan)
+        run: python3 tests/test_h2c_native_binding.py
+      - name: Descriptor DMA allocation unwind (strict C11 / UBSan)
+        run: python3 tests/test_dma_mem_unwind.py
+      - name: RX DMA descriptor and buffer bounds (strict C11 / UBSan)
+        run: python3 tests/test_rx_dma_bounds.py

@@ -1,0 +1,67 @@
+# $NetBSD$
+#
+# EXPERIMENTAL SOURCE INTEGRATION; NOT a production/full-parity kernel target.
+# Append these entries to the target tree's sys/dev/pci/files.pci in an
+# isolated candidate workspace, place the listed sources at sys/dev/pci/,
+# and select rtwn8723be_native* in an explicit candidate kernel config.
+# The original F8 diagnostic attachment is deliberately not selected here.
+#
+# NetBSD/src baseline: 03d918f6d0e81fa05b8f1160eca0628ad39988a6.
+# Includes the source-derived core and portable modules. Callback closure
+# and hardware acceptance remain separate gates after a successful link.
+#
+device  rtwn8723be: ifnet, arp, wlan, firmload
+attach  rtwn8723be at pci with rtwn8723be_native
+file    dev/pci/rtwn8723be_native.c        rtwn8723be_native
+file    dev/pci/rtwn8723be_netbsd.c        rtwn8723be_native
+file    dev/pci/rtwn8723be_aspm_native.c   rtwn8723be_native
+file    dev/pci/rtwn8723be_security_native.c rtwn8723be_native
+file    dev/pci/rtwn8723be_f16_1_dma.c     rtwn8723be_native
+file    dev/pci/rtwn8723be_fw.c            rtwn8723be_native
+file    dev/pci/rtwn8723be_h2c.c           rtwn8723be_native
+file    dev/pci/rtwn8723be_h2c_native.c    rtwn8723be_native
+file    dev/pci/rtwn8723be_rfkill_native.c rtwn8723be_native
+file    dev/pci/rtwn8723be_linux_state.c   rtwn8723be_native
+file    dev/pci/rtwn8723be_package.c       rtwn8723be_native
+file    dev/pci/rtwn8723be_pwrseq.c        rtwn8723be_native
+file    dev/pci/rtwn8723be_phy_bb_sequence.c rtwn8723be_native
+file    dev/pci/rtwn8723be_bb_native.c     rtwn8723be_native
+file    dev/pci/rtwn8723be_txpwr_pg.c      rtwn8723be_native
+file    dev/pci/rtwn8723be_phy_exec.c      rtwn8723be_native
+file    dev/pci/rtwn8723be_rf_serial.c     rtwn8723be_native
+file    dev/pci/rtwn8723be_rf_path.c       rtwn8723be_native
+file    dev/pci/rtwn8723be_rf_native.c     rtwn8723be_native
+file    dev/pci/rtwn8723be_rf_channel_state.c rtwn8723be_native
+file    dev/pci/rtwn8723be_rx_decode.c     rtwn8723be_native
+file    dev/pci/rtwn8723be_c2h.c           rtwn8723be_native
+file dev/pci/rtwn8723be_btc_mp.c rtwn8723be_native
+file dev/pci/rtwn8723be_btc_mp_native.c rtwn8723be_native
+file dev/pci/rtwn8723be_btc1.c rtwn8723be_native
+file dev/pci/rtwn8723be_btc2.c rtwn8723be_native
+file dev/pci/rtwn8723be_btc_engine.c rtwn8723be_native
+file dev/pci/rtwn8723be_btc_native.c rtwn8723be_native
+file dev/pci/rtwn8723be_btc_providers_native.c rtwn8723be_native
+file    dev/pci/rtwn8723be_c2h_native.c    rtwn8723be_native
+file    dev/pci/rtwn8723be_rx_binding.c    rtwn8723be_native
+file    dev/pci/rtwn8723be_rx_phy.c        rtwn8723be_native
+file    dev/pci/rtwn8723be_rx_native.c     rtwn8723be_native
+file    dev/pci/rtwn8723be_tx_desc.c       rtwn8723be_native
+file    dev/pci/rtwn8723be_tx_native.c     rtwn8723be_native
+file    dev/pci/rtwn8723be_datapath.c       rtwn8723be_native
+file    dev/pci/rtwn8723be_net80211.c        rtwn8723be_native
+file    dev/pci/rtwn8723be_oem.c           rtwn8723be_native
+file    dev/pci/rtwn8723be_calibration.c    rtwn8723be_native
+file    dev/pci/rtwn8723be_calibration_native.c rtwn8723be_native
+file    dev/pci/rtwn8723be_thermal.c rtwn8723be_native
+file    dev/pci/rtwn8723be_hw_disable.c rtwn8723be_native
+file    dev/pci/rtwn8723be_hw_disable_native.c rtwn8723be_native
+
+# Seven reviewed HP runtime/lifecycle units (ABI-compiled on HP 2026-10-11).
+# This is a build dependency closure only; callbacks remain safety-fenced.
+file dev/pci/rtwn8723be_runtime.c rtwn8723be_native
+file dev/pci/rtwn8723be_dm_native.c rtwn8723be_native
+file dev/pci/rtwn8723be_channel_native.c rtwn8723be_native
+file dev/pci/rtwn8723be_media_native.c rtwn8723be_native
+file dev/pci/rtwn8723be_btc_provider_native.c rtwn8723be_native
+file dev/pci/rtwn8723be_net80211_tx.c rtwn8723be_native
+file dev/pci/rtwn8723be_reserved_native.c rtwn8723be_native

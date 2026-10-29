@@ -1,0 +1,96 @@
+/*
+ * RTL8723BE PCIe power-sequence plan.
+ * Derived from Linux rtlwifi/rtl8723be/pwrseq.h.
+ *
+ * This file is SOURCE-ONLY: it performs no hardware access.
+ * The interface masks are the Linux values: USB=BIT(1),
+ * PCI=BIT(2), SDIO=BIT(0), ALL=BIT(0..3).
+ */
+#ifndef _RTWN8723BE_PWRSEQ_PLAN_H_
+#define _RTWN8723BE_PWRSEQ_PLAN_H_
+
+#define RTWN8723BE_PWR_INTF_SDIO 0x01
+#define RTWN8723BE_PWR_INTF_USB  0x02
+#define RTWN8723BE_PWR_INTF_PCI  0x04
+#define RTWN8723BE_PWR_INTF_ALL  0x0f
+
+#define RTWN8723BE_PWR_READ    0
+#define RTWN8723BE_PWR_WRITE   1
+#define RTWN8723BE_PWR_POLL    2
+#define RTWN8723BE_PWR_DELAY   3
+#define RTWN8723BE_PWR_END     4
+
+#define RTWN8723BE_PWR_DELAY_US 0
+#define RTWN8723BE_PWR_DELAY_MS 1
+#define RTWN8723BE_PWR_CUT_ALL 0xff
+#define RTWN8723BE_PWR_CUT_TESTCHIP 0x01
+#define RTWN8723BE_PWR_FAB_ALL 0x0f
+
+struct rtwn8723be_pwr_step {
+    uint16_t offset;
+    uint8_t cut_mask;
+    uint8_t fab_mask;
+    uint8_t intf_mask;
+    uint8_t base;
+    uint8_t cmd;
+    uint8_t mask;
+    uint8_t value;
+};
+
+static const struct rtwn8723be_pwr_step rtwn8723be_carde_mu_to_act[] = {
+    { 0x0020, 0xff, 0x0f, 0x06, 0x00, 1, 0x01, 0x01 },
+    { 0x0067, 0xff, 0x0f, 0x06, 0x00, 1, 0x10, 0x00 },
+    { 0x0001, 0xff, 0x0f, 0x06, 0x00, 3, 0x01, 0x01 },
+    { 0x0000, 0xff, 0x0f, 0x06, 0x00, 1, 0x20, 0x00 },
+    { 0x0005, 0xff, 0x0f, 0x0f, 0x00, 1, 0x1c, 0x00 },
+    { 0x0075, 0xff, 0x0f, 0x04, 0x00, 1, 0x01, 0x01 },
+    { 0x0006, 0xff, 0x0f, 0x0f, 0x00, 2, 0x02, 0x02 },
+    { 0x0075, 0xff, 0x0f, 0x04, 0x00, 1, 0x01, 0x00 },
+    { 0x0006, 0xff, 0x0f, 0x0f, 0x00, 1, 0x01, 0x01 },
+    { 0x0005, 0xff, 0x0f, 0x0f, 0x00, 1, 0x80, 0x00 },
+    { 0x0005, 0xff, 0x0f, 0x0f, 0x00, 1, 0x18, 0x00 },
+    { 0x0005, 0xff, 0x0f, 0x0f, 0x00, 1, 0x01, 0x01 },
+    { 0x0005, 0xff, 0x0f, 0x0f, 0x00, 2, 0x01, 0x00 },
+    { 0x0010, 0xff, 0x0f, 0x0f, 0x00, 1, 0x40, 0x40 },
+    { 0x0049, 0xff, 0x0f, 0x0f, 0x00, 1, 0x02, 0x02 },
+    { 0x0063, 0xff, 0x0f, 0x0f, 0x00, 1, 0x02, 0x02 },
+    { 0x0062, 0xff, 0x0f, 0x0f, 0x00, 1, 0x02, 0x00 },
+    { 0x0058, 0xff, 0x0f, 0x0f, 0x00, 1, 0x01, 0x01 },
+    { 0x005a, 0xff, 0x0f, 0x0f, 0x00, 1, 0x02, 0x02 },
+    { 0x0068, 0x01, 0x0f, 0x0f, 0x00, 1, 0x08, 0x08 },
+    { 0x0069, 0xff, 0x0f, 0x0f, 0x00, 1, 0x40, 0x40 }
+};
+
+#define RTWN8723BE_CARDEMU_TO_ACT_STEPS \
+    (sizeof(rtwn8723be_carde_mu_to_act) / sizeof(rtwn8723be_carde_mu_to_act[0]))
+
+/* Linux RTL8723B_TRANS_CARDDIS_TO_CARDEMU: PCI-relevant entries only. */
+static const struct rtwn8723be_pwr_step rtwn8723be_carddis_to_carde_mu[] = {
+    { 0x0005, 0xff, 0x0f, 0x0f, 0x00, 1, 0x88, 0x00 },
+    { 0x0005, 0xff, 0x0f, 0x0f, 0x00, 1, 0x18, 0x00 },
+    { 0x0301, 0xff, 0x0f, 0x04, 0x00, 1, 0xff, 0x00 }
+};
+
+#define RTWN8723BE_CARDDIS_TO_CARDEMU_STEPS \
+    (sizeof(rtwn8723be_carddis_to_carde_mu) / sizeof(rtwn8723be_carddis_to_carde_mu[0]))
+
+
+enum rtwn8723be_pwr_flow {
+    RTWN8723BE_PWR_FLOW_POWER_ON = 0,
+    RTWN8723BE_PWR_FLOW_RADIO_OFF,
+    RTWN8723BE_PWR_FLOW_CARD_DISABLE,
+    RTWN8723BE_PWR_FLOW_CARD_ENABLE,
+    RTWN8723BE_PWR_FLOW_SUSPEND,
+    RTWN8723BE_PWR_FLOW_RESUME,
+    RTWN8723BE_PWR_FLOW_HWPDN,
+    RTWN8723BE_PWR_FLOW_ENTER_LPS,
+    RTWN8723BE_PWR_FLOW_LEAVE_LPS
+};
+
+int rtwn8723be_pwrseq_exec(bus_space_tag_t, bus_space_handle_t,
+    const struct rtwn8723be_pwr_step *, size_t,
+    uint8_t, uint8_t, uint8_t);
+int rtwn8723be_pwrseq_flow_exec(bus_space_tag_t, bus_space_handle_t,
+    enum rtwn8723be_pwr_flow, uint8_t, uint8_t, uint8_t);
+
+#endif

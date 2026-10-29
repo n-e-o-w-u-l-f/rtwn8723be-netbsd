@@ -1,0 +1,344 @@
+{
+  "schema": "neowulf-linux-driver-abstraction/v1",
+  "generated_from": {
+    "repository": "torvalds/linux",
+    "commit": "fd179f8a05be3ccae366b9b96e176b51fbe54aab",
+    "path": "drivers/net/wireless/realtek/rtlwifi"
+  },
+  "target": {
+    "os": "NetBSD 11 amd64",
+    "hardware": "Realtek RTL8723BE 10ec:b723",
+    "subsystem": "103c:81c1"
+  },
+  "build": {
+    "selected_config": [
+      "RTLWIFI",
+      "RTLWIFI_PCI",
+      "RTL8723BE",
+      "RTL8723_COMMON",
+      "RTLBTCOEXIST"
+    ],
+    "active_translation_units": 31,
+    "sources": [
+      "drivers/net/wireless/realtek/rtlwifi/base.c",
+      "drivers/net/wireless/realtek/rtlwifi/btcoexist/halbtc8192e2ant.c",
+      "drivers/net/wireless/realtek/rtlwifi/btcoexist/halbtc8723b1ant.c",
+      "drivers/net/wireless/realtek/rtlwifi/btcoexist/halbtc8723b2ant.c",
+      "drivers/net/wireless/realtek/rtlwifi/btcoexist/halbtc8821a1ant.c",
+      "drivers/net/wireless/realtek/rtlwifi/btcoexist/halbtc8821a2ant.c",
+      "drivers/net/wireless/realtek/rtlwifi/btcoexist/halbtcoutsrc.c",
+      "drivers/net/wireless/realtek/rtlwifi/btcoexist/rtl_btc.c",
+      "drivers/net/wireless/realtek/rtlwifi/cam.c",
+      "drivers/net/wireless/realtek/rtlwifi/core.c",
+      "drivers/net/wireless/realtek/rtlwifi/debug.c",
+      "drivers/net/wireless/realtek/rtlwifi/efuse.c",
+      "drivers/net/wireless/realtek/rtlwifi/pci.c",
+      "drivers/net/wireless/realtek/rtlwifi/ps.c",
+      "drivers/net/wireless/realtek/rtlwifi/rc.c",
+      "drivers/net/wireless/realtek/rtlwifi/regd.c",
+      "drivers/net/wireless/realtek/rtlwifi/rtl8723be/dm.c",
+      "drivers/net/wireless/realtek/rtlwifi/rtl8723be/fw.c",
+      "drivers/net/wireless/realtek/rtlwifi/rtl8723be/hw.c",
+      "drivers/net/wireless/realtek/rtlwifi/rtl8723be/led.c",
+      "drivers/net/wireless/realtek/rtlwifi/rtl8723be/phy.c",
+      "drivers/net/wireless/realtek/rtlwifi/rtl8723be/pwrseq.c",
+      "drivers/net/wireless/realtek/rtlwifi/rtl8723be/rf.c",
+      "drivers/net/wireless/realtek/rtlwifi/rtl8723be/sw.c",
+      "drivers/net/wireless/realtek/rtlwifi/rtl8723be/table.c",
+      "drivers/net/wireless/realtek/rtlwifi/rtl8723be/trx.c",
+      "drivers/net/wireless/realtek/rtlwifi/rtl8723com/dm_common.c",
+      "drivers/net/wireless/realtek/rtlwifi/rtl8723com/fw_common.c",
+      "drivers/net/wireless/realtek/rtlwifi/rtl8723com/main.c",
+      "drivers/net/wireless/realtek/rtlwifi/rtl8723com/phy_common.c",
+      "drivers/net/wireless/realtek/rtlwifi/stats.c"
+    ]
+  },
+  "firmware_boundary": {
+    "file": "rtl8723befw_36.bin",
+    "signature_mask": "0x5300",
+    "protocol": [
+      "firmware header validation",
+      "page transfer",
+      "MCU self-reset",
+      "FW ready polling",
+      "H2C/C2H mailboxes"
+    ]
+  },
+  "lifecycle": [
+    {
+      "id": "P00",
+      "phase": "identify",
+      "reference": [
+        "rtl_pci_probe",
+        "rtl8723be_sw_vars",
+        "efuse/eeprom"
+      ],
+      "effects": [
+        "PCI/chip/efuse identity"
+      ],
+      "adapter": [
+        "PCI autoconf",
+        "efuse logical-map cache"
+      ]
+    },
+    {
+      "id": "P01",
+      "phase": "power/reset",
+      "reference": [
+        "rtl8723be_hw_init",
+        "rtl_hal_pwrseqcmdparsing"
+      ],
+      "effects": [
+        "ASPM off",
+        "DMA hang recovery",
+        "NIC enable flow"
+      ],
+      "adapter": [
+        "PCI PM",
+        "bus_space pwrseq executor"
+      ]
+    },
+    {
+      "id": "P02",
+      "phase": "MMIO",
+      "reference": [
+        "rtl_read/write"
+      ],
+      "effects": [
+        "MAC/BB/RF register access"
+      ],
+      "adapter": [
+        "bus_space"
+      ]
+    },
+    {
+      "id": "P03",
+      "phase": "DMA allocate",
+      "reference": [
+        "rtl_pci_init",
+        "LLT/rings"
+      ],
+      "effects": [
+        "TX/RX ring allocation",
+        "descriptor ownership"
+      ],
+      "adapter": [
+        "bus_dma"
+      ]
+    },
+    {
+      "id": "P04",
+      "phase": "firmware validate",
+      "reference": [
+        "rtl8723be_download_fw"
+      ],
+      "effects": [
+        "header/signature/size validation"
+      ],
+      "adapter": [
+        "firmware(9)"
+      ]
+    },
+    {
+      "id": "P05",
+      "phase": "firmware transfer",
+      "reference": [
+        "rtl8723_download_fw"
+      ],
+      "effects": [
+        "page upload",
+        "MCU reset",
+        "ready handshake"
+      ],
+      "adapter": [
+        "firmware(9)+MMIO"
+      ]
+    },
+    {
+      "id": "P06",
+      "phase": "MAC",
+      "reference": [
+        "_rtl8723be_init_mac",
+        "MAC table"
+      ],
+      "effects": [
+        "MAC/LLT/ring base programming"
+      ],
+      "adapter": [
+        "bus_space/bus_dma addresses"
+      ]
+    },
+    {
+      "id": "P07",
+      "phase": "BB/RF",
+      "reference": [
+        "rtl8723be_phy_mac_config",
+        "rtl8723be_phy_bb_config",
+        "rtl8723be_phy_rf_config"
+      ],
+      "effects": [
+        "PHY tables",
+        "RF state"
+      ],
+      "adapter": [
+        "BB/RF register helpers"
+      ]
+    },
+    {
+      "id": "P08",
+      "phase": "hardware policy",
+      "reference": [
+        "_rtl8723be_hw_configure"
+      ],
+      "effects": [
+        "RRSR/ARFR/retry/TBTT/NAV/aggregation"
+      ],
+      "adapter": [
+        "net80211 policy bridge"
+      ]
+    },
+    {
+      "id": "P09",
+      "phase": "security",
+      "reference": [
+        "rtl_cam_reset_all_entry",
+        "rtl8723be_enable_hw_security_config"
+      ],
+      "effects": [
+        "CAM/security"
+      ],
+      "adapter": [
+        "net80211 key management"
+      ]
+    },
+    {
+      "id": "P10",
+      "phase": "coexist/calibration",
+      "reference": [
+        "rtl8723be_bt_hw_init",
+        "rtl8723be_dm_check_txpower_tracking",
+        "IQK/LC"
+      ],
+      "effects": [
+        "BT coexist",
+        "IQK",
+        "TX tracking",
+        "LC"
+      ],
+      "adapter": [
+        "timers/workqueues"
+      ]
+    },
+    {
+      "id": "P11",
+      "phase": "DMA release",
+      "reference": [
+        "rtl8723be_hw_init tail"
+      ],
+      "effects": [
+        "RXDMA release",
+        "PCIE_CTRL_REG+1 release"
+      ],
+      "adapter": [
+        "ordered MMIO"
+      ]
+    },
+    {
+      "id": "P12",
+      "phase": "IRQ",
+      "reference": [
+        "rtl8723be_enable_interrupt",
+        "_rtl_pci_interrupt"
+      ],
+      "effects": [
+        "HIMR/HIMRE/HSIMR",
+        "ACK/dispatch"
+      ],
+      "adapter": [
+        "pci_intr + softint"
+      ]
+    },
+    {
+      "id": "P13",
+      "phase": "datapath",
+      "reference": [
+        "rtl8723be_tx_fill_desc",
+        "rtl8723be_rx_query_desc"
+      ],
+      "effects": [
+        "40-byte TX",
+        "32-byte RX",
+        "OWN/EOR",
+        "DMA sync"
+      ],
+      "adapter": [
+        "mbuf/bus_dma"
+      ]
+    },
+    {
+      "id": "P14",
+      "phase": "firmware protocol",
+      "reference": [
+        "rtl8723be_fill_h2c_cmd",
+        "C2H handlers"
+      ],
+      "effects": [
+        "H2C/C2H mailbox commands/events"
+      ],
+      "adapter": [
+        "driver task/workqueue"
+      ]
+    },
+    {
+      "id": "P15",
+      "phase": "runtime PM",
+      "reference": [
+        "rtl8723be_set_rf_power_state",
+        "rtl_pci_suspend",
+        "rtl_pci_resume"
+      ],
+      "effects": [
+        "LPS/IPS/RF/channel/BW/suspend-resume"
+      ],
+      "adapter": [
+        "pmf/net80211"
+      ]
+    },
+    {
+      "id": "P16",
+      "phase": "recovery/stop",
+      "reference": [
+        "rtl_pci_stop",
+        "rtl8723be_card_disable",
+        "reset paths"
+      ],
+      "effects": [
+        "IRQ off",
+        "RF idle",
+        "HW disable",
+        "ASPM restore",
+        "reinit"
+      ],
+      "adapter": [
+        "detach/error unwind/restart"
+      ]
+    }
+  ],
+  "adapter_classes": [
+    "PCI/autoconf",
+    "bus_space",
+    "bus_dma",
+    "firmware(9)",
+    "pci_intr/softint",
+    "net80211",
+    "callout/workqueue",
+    "pmf"
+  ],
+  "invariants": [
+    "Rings exist before init_mac programs DMA addresses",
+    "Firmware ready before PHY/MAC runtime policy dependent commands",
+    "IRQ enabled only after datapath dispatch exists",
+    "Hardware-visible ordering matches pinned Linux",
+    "No blind MMIO probing"
+  ]
+}

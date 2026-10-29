@@ -1,0 +1,121 @@
+{
+  "record_version": 1,
+  "created_on": "2026-10-17",
+  "project": "HP-RTL8723BE",
+  "source_repo": "n-e-o-w-u-l-f/rtwn8723be-netbsd",
+  "source_ref": "wip/hp-rtl-runtime-48-merge-20261010",
+  "source_sha_tested": "662adce3d47c64f7125a89f58d8286813d061f1b",
+  "build_launcher_expansion_commit": "5905e2d4adcdc91cbb3a59384357c065f6442c41",
+  "test_runner": "Legion, SentinelX, unprivileged temporary Python3 scripts, cleanup=true",
+  "execution_evidence": "Each test launched with subprocess.run(Python -B path); GitHub-extracted file content independently verified against git blob SHA1 (blob <len>\\0<data>) before writing to unique TemporaryDirectory, then automatically removed. No Git clone and no HP command.",
+  "groups": [
+    {
+      "group": "net80211_tx_source",
+      "source_files_sha_verified": 17,
+      "passed": [
+        "test_net80211_fragment_failclosed_source.py",
+        "test_net80211_fragment_slots_source.py",
+        "test_tx_frame_prepare_source.py",
+        "test_tx_batch_source.py",
+        "test_datapath_batch_source.py",
+        "test_net80211_mgmt_be_independent_source.py",
+        "test_net80211_management_wake_source.py"
+      ],
+      "failed": []
+    },
+    {
+      "group": "irq_runtime_lifecycle_source",
+      "source_files_sha_verified": 15,
+      "passed": [
+        "test_irq_mutex_single_owner.py",
+        "test_runtime_sw_owner_order.py",
+        "test_runtime_rf_publication_order.py",
+        "test_btc_async_events_after_running.py",
+        "test_failed_probe_net80211_rollback.py",
+        "test_runtime_dma_reset_owner.py",
+        "test_runtime_start_shutdown_error_source.py",
+        "test_full_runtime_callbacks_source.py"
+      ],
+      "failed": []
+    },
+    {
+      "group": "regulatory_security_prestart_source",
+      "source_files_sha_verified": 15,
+      "passed": [
+        "test_wip_reverse_owner_prestart.py",
+        "test_probe_unstarted_and_failed_shutdown_gates.py",
+        "test_rx_management_filter_native.py",
+        "test_wip_world_regdomain_glue.py",
+        "test_rf_calibration_pre_dm_source.py"
+      ],
+      "failed": [
+        {
+          "test": "test_linux_lifecycle_stop.py",
+          "exit_code": 1,
+          "stage": "test calls C compiler on Legion; fails before successful compilation",
+          "reason": "rtwn8723be_os_compat.h and rtwn8723be_linux_state.h absent from temporary source-only fixture",
+          "kernel_build": "NOT_RUN",
+          "action": "do not retry on Legion; leave compiler/fault test to authorized HP-only build"
+        }
+      ]
+    },
+    {
+      "group": "kernel_config_btc_beacon_source",
+      "source_files_sha_verified": 17,
+      "passed": [
+        "test_hp_rtl50_source_snapshot_contract.py",
+        "test_hp_native_kernel_config_source.py",
+        "test_btc_byte_mask_linux_parity.py",
+        "test_reserved_beacon_native_source.py"
+      ],
+      "failed": []
+    }
+  ],
+  "unique_tests_passed": 24,
+  "unique_tests_failed": 1,
+  "unique_tests_not_run": 3,
+  "builder_gates_after_expansion": 28,
+  "not_run": [
+    {
+      "test": "test_calibration.py",
+      "reason": "invokes cc; HP-only compiler policy"
+    },
+    {
+      "test": "test_calibration_native.py",
+      "reason": "invokes cc; HP-only compiler policy"
+    },
+    {
+      "test": "test_port_closure_inventory.py",
+      "reason": "requires a wider source snapshot; not executed"
+    }
+  ],
+  "source_only_test_examples": {
+    "fragment_batch": "12 mutations; 540 ownership cases",
+    "fragment_slots": "16 mutations; 37552 ring cases",
+    "tx_batch": "8 mutations; 11136 owner cases",
+    "datapath_batch": "8 mutations; 192 cases",
+    "mgnt_be": "7 mutations; 64 cases",
+    "btc_mask": "5100 cases"
+  },
+  "prior_failures_resolved": [
+    {
+      "failure": "Git blob SHA verification incorrectly used backslash+zero rather than NUL byte",
+      "resolution": "fixed temporary harness to bytes([0]); no code affected"
+    },
+    {
+      "failure": "test_tx_frame_prepare_source.py mutation 4 targeted newly added fragment helper instead of existing single-frame function",
+      "resolution": "scope mutation after exact function marker; WIP commits 5f96c3a and 662adce; rerun passed"
+    },
+    {
+      "failure": "test_net80211_management_wake_source.py initial temporary snapshot missing src/rtwn8723be_netbsd.c",
+      "resolution": "staged and hash-checked missing source; rerun passed"
+    }
+  ],
+  "compiler_warning": "A single compiler-based test was inadvertently launched on Legion and exited 1 before a successful compilation because its fixture omitted headers; it did not produce a kernel artifact. No further C compilation was attempted on Legion.",
+  "native_NetBSD_kernel": "NOT_RUN",
+  "HP_mutation": "NONE",
+  "HP_F77_boot": "historical last safe observation, not rechecked today",
+  "WPA2_beacon_RX_IP_PM": "NOT_RUN",
+  "prior_HP_fast_forward_safety_rejection": "EXTERNAL_BOUNDARY remains; no retries or alternate transport",
+  "governance": "state/events/HP-RTL-WIP-PYTHON-GATES-20261017.jsonl and state/events/HP-RTL-TX-GATE-EXPANSION-20261017.jsonl PRE/POST; current project projection under state/projects/HP-RTL8723BE.md"
+}

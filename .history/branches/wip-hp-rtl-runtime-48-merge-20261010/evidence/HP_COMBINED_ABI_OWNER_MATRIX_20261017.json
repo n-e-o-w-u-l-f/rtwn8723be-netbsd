@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "observed_on": "2026-10-17",
+  "project": "HP NetBSD 11 amd64 combined i915drmkms + RTL8723BE",
+  "status": "WAIT_FOR_I915_RELEASE_NATIVE_ABI_UNVERIFIED",
+  "source": {
+    "rtl_commit_executed": "243f9fd6fe3ba441919c0364045eb580a3c25e79",
+    "i915_work_commit": "f536130b9ca049967ddf729954e3b32a69e33a96",
+    "pinned_netbsd": "03d918f6d0e81fa05b8f1160eca0628ad39988a6",
+    "pinned_linux": "fd179f8a05be3ccae366b9b96e176b51fbe54aab",
+    "i915_coverage_tsv_blob": "993a63609ab2a9877786f1c787b952e560a8dee0"
+  },
+  "audit_tool": "tools/audit_hp_combined_abi_owners.py",
+  "audit_tool_source_commit": "243f9fd6fe3ba441919c0364045eb580a3c25e79",
+  "real_source_read_only": {
+    "tool_exit": 0,
+    "total_native_possible_C_rows": 254,
+    "source_family_counts": {
+      "i915": 165,
+      "drm": 79,
+      "ttm": 10
+    },
+    "rtl_native_C_count": 50,
+    "combined_unique_basename_objects": 304,
+    "duplicate_object_basenames": 0,
+    "linux_i915_reference_rows": 323,
+    "exact_linux_to_active_netbsd_path_matches": 136,
+    "structural_classes": {
+      "EXACT_ACTIVE_DIST": 136,
+      "ACTIVE_OVERRIDE_OR_MOVED": 13,
+      "PRESENT_NOT_BUILT": 7,
+      "UNRESOLVED_NO_BASENAME": 167
+    },
+    "semantic_states": {
+      "UNREVIEWED": 300,
+      "REFERENCE_INAPPLICABLE_CHV_UC_PXP": 23
+    },
+    "native_object_compilation": "NOT_RUN",
+    "native_abi_symbols": "NOT_LINKED"
+  },
+  "provider_gate_fix": "Check that all 136 exactly mapped i915 Linux sources use the actual i915drmkms NetBSD compilation selector, not merely appear by filename.",
+  "negative_source_cases": {
+    "actual_count": 7,
+    "rejected": 7,
+    "source_head": "243f9fd6fe3ba441919c0364045eb580a3c25e79",
+    "cases": [
+      "wrong_i915_kconfig_selector",
+      "missing_rtl_owner",
+      "drm_object_collides_rtl",
+      "commented_ttm_object",
+      "i915_inventory_322_rows",
+      "synthetic_semantic_pass",
+      "unsafe_Linux_source_path"
+    ],
+    "executed_on": "Legion transient SHA-checked Git source fixture, no kernel compiler"
+  },
+  "current_combined_preflight": {
+    "selected_total": 40,
+    "actual_python_tests_executed": 37,
+    "passed": 37,
+    "failed": 0,
+    "native_C_reserved": [
+      "test_calibration.py",
+      "test_calibration_native.py",
+      "test_linux_lifecycle_stop.py"
+    ],
+    "shell_syntax": "PASS",
+    "no_kernel_build": true
+  },
+  "safety_rejection": {
+    "operation": "GitHub create tests/test_hp_combined_abi_owners_source.py",
+    "status": "PROVIDER_SECURITY_REJECTED",
+    "effect": "NOT_CREATED",
+    "action": "NOT_RETRIED",
+    "subsequent_allowed_action": "Ran separate read-only, ephemeral Legion diagnostic source tests without a GitHub write"
+  },
+  "existing_last_release": {
+    "i915_release_manifest": "ABSENT",
+    "i915_native_323_owner_manifest": "ABSENT",
+    "physical_hp_i915_kms": "NOT_VERIFIED"
+  },
+  "kernel_state": {
+    "combined_kernel_compiled": "NOT_RUN",
+    "final_elf_link": "NOT_RUN",
+    "elf_sha256": "NONE",
+    "HP_native_execution": "NOT_RUN",
+    "fallback_change": "NONE",
+    "install": "NOT_RUN",
+    "boot": "NOT_RUN"
+  },
+  "next": "Continue source-only RTL/i915 native ABI and symbol-owner review, require real owner-issued i915 release, full i915 semantic/source closure and freshly authorized HP+recovery before any combined native build. Never treat 304 candidate object names as 304 compiled kernel objects."
+}

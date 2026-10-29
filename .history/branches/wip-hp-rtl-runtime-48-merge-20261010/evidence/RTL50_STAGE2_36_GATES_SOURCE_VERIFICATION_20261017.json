@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "recorded_on": "2026-10-17",
+  "purpose": "Stage-2 source-only HP RTL8723BE NetBSD kernel candidate preflight",
+  "repository": "n-e-o-w-u-l-f/rtwn8723be-netbsd",
+  "branch": "wip/hp-rtl-runtime-48-merge-20261010",
+  "source_revision_tested": "43837bfccc091ada327966ce9be79cc41bf660d3",
+  "source_revision_git_verified": true,
+  "head_before_evidence_commit": "43837bfccc091ada327966ce9be79cc41bf660d3",
+  "runner": "Legion SentinelX; ephemeral git clone of public WIP branch; git rev-parse HEAD matched expected full SHA; automatic temp directory deletion",
+  "no_paid_ci": true,
+  "host_HP_actions": "NONE",
+  "kernel_build": "NOT_RUN",
+  "native_compiler_tests": "NOT_RUN",
+  "real_wlan": "NOT_RUN",
+  "builder": "tools/build_hp_rtl50_next_candidate.sh",
+  "builder_gate_file_count": 36,
+  "builder_gate_unique": 36,
+  "builder_syntax": "/bin/sh -n EXIT0",
+  "github_manifest_src_presence": "35/35 Python gate script paths present in GitHub full tree (pre-addition); the 36th integrity source script also fetched and run at current HEAD",
+  "python_source_only_total": 33,
+  "python_source_only_passed": 33,
+  "python_source_only_failed": 0,
+  "compiler_native_reserved": [
+    "test_calibration.py",
+    "test_calibration_native.py",
+    "test_linux_lifecycle_stop.py"
+  ],
+  "additional_successes": [
+    "test_hp_rtl50_panic_inventory_source.py",
+    "test_irq_shutdown_race_contract.py",
+    "test_net80211_deferred_start_source.py",
+    "test_net80211_rx_fcs_source.py",
+    "test_tx_descriptor_staging_source.py",
+    "test_net80211_unregister_sleep_ipl_source.py",
+    "test_kernel_source_integrity.py"
+  ],
+  "kernel_integrity": {
+    "src_count": 50,
+    "reachable_project_files": 113,
+    "scanned_source_files": 114,
+    "exit_code": 0
+  },
+  "port_closure": {
+    "declared": 53,
+    "bound": 53,
+    "missing": 0,
+    "strict_closure": "OPEN",
+    "guarded_owners": [
+      "rf_calibration",
+      "hw_disable"
+    ],
+    "full_btc_provider_lifetime": "OPEN"
+  },
+  "sample_source_models": {
+    "fragment_slots_cases": 37552,
+    "fragment_batch_ownership_cases": 540,
+    "tx_native_batch_ownership_cases": 11136,
+    "btc_byte_mask_cases": 5100,
+    "sequence_mutants_rejected": 15
+  },
+  "fixes": [
+    {
+      "issue": "Duplicate test_port_closure_inventory.py at bottom of HP source preflight",
+      "action": "Removed duplicate and added six source-level hard-IRQ/NetBSD RX/TX/route regression gates",
+      "commit": "5bb60cf2f04250d68f3acb7fc86d115929dcb817"
+    },
+    {
+      "issue": "Existing test_kernel_source_integrity.py hardcoded 42 native units despite current 50-unit manifest",
+      "action": "Updated to assert exactly 50 manifest entries and unique sources before recursive source/header integrity checks",
+      "commit": "6df4f59f61642ef8bada4e9451afc86b11fecd6d"
+    },
+    {
+      "issue": "Kernel-integrity test was not a required HP preflight gate",
+      "action": "Added integrity gate as 36th selector with no duplicate",
+      "commit": "43837bfccc091ada327966ce9be79cc41bf660d3"
+    },
+    {
+      "issue": "First exploratory full-suite harness extracted zero test names due bad Python regex escaping",
+      "action": "Replaced with line-oriented shell-list parser; initial failure was before tests, no kernel effects",
+      "resolution": "FULL SOURCE PYTHON SUITE 32/32 then 33/33 PASS"
+    }
+  ],
+  "safety_boundary": "Prior HP source fast-forward action was blocked by external safety check; no equivalent host modification was reattempted via any transport. HP previously safe F77 is a historical observation, not freshly verified.",
+  "remaining_native_milestones": [
+    "Obtain actually authorized HP source update/execution permission; prior denied fast-forward remains blocked",
+    "On HP verify F77/kernel backup, native toolchain, firmware, exact source SHA and 36 tests",
+    "Execute 3 native C-based tests only HP, fix any NetBSD C/API failures",
+    "One HP-only 50-module dependall kernel build and ELF SHA/identity verification without install/reboot",
+    "Real RTL8723BE beacon RX, MGNT/EAPOL WPA2, IP/DNS, BT coexistence, RF IQK/LCK, hw_disable/PM and recovery tests"
+  ],
+  "reason_native_not_run": "Source FF blocked at external boundary and no new authorized HP execution method confirmed"
+}

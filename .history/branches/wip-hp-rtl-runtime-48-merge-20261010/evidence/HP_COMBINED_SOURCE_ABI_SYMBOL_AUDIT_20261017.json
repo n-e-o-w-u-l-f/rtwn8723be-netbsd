@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "recorded_on": "2026-10-17",
+  "status": "WAIT_FOR_I915_RELEASE",
+  "scope": "one combined NetBSD 11 amd64 HP kernel with i915drmkms + rtwn8723be0, no installation, no boot",
+  "rtl_repo": "n-e-o-w-u-l-f/rtwn8723be-netbsd",
+  "rtl_tested_head": "f84826e6fe8735d92bac1f082a689f85ad28b64a",
+  "rtl_documentation_commit": "27bb8d85899fc5f92cb11a4000d532b50646b569",
+  "i915_repo": "n-e-o-w-u-l-f/i915-cherryview-braswell-netbsd",
+  "i915_work_branch": "work/hp-native-drm-stage-replay-20261015",
+  "i915_tested_head": "f536130b9ca049967ddf729954e3b32a69e33a96",
+  "pins": {
+    "Linux": "fd179f8a05be3ccae366b9b96e176b51fbe54aab",
+    "NetBSD": "03d918f6d0e81fa05b8f1160eca0628ad39988a6"
+  },
+  "native_NetBSD_filelist_source_counts": {
+    "i915drmkms_and_intelfb": 165,
+    "drmkms": 71,
+    "ttm": 10,
+    "comment": "these are selected source rows, not disjoint linked object counts; compiled kernel configuration not tested"
+  },
+  "netbsd_GENERIC_effective": {
+    "i915drmkms_pci": true,
+    "intelfb_bus": true,
+    "rtwn_pci_legacy": true,
+    "genfb_fallback": true,
+    "rtl8723be_new_selection": "added only by combined private config"
+  },
+  "i915_linux_source_inventory": {
+    "file": "docs/I915-STRUCTURAL-COVERAGE.tsv",
+    "blob": "993a63609ab2a9877786f1c787b952e560a8dee0",
+    "total": 323,
+    "EXACT_ACTIVE_DIST": 136,
+    "ACTIVE_OVERRIDE_OR_MOVED": 13,
+    "PRESENT_NOT_BUILT": 7,
+    "UNRESOLVED_NO_BASENAME": 167,
+    "semantic_UNREVIEWED": 300,
+    "semantic_REFERENCE_INAPPLICABLE_CHV_UC_PXP": 23
+  },
+  "rtl_native_C_count": 50,
+  "source_stage": {
+    "configurator": "tools/configure_hp_combined_i915_rtl.py",
+    "builder": "tools/build_hp_combined_i915_rtl_candidate.sh",
+    "verifier": "tools/verify_hp_combined_kernel.py",
+    "separate_from_RTL_only": true,
+    "owner_closure_required": true,
+    "owner_closure_in_actual_i915_head": false,
+    "release_required": true,
+    "release_in_actual_i915_head": false,
+    "release_not_synthetically_created": true,
+    "actual_config_stage": "NOT_RUN",
+    "actual_hp_nbconfig": "NOT_RUN"
+  },
+  "fixes": [
+    {
+      "commit": "4b0af0c6c0e1f8bf6ab1e9076de3ebfc328f02dc",
+      "effect": "require all RTL and all selected i915/DRM .o basenames in full linker map, not first RTL plus one GPU"
+    },
+    {
+      "commit": "47b309ab1aeea85a29c6cee7a2ec3713bf978c2c",
+      "effect": "new source-only negative regression rejects 59 incomplete/deceptive map variants"
+    },
+    {
+      "commit": "0f1c0062197d9f434656a2a96ad14d0e6d9048bb",
+      "effect": "source/native regression runner selects complete published RTL 38 tests plus 2 combined source tests, without executing old RTL-only builder"
+    },
+    {
+      "commit": "f84826e6fe8735d92bac1f082a689f85ad28b64a",
+      "effect": "Combined HP-only builder invokes 40 gates and rechecks i915 owner release before private stage"
+    }
+  ],
+  "tests": {
+    "runner": "SentinelX existing local Legion; temporary clean Git clone checked against exact RTL HEAD; no paid CI",
+    "pure_Python_selected": 37,
+    "pure_Python_executed": 37,
+    "pure_Python_passed": 37,
+    "pure_Python_failed": 0,
+    "native_C_reserved_for_HP": [
+      "test_calibration.py",
+      "test_calibration_native.py",
+      "test_linux_lifecycle_stop.py"
+    ],
+    "total_selected_gates": 40,
+    "combined_source_test": "PASS",
+    "combined_link_map_negative_mutations": 59,
+    "combined_shell_syntax": "PASS",
+    "actual_i915_branch_audit_only_exit": 0,
+    "actual_i915_branch_audit_only_status": "WAIT_FOR_I915_RELEASE",
+    "actual_i915_branch_closure_reason": "I915_323_NATIVE_SOURCE_CLOSURE_MISSING"
+  },
+  "material_step_event": "state/events/HP-RTL-COMBINED-KERNEL-OWNER-20261017.jsonl",
+  "natively_compiled_objects": "NOT_RUN",
+  "kernel_full_link": "NOT_RUN",
+  "kernel_elf": "NOT_CREATED",
+  "HP_source_mutation": "NONE",
+  "HP_boot_change": "NONE",
+  "i915_physical_KMS": "NOT_VERIFIED",
+  "rtl_live_WPA2": "NOT_VERIFIED",
+  "fallback": "HISTORICAL_ONLY; NOT MODIFIED",
+  "blockers": [
+    "i915 full owner source manifest absent and 300 semantic mappings unreviewed",
+    "i915 committed HP_COMBINED_KERNEL_BUILD_ALLOWED release absent",
+    "previous externally denied HP source fast-forward remains binding",
+    "actual HP current boot, recovery, full native symbols and NetBSD ABI not freshly verified",
+    "F83/F84 GPU KMS blackscreen cause unknown"
+  ],
+  "next": "Continue source-only ABI/provider audits and regression tests. Do not execute HP build via SSH/Tailscale/pivot unless genuine i915 release, actual HP execution authorization and fresh independent recovery gates all pass. Installation/boot require additional separate approval."
+}
