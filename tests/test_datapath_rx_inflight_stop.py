@@ -133,7 +133,7 @@ struct rtwn8723be_datapath {
     struct rtwn8723be_rx_dispatch rx;
     kmutex_t tx_lock;
     bool prepared, tx_enabled, stop_pending;
-    unsigned int rx_callback_active, tx_callback_active;
+    unsigned int rx_callback_active, tx_callback_active, tx_start_active;
     int rx_error, tx_error;
     uint64_t rx_delivered, tx_reclaimed;
 };
