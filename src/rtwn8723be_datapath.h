@@ -99,4 +99,15 @@ int rtwn8723be_datapath_enqueue(struct rtwn8723be_datapath *,
     unsigned int, struct mbuf *, struct ieee80211_node *,
     const struct rtwn8723be_tx_params *, bool command);
 
+/*
+ * Pre-encapsulated contiguous 802.11 MPDU. Caller supplies an already
+ * referenced node and rate policy. For protected frames,
+ * sw_crypto_complete is true ONLY after ieee80211_crypto_encap succeeded.
+ * Returns 0 only after DMA consumes m + ni; otherwise caller retains both.
+ * This is NOT a complete if_start management/data queue consumer.
+ */
+int rtwn8723be_datapath_enqueue_80211(struct rtwn8723be_datapath *,
+    struct mbuf *, struct ieee80211_node *, bool sw_crypto_complete,
+    const struct rtwn8723be_tx_params *);
+
 #endif
