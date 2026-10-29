@@ -392,6 +392,32 @@ rtwn8723be_net80211_unregister(struct rtwn8723be_net80211 *n)
         splx(s);
         return error; /* Retain registered resources on failed hardware stop. */
     }
+    /*
+     * hw_stop() retires the Linux MAC lifetime but does not establish a
+     * NetBSD IRQ/softint, datapath, RX binding or RFKill worker drain.
+     * A public unregister may be called outside the ordered probe-unwind
+     * broker. Never free net80211/ifnet storage while any asynchronous
+     * producer could still dereference it. The existing native probe
+     * journal drains IRQ -> datapath -> RX -> RFKill before reaching here.
+     *
+     * The caller owns exclusion against NEW entry points; splnet only
+     * serializes the current network-side detach, not PCI DMA lifetime.
+     */
+    if (n->sc->sc_irq_requested || n->sc->sc_irq_enabled ||
+        n->sc->sc_ih != NULL || n->sc->sc_soft_ih != NULL ||
+        n->sc->sc_pihp != NULL ||
+        n->sc->sc_irq_dispatch_ready ||
+        n->sc->sc_irq_arg != NULL ||
+        n->sc->sc_irq_dispatch.rx != NULL ||
+        n->sc->sc_irq_dispatch.tx_done != NULL ||
+        n->sc->sc_irq_dispatch.power_event != NULL ||
+        n->sc->sc_datapath != NULL || n->sc->sc_rx_binding != NULL ||
+        n->sc->sc_rfkill_native.initialized ||
+        n->sc->sc_rfkill_native.active ||
+        n->sc->sc_rfkill_native.wq != NULL) {
+        splx(s);
+        return EBUSY; /* Preserve registration and security policy. */
+    }
     n->sc->sc_security_policy_valid = false;
     n->sc->sc_security_configured = false;
     n->sc->sc_hw_security_enabled = false;

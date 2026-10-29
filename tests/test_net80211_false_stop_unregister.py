@@ -95,10 +95,22 @@ head = r'''
 
 struct ifnet { unsigned int if_flags, if_timer; };
 struct ieee80211com { unsigned int marker; };
+struct rtwn8723be_irq_dispatch {
+    void (*rx)(void *); void (*tx_done)(void *, unsigned int);
+    void (*power_event)(void *);
+};
+struct rtwn8723be_rfkill_native {
+    bool initialized, active; void *wq;
+};
 struct rtwn8723be_softc {
     struct { struct ifnet ec_if; } sc_ec;
     struct ieee80211com sc_ic;
     struct rtwn8723be_linux_state sc_linux;
+    void *sc_ih, *sc_soft_ih, *sc_pihp, *sc_irq_arg;
+    void *sc_datapath, *sc_rx_binding;
+    bool sc_irq_requested, sc_irq_enabled, sc_irq_dispatch_ready;
+    struct rtwn8723be_irq_dispatch sc_irq_dispatch;
+    struct rtwn8723be_rfkill_native sc_rfkill_native;
     bool sc_security_policy_valid, sc_security_configured;
     bool sc_hw_security_enabled;
 };
