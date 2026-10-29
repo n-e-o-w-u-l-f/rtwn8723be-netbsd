@@ -324,6 +324,29 @@ rtwn8723be_net80211_register(struct rtwn8723be_net80211 *n,
     if (methods->hw_start == NULL || methods->hw_stop == NULL ||
         methods->tx_start == NULL)
         return ENOSYS;
+    /*
+     * if_initialize / ieee80211_ifattach / if_register create externally
+     * visible NetBSD interface owners. They must not run before the
+     * exact Linux probe stage, complete PCI/DMA/ring prerequisites and
+     * unique sc_net80211 storage are verified. A live IRQ or RFKill
+     * owner means registration was attempted out of Linux probe order.
+     */
+    if (n != &sc->sc_net80211 ||
+        !rtwn8723be_net80211_registration_checkpoint_ok(
+            &sc->sc_linux) ||
+        !sc->sc_initial_pci_saved || !sc->sc_mapped ||
+        !sc->sc_core_initialized || !sc->sc_rings_allocated ||
+        !sc->sc_dma_32bit || sc->sc_dmat == NULL ||
+        !sc->sc_irq_lock_initialized ||
+        sc->sc_irq_requested || sc->sc_irq_enabled ||
+        sc->sc_ih != NULL || sc->sc_soft_ih != NULL ||
+        sc->sc_pihp != NULL || sc->sc_irq_dispatch_ready ||
+        sc->sc_irq_arg != NULL || sc->sc_datapath != NULL ||
+        sc->sc_rx_binding != NULL ||
+        sc->sc_rfkill_native.initialized ||
+        sc->sc_rfkill_native.active ||
+        sc->sc_rfkill_native.wq != NULL)
+        return EBUSY;
     if (!sc->sc_package_valid || !sc->sc_efuse_autoload_ok ||
         sc->sc_eeprom_id != R23BE_EEPROM_ID ||
         (sc->sc_macaddr[0] & 1U) != 0 ||
