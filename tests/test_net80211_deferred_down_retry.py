@@ -77,18 +77,24 @@ contract(ifstop, ioctl, retry, begin_stop, HEADER)
 
 def orphaned_hw_contract(media_body: str, ioctl_body: str) -> None:
     hw = "rtwn8723be_net80211_running_hw_stop_needed("
-    assert ioctl_body.count(hw) == 3
-    assert media_body.count(hw) == 1
+    quarantine = "rtwn8723be_net80211_hw_recovery_required("
+    assert ioctl_body.count(hw) == 1
+    assert media_body.count(hw) == 0
+    assert ioctl_body.count(quarantine) == 3
+    assert media_body.count(quarantine) == 1
     down = ioctl_body.index("(ifp->if_flags & (IFF_UP | IFF_RUNNING)) == 0")
     retry = ioctl_body.index("rtwn8723be_datapath_stop_retry_ready(", down)
     detached = ioctl_body.index("error = rtwn8723be_n80211_ifstop(n);", retry)
     assert down < retry < ioctl_body.index(hw, retry) < detached
+    assert detached < ioctl_body.index(quarantine, detached)
+    assert ioctl_body.index(quarantine, detached) < ioctl_body.index(
+        "error = EBUSY;", detached)
     multi = ioctl_body.index("case SIOCADDMULTI:")
     reset = ioctl_body.index("if (error == ENETRESET)", multi)
-    assert multi < ioctl_body.index(hw, multi) < reset
-    assert "&&\n            !" + hw in ioctl_body[multi:reset]
-    assert ioctl_body.index(hw, reset) < ioctl_body.rindex("error = EBUSY;")
-    assert media_body.index(hw) < media_body.rindex("return EBUSY;")
+    assert multi < ioctl_body.index(quarantine, multi) < reset
+    assert "&&\n            !" + quarantine in ioctl_body[multi:reset]
+    assert ioctl_body.index(quarantine, reset) < ioctl_body.rindex("error = EBUSY;")
+    assert media_body.index(quarantine) < media_body.rindex("return EBUSY;")
 
 def reset_contract(media_body: str, ioctl_body: str) -> None:
     assert "if (n == NULL || !n->registered || n->sc == NULL)" in media_body
@@ -113,11 +119,11 @@ orphan_negatives = (
     (media, ioctl.replace(
         "rtwn8723be_net80211_running_hw_stop_needed(", "false && (", 1)),
     (media, ioctl.replace(
-        "rtwn8723be_net80211_running_hw_stop_needed(", "false && (", 2)),
+        "rtwn8723be_net80211_hw_recovery_required(", "false && (", 1)),
     (media, ioctl.replace(
-        "rtwn8723be_net80211_running_hw_stop_needed(", "false && (", 3)),
+        "rtwn8723be_net80211_hw_recovery_required(", "false && (", 2)),
     (media.replace(
-        "rtwn8723be_net80211_running_hw_stop_needed(", "false && (", 1),
+        "rtwn8723be_net80211_hw_recovery_required(", "false && (", 1),
      ioctl),
 )
 for i, mutated in enumerate(orphan_negatives, 1):
@@ -134,7 +140,8 @@ reset_negatives = (
     (media.replace("return EBUSY;", "return 0;", 1), ioctl),
     (media.replace("n == NULL || !n->registered || n->sc == NULL",
                    "n == NULL || !n->registered", 1), ioctl),
-    (media, ioctl.replace("error = EBUSY;", "error = 0;", 1)),
+    (media, ioctl.rsplit("error = EBUSY;", 1)[0] +
+     "error = 0;" + ioctl.rsplit("error = EBUSY;", 1)[1]),
     (media, ioctl.replace(
         "rtwn8723be_datapath_stop_retry_ready(",
         "false && (", 3)),
@@ -420,7 +427,60 @@ int main(void)
     assert(stops == 1 && sc.sc_linux.stage == R23BE_STAGE_RUNNING);
     balanced(&dp);
 
-    /* 11. A detached or mismatched ifnet cannot dereference NULL sc. */
+    /* 11. Interrupted STOPPING is NOT admissible for generic hw_stop.
+     * Every DOWN/media/reset entry must report outstanding recovery. */
+    reset(&sc, &dp, &n);
+    ifp = &sc.sc_ec.ec_if;
+    ifp->if_flags = 0;
+    dp.tx_enabled = false;
+    dp.stop_pending = false;
+    sc.sc_linux.stage = R23BE_STAGE_STOPPING;
+    assert(rtwn8723be_net80211_hw_recovery_required(&sc.sc_linux));
+    assert(!rtwn8723be_net80211_running_hw_stop_needed(&sc.sc_linux));
+    assert(rtwn8723be_n80211_ioctl(ifp, SIOCSIFFLAGS, &down) == EBUSY);
+    media_error = ioctl_error = multicast_error = ENETRESET;
+    assert(rtwn8723be_n80211_media_change(ifp) == EBUSY);
+    assert(rtwn8723be_n80211_ioctl(ifp, 0x199UL, &down) == EBUSY);
+    assert(rtwn8723be_n80211_ioctl(ifp, SIOCADDMULTI, &down) == EBUSY);
+    assert(stops == 0 && sc.sc_linux.stage == R23BE_STAGE_STOPPING);
+    media_error = ioctl_error = multicast_error = 0;
+    balanced(&dp);
+
+    /* 12. A failed pre-RUNNING firmware download is not a safe normal
+     * STOPPING retry, even when started/fw_ready were never published. */
+    reset(&sc, &dp, &n);
+    ifp = &sc.sc_ec.ec_if;
+    ifp->if_flags = 0;
+    sc.sc_linux.stage = R23BE_STAGE_FIRMWARE_DOWNLOAD;
+    sc.sc_linux.started = sc.sc_linux.fw_ready = false;
+    dp.tx_enabled = false;
+    assert(rtwn8723be_net80211_hw_recovery_required(&sc.sc_linux));
+    assert(rtwn8723be_n80211_ioctl(ifp, SIOCSIFFLAGS, &down) == EBUSY);
+    media_error = ioctl_error = multicast_error = ENETRESET;
+    assert(rtwn8723be_n80211_media_change(ifp) == EBUSY);
+    assert(rtwn8723be_n80211_ioctl(ifp, 0x199UL, &down) == EBUSY);
+    assert(rtwn8723be_n80211_ioctl(ifp, SIOCADDMULTI, &down) == EBUSY);
+    assert(stops == 0);
+    media_error = ioctl_error = multicast_error = 0;
+    balanced(&dp);
+
+    /* 13. Even a STOPPED stage is dirty if leftover firmware/MAC
+     * ownership flags are set. No false successful cleanup. */
+    reset(&sc, &dp, &n);
+    ifp = &sc.sc_ec.ec_if;
+    ifp->if_flags = 0;
+    sc.sc_linux.stage = R23BE_STAGE_STOPPED;
+    sc.sc_linux.started = false;
+    sc.sc_linux.fw_ready = true;
+    assert(rtwn8723be_net80211_hw_recovery_required(&sc.sc_linux));
+    assert(rtwn8723be_n80211_ioctl(ifp, SIOCSIFFLAGS, &down) == EBUSY);
+    media_error = ENETRESET;
+    assert(rtwn8723be_n80211_media_change(ifp) == EBUSY);
+    assert(stops == 0);
+    media_error = 0;
+    balanced(&dp);
+
+    /* 14. A detached or mismatched ifnet cannot dereference NULL sc. */
     reset(&sc, &dp, &n);
     n.sc = NULL;
     assert(rtwn8723be_n80211_ioctl(&sc.sc_ec.ec_if,
@@ -429,7 +489,7 @@ int main(void)
     assert(stops == 0 && inits == 0);
     balanced(&dp);
 
-    /* 12. Normal first-time successful DOWN still works. */
+    /* 15. Normal first-time successful DOWN still works. */
     reset(&sc, &dp, &n);
     assert(rtwn8723be_n80211_ioctl(&sc.sc_ec.ec_if,
         SIOCSIFFLAGS, &down) == 0);
