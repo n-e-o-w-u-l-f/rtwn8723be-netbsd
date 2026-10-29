@@ -164,7 +164,7 @@ static int rtwn8723be_tx_native_reclaim(struct rtwn8723be_softc *sc,
     reclaim_calls++;
     return 0;
 }
-static void rtwn8723be_netbsd_irq_set_dispatch(
+static int rtwn8723be_netbsd_irq_set_dispatch(
     struct rtwn8723be_softc *sc,
     const struct rtwn8723be_irq_dispatch *dispatch, void *arg)
 {
@@ -173,6 +173,7 @@ static void rtwn8723be_netbsd_irq_set_dispatch(
     memset(&sc->sc_irq_dispatch, 0, sizeof(sc->sc_irq_dispatch));
     sc->sc_irq_dispatch_ready = false;
     unbinds++;
+    return 0;
 }
 '''
 epilogue = r'''

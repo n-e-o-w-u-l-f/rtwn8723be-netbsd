@@ -2,6 +2,52 @@
 
 Source checkpoint: 2026-10-29 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — ATOMIC IRQ DISPATCH OWNER PUBLICATION (2026-10-29)
+
+The native `rtwn8723be_netbsd_irq_set_dispatch` now
+publishes/withdraws callback pointers, argument and
+ready flag **atomically under `sc_irq_lock` at IPL_NET**.
+Its new `int` return contract rejects null owner
+arguments, incomplete RX/TX callbacks and mismatched
+unbind calls, plus any still-requested/enabled IRQ or
+established PCI/hard/soft interrupt handle. It never
+partially overwrites a callback owner on EBUSY.
+
+Production `rtwn8723be_datapath_prepare` now checks
+dispatcher publication errors and cleans its unpublished
+prepared bridge, TX mutex and `sc_datapath` on failure.
+Production `datapath_unprepare` preserves all resources
+if a concurrent IRQ enable has made final callback
+revocation unsafe; a later explicit retry is required.
+This complements earlier IRQ epoch, STOPPING callback
+lifetime, hardware STOPPED and net80211 detach checks.
+
+New strict C11/UBSan
+`tests/test_irq_dispatch_atomic_owner.py` compiles
+the **actual production IRQ dispatcher, datapath prepare
+and unprepare C bodies**; it tests invalid callback
+registration, five independent live IRQ owners,
+failed prepare rollback, atomic callback publication,
+and a deterministic concurrent-enable race during
+last-release revocation. Fourteen unsafe source
+mutations are rejected. Existing RX/TX/STOP C11 mock
+dispatch functions now return errors, and the old
+final-teardown mutation targets the correct function
+after the new rollback path was added. CI runs the
+new production-source regression.
+
+Disposable `legion` Linux x86_64 exact HEAD
+`6a62afd5542669e293950d49002b766a4e38959c`:
+**69/69 host-permitted test scripts PASS**, zero
+failures, 12 of 81 target-/reference-dependent
+tests not run; `git diff --check` against PR #24
+passed. See
+`docs/IRQ_DISPATCH_ATOMIC_OWNER_20261029.md`.
+
+The real NetBSD IRQ/softint drain, 48-C-unit
+kernel build and HP WLAN/PCI hardware tests remain
+open, along with four unbound lifecycle callbacks.
+
 ## SOURCE CHECKPOINT — IRQ STOP/RESTART PENDING AND W1C EPOCH (2026-10-29)
 
 The native IRQ owner now protects against **stale softint

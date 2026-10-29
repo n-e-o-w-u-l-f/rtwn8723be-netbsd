@@ -151,7 +151,7 @@ static int frame_handler(void *arg, const uint8_t *buf, size_t n, const void *p)
 { (void)arg; (void)buf; (void)n; (void)p; return 0; }
 static void rtwn8723be_dp_tx_done(void *arg, unsigned int qid)
 { (void)arg; (void)qid; }
-static void rtwn8723be_netbsd_irq_set_dispatch(
+static int rtwn8723be_netbsd_irq_set_dispatch(
     struct rtwn8723be_softc *sc,
     const struct rtwn8723be_irq_dispatch *irq, void *arg)
 {
@@ -160,6 +160,7 @@ static void rtwn8723be_netbsd_irq_set_dispatch(
     sc->sc_irq_arg=NULL;
     memset(&sc->sc_irq_dispatch,0,sizeof(sc->sc_irq_dispatch));
     dispatch_revoked++;
+    return 0;
 }
 static int rtwn8723be_rx_native_drain(struct rtwn8723be_softc *sc,
     const struct rtwn8723be_rx_dispatch *d, size_t *delivered);

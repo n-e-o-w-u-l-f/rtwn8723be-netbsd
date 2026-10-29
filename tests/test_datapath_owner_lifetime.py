@@ -107,8 +107,23 @@ controls = (
     (DP.replace("sc->sc_irq_requested || ", "", 1), NATIVE),
     (DP.replace("sc->sc_irq_dispatch.rx != rtwn8723be_dp_rx",
                 "false", 1), NATIVE),
-    (DP.replace("    sc->sc_datapath = NULL;", "", 1), NATIVE),
-    (DP.replace("    mutex_destroy(&dp->tx_lock);", "", 1), NATIVE),
+    (DP.replace(
+        "    error = rtwn8723be_netbsd_irq_set_dispatch(sc, NULL, NULL);\n"
+        "    if (error != 0)\n"
+        "        return error; /* Retain all owner storage on failed unbind. */\n"
+        "    sc->sc_datapath = NULL;",
+        "    error = rtwn8723be_netbsd_irq_set_dispatch(sc, NULL, NULL);\n"
+        "    if (error != 0)\n"
+        "        return error; /* Retain all owner storage on failed unbind. */",
+        1), NATIVE),
+    (DP.replace(
+        "    sc->sc_datapath = NULL;\n"
+        "    mutex_destroy(&dp->tx_lock);\n"
+        "    memset(dp, 0, sizeof(*dp));\n"
+        "    return 0;",
+        "    sc->sc_datapath = NULL;\n"
+        "    memset(dp, 0, sizeof(*dp));\n"
+        "    return 0;", 1), NATIVE),
     (DP, NATIVE.replace(
         ".unprepare_datapath = rtwn8723be_native_unwind_datapath,", "", 1)),
     (DP, NATIVE.replace(
