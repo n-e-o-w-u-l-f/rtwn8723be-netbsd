@@ -314,9 +314,15 @@ struct rtwn8723be_dma_mem {
     bus_size_t size;
 };
 
+struct ieee80211_node; /* Borrowed until successful TX DMA publication. */
 struct rtwn8723be_dma_slot {
     bus_dmamap_t map;
     struct mbuf *m;
+    /*
+     * TX-only: a caller-owned reference transfers with m on success.
+     * RX slots never have a node. Freed after DMA POSTWRITE/unload.
+     */
+    struct ieee80211_node *ni;
 };
 
 struct rtwn8723be_tx_ring {
