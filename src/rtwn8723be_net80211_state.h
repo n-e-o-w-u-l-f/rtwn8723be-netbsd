@@ -5,6 +5,23 @@
 #include "rtwn8723be_linux_state.h"
 
 /*
+ * The Linux probe controller publishes the IEEE80211_REGISTER stage before
+ * invoking the native ifnet registration callback. Neither a failed
+ * firmware start nor a later STOPPED adapter is permission to publish a
+ * second NetBSD ifnet. Check this before ANY NetBSD registration effects;
+ * the PCI/DMA/IRQ and unique softc storage checks are separate.
+ */
+static inline bool
+rtwn8723be_net80211_registration_checkpoint_ok(
+    const struct rtwn8723be_linux_state *state)
+{
+    return state != NULL &&
+        state->stage == R23BE_STAGE_IEEE80211_REGISTER &&
+        !state->started && !state->fw_ready &&
+        !state->mac_func_enable && !state->being_init_adapter;
+}
+
+/*
  * A start retry is admissible only from an entirely quiescent PROBED or
  * STOPPED adapter. A callback returning failure or a false success after
  * partial firmware initialization MUST retain its stage and resources;
