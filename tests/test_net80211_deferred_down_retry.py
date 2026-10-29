@@ -75,6 +75,21 @@ def contract(stop_body: str, ioctl_body: str, retry_body: str,
 
 contract(ifstop, ioctl, retry, begin_stop, HEADER)
 
+def orphaned_hw_contract(media_body: str, ioctl_body: str) -> None:
+    hw = "rtwn8723be_net80211_running_hw_stop_needed("
+    assert ioctl_body.count(hw) == 3
+    assert media_body.count(hw) == 1
+    down = ioctl_body.index("(ifp->if_flags & (IFF_UP | IFF_RUNNING)) == 0")
+    retry = ioctl_body.index("rtwn8723be_datapath_stop_retry_ready(", down)
+    detached = ioctl_body.index("error = rtwn8723be_n80211_ifstop(n);", retry)
+    assert down < retry < ioctl_body.index(hw, retry) < detached
+    multi = ioctl_body.index("case SIOCADDMULTI:")
+    reset = ioctl_body.index("if (error == ENETRESET)", multi)
+    assert multi < ioctl_body.index(hw, multi) < reset
+    assert "&&\n            !" + hw in ioctl_body[multi:reset]
+    assert ioctl_body.index(hw, reset) < ioctl_body.rindex("error = EBUSY;")
+    assert media_body.index(hw) < media_body.rindex("return EBUSY;")
+
 def reset_contract(media_body: str, ioctl_body: str) -> None:
     assert "if (n == NULL || !n->registered || n->sc == NULL)" in media_body
     assert "if (error != ENETRESET)" in media_body
@@ -93,6 +108,26 @@ def reset_contract(media_body: str, ioctl_body: str) -> None:
     assert "error = rtwn8723be_n80211_ifinit(ifp);" in ioctl_body[branch:]
 
 reset_contract(media, ioctl)
+orphaned_hw_contract(media, ioctl)
+orphan_negatives = (
+    (media, ioctl.replace(
+        "rtwn8723be_net80211_running_hw_stop_needed(", "false && (", 1)),
+    (media, ioctl.replace(
+        "rtwn8723be_net80211_running_hw_stop_needed(", "false && (", 2)),
+    (media, ioctl.replace(
+        "rtwn8723be_net80211_running_hw_stop_needed(", "false && (", 3)),
+    (media.replace(
+        "rtwn8723be_net80211_running_hw_stop_needed(", "false && (", 1),
+     ioctl),
+)
+for i, mutated in enumerate(orphan_negatives, 1):
+    assert mutated != (media, ioctl), i
+    try:
+        orphaned_hw_contract(*mutated)
+    except (AssertionError, ValueError):
+        continue
+    raise AssertionError(f"unsafe orphaned RUNNING source mutation {i} passed")
+
 reset_negatives = (
     (media.replace("rtwn8723be_datapath_stop_retry_ready(",
                    "false && (", 1), ioctl),
@@ -204,7 +239,8 @@ struct rtwn8723be_net80211 {
 };
 struct req { bool up; };
 static int starts, stops, locks, unlocks, inits;
-static int media_error, ioctl_error;
+static int media_error, ioctl_error, multicast_error;
+static bool false_success_stop;
 static void mutex_enter(kmutex_t *l)
 { assert(l && !l->held); l->held = true; locks++; }
 static void mutex_exit(kmutex_t *l)
@@ -219,7 +255,7 @@ static int ifioctl_common(struct ifnet *ifp, u_long cmd, void *data)
     return 0;
 }
 static int ether_ioctl(struct ifnet *ifp, u_long cmd, void *data)
-{ (void)ifp; (void)cmd; (void)data; return 0; }
+{ (void)ifp; (void)cmd; (void)data; return multicast_error; }
 static int ieee80211_ioctl(struct ieee80211com *ic, u_long cmd, void *data)
 { (void)ic; (void)cmd; (void)data; return ioctl_error; }
 static int ieee80211_media_change(struct ifnet *ifp)
@@ -234,6 +270,8 @@ static int hw_stop(struct rtwn8723be_softc *sc)
 {
     struct rtwn8723be_datapath *dp = sc->sc_datapath;
     stops++;
+    if (false_success_stop)
+        return 0; /* Deliberate broken callback leaving real RUNNING. */
     int error = rtwn8723be_datapath_begin_stop(dp, &sc->sc_linux);
     if (error != 0) return error;
     assert(sc->sc_linux.stage == R23BE_STAGE_STOPPING);
@@ -259,6 +297,8 @@ static void reset(struct rtwn8723be_softc *sc,
     sc->sc_ec.ec_if.if_flags = IFF_UP | IFF_RUNNING | IFF_OACTIVE;
     sc->sc_ec.ec_if.if_timer = 10;
     locks=unlocks=starts=stops=inits=media_error=ioctl_error=0;
+    multicast_error=0;
+    false_success_stop=false;
 }
 static void balanced(struct rtwn8723be_datapath *dp)
 { assert(!dp->tx_lock.held && locks == unlocks); }
@@ -322,18 +362,65 @@ int main(void)
     assert(stops == 3 && inits == 1 && ifp->if_flags == 0);
     balanced(&dp);
 
-    /* 6. A stale/foreign datapath cannot authorize retry. */
+    /* 7. Orphaned real RUNNING hardware with IFF_RUNNING already down:
+     * no pending callback lease, yet the explicit DOWN must STOP it. */
+    reset(&sc, &dp, &n);
+    ifp = &sc.sc_ec.ec_if;
+    ifp->if_flags = 0;
+    assert(!dp.stop_pending && !rtwn8723be_datapath_stop_retry_ready(&dp));
+    assert(rtwn8723be_net80211_running_hw_stop_needed(&sc.sc_linux));
+    media_error = ioctl_error = multicast_error = ENETRESET;
+    assert(rtwn8723be_n80211_media_change(ifp) == EBUSY);
+    assert(rtwn8723be_n80211_ioctl(ifp, 0x199UL, &down) == EBUSY);
+    assert(rtwn8723be_n80211_ioctl(ifp, SIOCADDMULTI, &down) == EBUSY);
+    assert(stops == 0 && sc.sc_linux.started && ifp->if_flags == 0);
+    media_error = ioctl_error = multicast_error = 0;
+    assert(rtwn8723be_n80211_ioctl(ifp, SIOCSIFFLAGS, &down) == 0);
+    assert(stops == 1 && sc.sc_linux.stage == R23BE_STAGE_STOPPED);
+    assert(!sc.sc_linux.started && !sc.sc_linux.fw_ready);
+    assert(!rtwn8723be_net80211_running_hw_stop_needed(&sc.sc_linux));
+    balanced(&dp);
+
+    /* 8. No stop_pending: an orphaned hardware stop must still honor
+     * borrowed RX lifetime and defer until a fresh explicit DOWN. */
+    reset(&sc, &dp, &n);
+    ifp = &sc.sc_ec.ec_if;
+    ifp->if_flags = 0;
+    dp.rx_callback_active = 1;
+    assert(!dp.stop_pending);
+    assert(rtwn8723be_n80211_ioctl(ifp, SIOCSIFFLAGS, &down) == EBUSY);
+    assert(stops == 1 && dp.stop_pending && !dp.tx_enabled);
+    dp.rx_callback_active = 0;
+    assert(rtwn8723be_n80211_ioctl(ifp, SIOCSIFFLAGS, &down) == 0);
+    assert(stops == 2 && sc.sc_linux.stage == R23BE_STAGE_STOPPED);
+    balanced(&dp);
+
+    /* 9. A false-success STOP must not be mistaken for STOPPED, even
+     * when IFF_RUNNING is already cleared before the first retry. */
+    reset(&sc, &dp, &n);
+    ifp = &sc.sc_ec.ec_if;
+    ifp->if_flags = 0;
+    false_success_stop = true;
+    assert(rtwn8723be_n80211_ioctl(ifp, SIOCSIFFLAGS, &down) == EIO);
+    assert(stops == 1 && sc.sc_linux.stage == R23BE_STAGE_RUNNING);
+    assert(!dp.stop_pending && sc.sc_linux.started);
+    false_success_stop = false;
+    assert(rtwn8723be_n80211_ioctl(ifp, SIOCSIFFLAGS, &down) == 0);
+    assert(stops == 2 && sc.sc_linux.stage == R23BE_STAGE_STOPPED);
+    balanced(&dp);
+
+    /* 10. A stale/foreign datapath cannot authorize unsafe STOP. */
     reset(&sc, &dp, &n);
     sc.sc_ec.ec_if.if_flags = 0;
     dp.stop_pending = true; dp.tx_enabled = false;
     sc.sc_irq_arg = NULL;
     assert(!rtwn8723be_datapath_stop_retry_ready(&dp));
     assert(rtwn8723be_n80211_ioctl(&sc.sc_ec.ec_if,
-        SIOCSIFFLAGS, &down) == 0);
-    assert(stops == 0);
+        SIOCSIFFLAGS, &down) == EBUSY);
+    assert(stops == 1 && sc.sc_linux.stage == R23BE_STAGE_RUNNING);
     balanced(&dp);
 
-    /* 8. A detached or mismatched ifnet cannot dereference NULL sc. */
+    /* 11. A detached or mismatched ifnet cannot dereference NULL sc. */
     reset(&sc, &dp, &n);
     n.sc = NULL;
     assert(rtwn8723be_n80211_ioctl(&sc.sc_ec.ec_if,
@@ -342,7 +429,7 @@ int main(void)
     assert(stops == 0 && inits == 0);
     balanced(&dp);
 
-    /* 8. Normal first-time successful DOWN still works. */
+    /* 12. Normal first-time successful DOWN still works. */
     reset(&sc, &dp, &n);
     assert(rtwn8723be_n80211_ioctl(&sc.sc_ec.ec_if,
         SIOCSIFFLAGS, &down) == 0);
@@ -364,4 +451,4 @@ with tempfile.TemporaryDirectory(prefix="r23be-net80211-down-retry-") as directo
                     "-I", str(ROOT / "src"),
                     str(source), "-o", str(exe)], check=True)
     subprocess.run([str(exe)], check=True)
-print("RTL_NET80211_DOWN_RETRY_SOURCE_NEGATIVES_OK negatives=11 media_negatives=5")
+print("RTL_NET80211_DOWN_RETRY_SOURCE_NEGATIVES_OK negatives=11 media_negatives=5 orphan_negatives=4")
