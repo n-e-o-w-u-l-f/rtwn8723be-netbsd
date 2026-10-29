@@ -415,13 +415,13 @@ rtwn8723be_datapath_unprepare(struct rtwn8723be_datapath *dp)
 
 int
 rtwn8723be_datapath_enqueue(struct rtwn8723be_datapath *dp,
-    unsigned int qid, struct mbuf *m,
+    unsigned int qid, struct mbuf *m, struct ieee80211_node *ni,
     const struct rtwn8723be_tx_params *p, bool command)
 {
     int error;
 
     if (dp == NULL || !dp->prepared || dp->sc == NULL ||
-        m == NULL || p == NULL)
+        m == NULL || ni == NULL || p == NULL)
         return EINVAL;
     mutex_enter(&dp->tx_lock);
     /*
@@ -436,7 +436,7 @@ rtwn8723be_datapath_enqueue(struct rtwn8723be_datapath *dp,
         error = EAGAIN;
     else
         error = rtwn8723be_tx_native_enqueue(dp->sc,
-            qid, m, p, command);
+            qid, m, ni, p, command);
     mutex_exit(&dp->tx_lock);
     return error;
 }
