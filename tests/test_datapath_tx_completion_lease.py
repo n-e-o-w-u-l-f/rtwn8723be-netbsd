@@ -53,7 +53,8 @@ def contract(done_src: str, stop_src: str, unprepare_src: str,
         stop_src.index("state->stage = R23BE_STAGE_STOPPING;"))
 
     check = ("if (dp->tx_enabled || dp->stop_pending ||\n"
-             "        dp->tx_callback_active != 0 || dp->rx_callback_active != 0)")
+             "        dp->tx_callback_active != 0 || dp->rx_callback_active != 0 ||\n"
+             "        dp->tx_start_active != 0)")
     lock = unprepare_src.index("mutex_enter(&dp->tx_lock);")
     test = unprepare_src.index(check)
     leave_busy = unprepare_src.index("return EBUSY;", test)
@@ -127,7 +128,7 @@ struct rtwn8723be_datapath {
     struct rtwn8723be_softc *sc;
     kmutex_t tx_lock;
     bool prepared, tx_enabled, stop_pending;
-    unsigned int tx_callback_active, rx_callback_active;
+    unsigned int tx_callback_active, rx_callback_active, tx_start_active;
     int tx_error;
     uint64_t tx_reclaimed;
     void (*tx_complete)(void *, unsigned int, size_t);

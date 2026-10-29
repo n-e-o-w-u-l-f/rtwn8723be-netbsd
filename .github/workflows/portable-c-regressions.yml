@@ -126,6 +126,8 @@ jobs:
           python3 tests/test_rfkill_net80211_start.py
       - name: Reject net80211 RX and TX after native owner loss or runtime STOP (C11 / UBSan)
         run: python3 tests/test_net80211_late_rx_stop.py
+      - name: Lease net80211 tx_start callback across reentrant hardware STOP (C11 / UBSan)
+        run: python3 tests/test_net80211_tx_start_callback_lease.py
       - name: Retain hardware stop owner on net80211 failure (C11 / UBSan)
         run: python3 tests/test_net80211_stop_failure_owner.py
       - name: Reject net80211 detach after false-success hardware STOP (C11 / UBSan)

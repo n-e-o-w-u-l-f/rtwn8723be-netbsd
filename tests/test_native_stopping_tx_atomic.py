@@ -105,7 +105,7 @@ struct rtwn8723be_datapath {
     struct rtwn8723be_softc *sc;
     kmutex_t tx_lock;
     bool prepared, tx_enabled, stop_pending;
-    unsigned int tx_callback_active, rx_callback_active;
+    unsigned int tx_callback_active, rx_callback_active, tx_start_active;
 };
 struct mbuf { unsigned id; };
 struct rtwn8723be_tx_params { unsigned queue; };

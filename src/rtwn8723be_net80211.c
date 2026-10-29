@@ -168,20 +168,26 @@ static void
 rtwn8723be_n80211_ifstart(struct ifnet *ifp)
 {
     struct rtwn8723be_net80211 *n = ifp->if_softc;
+    struct rtwn8723be_datapath *dp;
 
     if (n == NULL || !n->registered || n->sc == NULL ||
         (ifp->if_flags & (IFF_RUNNING | IFF_OACTIVE)) != IFF_RUNNING ||
         !n->sc->sc_linux.started ||
         n->sc->sc_linux.stage != R23BE_STAGE_RUNNING ||
-        n->methods.tx_start == NULL ||
-        !rtwn8723be_datapath_running_ready(n->sc->sc_datapath))
+        n->methods.tx_start == NULL)
         return;
+    dp = n->sc->sc_datapath;
     /*
-     * Do not dequeue if STOP admission was revoked despite stale ifnet
-     * RUNNING flags. This snapshot is advisory: native TX enqueue
-     * must still revalidate ownership under the same IPL_NET mutex.
+     * A read-only readiness snapshot would race STOPPING before the
+     * external net80211 queue consumer is called. Acquire a lifetime
+     * reference atomically with RUNNING/TX/owner admission. The native
+     * STOP entry refuses to shut down while this reference is held.
      */
+    if (!rtwn8723be_datapath_tx_start_begin(dp))
+        return;
+    /* The external consumer must never run under dp->tx_lock (IPL_NET). */
     n->methods.tx_start(n->sc, ifp);
+    rtwn8723be_datapath_tx_start_end(dp);
 }
 
 static int
