@@ -2,6 +2,51 @@
 
 Source checkpoint: 2026-10-27 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — NET80211 TX-START CALLBACK LEASE (2026-10-29)
+
+The native net80211 `if_start` queue consumer now holds
+a real lifetime lease, not merely a RUNNING snapshot.
+`rtwn8723be_datapath_tx_start_begin` checks active TX,
+`!stop_pending`, matching PCI/IRQ owner, DMA/IRQ readiness,
+and actual Linux RUNNING state **under dp->tx_lock**. It
+increments `tx_start_active` within that same critical
+section. Net80211 then executes the borrowed external
+`methods.tx_start` **outside** the IPL_NET mutex and
+releases its published reference under the mutex after
+the callback returns.
+
+Atomic `begin_stop` and `datapath_unprepare` now
+refuse a destructive transition or callback owner
+release with EBUSY while that external net80211
+TX-start callback executes. A failed STOP closes TX
+admission and latches `stop_pending`; an explicit
+later retry can enter STOPPING after the reference
+returns. There is no blocking/waiting under IPL_NET.
+
+A new strict C11/UBSan harness compiles and executes
+**the actual production if_start, native lease begin/end,
+begin_stop and unprepare function bodies**. Its
+reentrant TX callback attempts STOP and an IRQ-disestablished
+unprepare, both refused; callback return permits
+the later explicit retry and eventual safe teardown.
+Twelve unsafe mutation controls enforce the lease,
+owner and STOP gates. CI includes the new test; existing
+RX, TX completion and atomic STOP partial C11 models
+were updated for the additional counter.
+
+Disposable Linux x86_64 `legion` exact HEAD
+`d96fcb8eb31abd0f259b5fc1877c2653487e0636`:
+**65/65 host-permitted regression scripts passed**,
+zero failures, with 12 of 77 target/pinned-reference
+scripts not run. `git diff --check` against stacked
+PR #19 passed. See
+`docs/NET80211_TX_START_CALLBACK_LEASE_20261029.md`.
+
+A **sleepable automatic STOP retry**, actual IRQ/softint
+drain and final net80211/PCI detach owner still
+remain OPEN, as do the four intentionally unbound
+lifecycle callbacks and native NetBSD 11/HP validation.
+
 ## SOURCE CHECKPOINT — NET80211 LATE RX/TX NATIVE OWNER GATE (2026-10-28)
 
 The net80211 `ifstart`/RX-input entry points now use
