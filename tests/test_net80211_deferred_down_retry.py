@@ -190,7 +190,7 @@ struct rtwn8723be_datapath {
     struct rtwn8723be_softc *sc;
     kmutex_t tx_lock;
     bool prepared, tx_enabled, stop_pending;
-    unsigned int rx_callback_active, tx_callback_active;
+    unsigned int rx_callback_active, tx_callback_active, tx_start_active;
 };
 struct rtwn8723be_net80211_methods {
     int (*hw_start)(struct rtwn8723be_softc *);
