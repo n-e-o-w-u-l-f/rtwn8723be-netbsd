@@ -45,7 +45,9 @@ rtwn8723be_tx_frame_plan(const uint8_t *frame, size_t len,
 
     if (frame == NULL || out == NULL)
         return EINVAL;
-    if (len < 24 || len > 9100)
+    if (len < 24)
+        return EINVAL;
+    if (len > 9100)
         return EFBIG;
 
     fc0 = frame[0];
@@ -79,7 +81,7 @@ rtwn8723be_tx_frame_plan(const uint8_t *frame, size_t len,
             if ((fc1 & 0x80U) != 0)
                 return EOPNOTSUPP; /* Unimplemented HT control header. */
             if (len < 26)
-                return EFBIG;
+                return EINVAL;
             tid = frame[24] & 0x0fU;
             if (tid > 7)
                 return EOPNOTSUPP; /* Not a normal WME TID. */
