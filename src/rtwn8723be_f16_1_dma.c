@@ -7,6 +7,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <sys/mbuf.h>
 #include <sys/bus.h>
 #include <sys/endian.h>
+#include <net80211/ieee80211_var.h>
 
 #include "rtwn8723be_f16_1.h"
 
@@ -216,7 +217,11 @@ rtwn8723be_f16_1_tx_ring_free(bus_dma_tag_t dmat,
                 }
                 m_freem(ring->slot[i].m);
                 ring->slot[i].m = NULL;
+                KASSERT(ring->slot[i].ni != NULL);
+                ieee80211_free_node(ring->slot[i].ni);
+                ring->slot[i].ni = NULL;
             }
+            KASSERT(ring->slot[i].ni == NULL);
             if (ring->slot[i].map != NULL) {
                 bus_dmamap_destroy(dmat, ring->slot[i].map);
                 ring->slot[i].map = NULL;
