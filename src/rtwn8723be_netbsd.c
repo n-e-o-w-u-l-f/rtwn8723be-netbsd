@@ -1234,8 +1234,10 @@ rtwn8723be_netbsd_enable_interrupt(void *arg)
          * within an existing requested lifetime: a masked hard IRQ may
          * already have published valid pending work for that owner.
          */
-        if (!sc->sc_irq_requested)
+        if (!sc->sc_irq_requested) {
             rtwn8723be_irq_pending_clear(sc->sc_irq_pending);
+            sc->sc_irq_epoch++;
+        }
         sc->sc_irq_requested = true;
         rtwn8723be_netbsd_irq_arm_locked(sc);
     }
@@ -1258,6 +1260,7 @@ rtwn8723be_netbsd_disable_interrupt(void *arg)
      * lifetime after a later enable_interrupt() has requested IRQs.
      */
     sc->sc_irq_requested = false;
+    sc->sc_irq_epoch++;
     rtwn8723be_netbsd_irq_mask_locked(sc);
     rtwn8723be_irq_pending_clear(sc->sc_irq_pending);
     mutex_exit(&sc->sc_irq_lock);
@@ -1268,7 +1271,7 @@ static int
 rtwn8723be_netbsd_intr(void *arg)
 {
     struct rtwn8723be_softc *sc = arg;
-    uint32_t rawa, rawb, inta, intb;
+    uint32_t rawa, rawb, inta, intb, irq_epoch;
 
     if (!sc->sc_irq_lock_initialized)
         return 0;
@@ -1282,6 +1285,7 @@ rtwn8723be_netbsd_intr(void *arg)
      * still wants IRQs. STOP may clear sc_irq_requested in the meantime.
      * SOFTINT_NET must never override that explicit shutdown.
      */
+    irq_epoch = sc->sc_irq_epoch;
     rtwn8723be_netbsd_irq_mask_locked(sc);
     mutex_exit(&sc->sc_irq_lock);
 
@@ -1319,7 +1323,14 @@ rtwn8723be_netbsd_intr(void *arg)
      * completion for a softint that must no longer access RX/TX rings.
      */
     mutex_enter(&sc->sc_irq_lock);
-    if (!rtwn8723be_irq_pending_record(sc->sc_irq_pending,
+    /*
+     * STOP may have cleared pending and a fresh owner may already have
+     * called enable_interrupt() while HISR/HISRE MMIO was read. The
+     * requested flag alone then belongs to the NEW owner; reject a
+     * stale previous-epoch sample even though requested is true again.
+     */
+    if (irq_epoch != sc->sc_irq_epoch ||
+        !rtwn8723be_irq_pending_record(sc->sc_irq_pending,
         sc->sc_irq_requested, sc->sc_irq_dispatch_ready, inta, intb)) {
         mutex_exit(&sc->sc_irq_lock);
         return 0;
