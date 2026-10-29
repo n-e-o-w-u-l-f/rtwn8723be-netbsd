@@ -426,7 +426,60 @@ int main(void)
     assert(stops == 1 && sc.sc_linux.stage == R23BE_STAGE_RUNNING);
     balanced(&dp);
 
-    /* 11. A detached or mismatched ifnet cannot dereference NULL sc. */
+    /* 11. Interrupted STOPPING is NOT admissible for generic hw_stop.
+     * Every DOWN/media/reset entry must report outstanding recovery. */
+    reset(&sc, &dp, &n);
+    ifp = &sc.sc_ec.ec_if;
+    ifp->if_flags = 0;
+    dp.tx_enabled = false;
+    dp.stop_pending = false;
+    sc.sc_linux.stage = R23BE_STAGE_STOPPING;
+    assert(rtwn8723be_net80211_hw_recovery_required(&sc.sc_linux));
+    assert(!rtwn8723be_net80211_running_hw_stop_needed(&sc.sc_linux));
+    assert(rtwn8723be_n80211_ioctl(ifp, SIOCSIFFLAGS, &down) == EBUSY);
+    media_error = ioctl_error = multicast_error = ENETRESET;
+    assert(rtwn8723be_n80211_media_change(ifp) == EBUSY);
+    assert(rtwn8723be_n80211_ioctl(ifp, 0x199UL, &down) == EBUSY);
+    assert(rtwn8723be_n80211_ioctl(ifp, SIOCADDMULTI, &down) == EBUSY);
+    assert(stops == 0 && sc.sc_linux.stage == R23BE_STAGE_STOPPING);
+    media_error = ioctl_error = multicast_error = 0;
+    balanced(&dp);
+
+    /* 12. A failed pre-RUNNING firmware download is not a safe normal
+     * STOPPING retry, even when started/fw_ready were never published. */
+    reset(&sc, &dp, &n);
+    ifp = &sc.sc_ec.ec_if;
+    ifp->if_flags = 0;
+    sc.sc_linux.stage = R23BE_STAGE_FIRMWARE_DOWNLOAD;
+    sc.sc_linux.started = sc.sc_linux.fw_ready = false;
+    dp.tx_enabled = false;
+    assert(rtwn8723be_net80211_hw_recovery_required(&sc.sc_linux));
+    assert(rtwn8723be_n80211_ioctl(ifp, SIOCSIFFLAGS, &down) == EBUSY);
+    media_error = ioctl_error = multicast_error = ENETRESET;
+    assert(rtwn8723be_n80211_media_change(ifp) == EBUSY);
+    assert(rtwn8723be_n80211_ioctl(ifp, 0x199UL, &down) == EBUSY);
+    assert(rtwn8723be_n80211_ioctl(ifp, SIOCADDMULTI, &down) == EBUSY);
+    assert(stops == 0);
+    media_error = ioctl_error = multicast_error = 0;
+    balanced(&dp);
+
+    /* 13. Even a STOPPED stage is dirty if leftover firmware/MAC
+     * ownership flags are set. No false successful cleanup. */
+    reset(&sc, &dp, &n);
+    ifp = &sc.sc_ec.ec_if;
+    ifp->if_flags = 0;
+    sc.sc_linux.stage = R23BE_STAGE_STOPPED;
+    sc.sc_linux.started = false;
+    sc.sc_linux.fw_ready = true;
+    assert(rtwn8723be_net80211_hw_recovery_required(&sc.sc_linux));
+    assert(rtwn8723be_n80211_ioctl(ifp, SIOCSIFFLAGS, &down) == EBUSY);
+    media_error = ENETRESET;
+    assert(rtwn8723be_n80211_media_change(ifp) == EBUSY);
+    assert(stops == 0);
+    media_error = 0;
+    balanced(&dp);
+
+    /* 14. A detached or mismatched ifnet cannot dereference NULL sc. */
     reset(&sc, &dp, &n);
     n.sc = NULL;
     assert(rtwn8723be_n80211_ioctl(&sc.sc_ec.ec_if,
@@ -435,7 +488,7 @@ int main(void)
     assert(stops == 0 && inits == 0);
     balanced(&dp);
 
-    /* 12. Normal first-time successful DOWN still works. */
+    /* 15. Normal first-time successful DOWN still works. */
     reset(&sc, &dp, &n);
     assert(rtwn8723be_n80211_ioctl(&sc.sc_ec.ec_if,
         SIOCSIFFLAGS, &down) == 0);
