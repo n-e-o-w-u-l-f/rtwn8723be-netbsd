@@ -278,7 +278,7 @@ void rtwn8723be_netbsd_rf_change_end(struct rtwn8723be_softc *);
 int rtwn8723be_netbsd_rfkill_gpio_sample(struct rtwn8723be_softc *,
     bool *, bool *);
 
-void rtwn8723be_netbsd_irq_set_dispatch(struct rtwn8723be_softc *,
+int rtwn8723be_netbsd_irq_set_dispatch(struct rtwn8723be_softc *,
     const struct rtwn8723be_irq_dispatch *, void *);
 int rtwn8723be_netbsd_establish_irq(void *);
 void rtwn8723be_netbsd_disestablish_irq(struct rtwn8723be_softc *);
