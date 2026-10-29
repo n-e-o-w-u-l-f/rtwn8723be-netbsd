@@ -137,7 +137,7 @@ reset_negatives = (
     (media, ioctl.replace("error = EBUSY;", "error = 0;", 1)),
     (media, ioctl.replace(
         "rtwn8723be_datapath_stop_retry_ready(",
-        "false && (", 2)),
+        "false && (", 3)),
 )
 for i, pair in enumerate(reset_negatives, 1):
     assert pair != (media, ioctl), i
