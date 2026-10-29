@@ -1287,8 +1287,14 @@ rtwn8723be_netbsd_intr(void *arg)
     if (intb != 0)
         rtwn8723be_write_4(sc, R23BE_REG_HISRE, intb);
 
-    /* Linux treats an empty INTA as a shared/non-device IRQ. */
-    if (inta == 0 || inta == 0xffffU) {
+    /*
+     * HISRE RXFOVW is an independent RX event. An empty HISR alone must
+     * not discard that already-ACKed overflow: the softint consumes both
+     * banks and schedules RX when HISRE RXFOVW is set. Treat only BOTH
+     * empty banks as a shared/non-device interrupt; keep the Linux
+     * invalid all-ones INTA rejection.
+     */
+    if ((inta | intb) == 0 || inta == 0xffffU) {
         rtwn8723be_netbsd_irq_rearm_if_requested(sc);
         return 0;
     }
