@@ -29,9 +29,11 @@ assert NETBSD_H.count("struct rtwn8723be_net80211 sc_net80211;") == 1
 # Storage alone must not weaken the existing fail-closed hardware boundary.
 for forbidden in (
         ".register_ieee80211 =",
-        ".init_rfkill =",
 ):
     assert forbidden not in NETBSD_C, forbidden
+assert ".init_rfkill = rtwn8723be_netbsd_init_rfkill," in NETBSD_C
+assert "rtwn8723be_netbsd_init_rfkill(void *arg)" in NETBSD_C
+assert "sc->sc_net80211.sc != sc" in NETBSD_C
 assert "rtwn8723be_net80211_register(" not in NATIVE_C
 # An unstarted registered interface now has a real, bounded reverse owner.
 # Do not mistake this explicit teardown for binding the forbidden forward
