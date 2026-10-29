@@ -96,7 +96,7 @@ void rtwn8723be_datapath_stop(struct rtwn8723be_datapath *);
 int rtwn8723be_datapath_unprepare(struct rtwn8723be_datapath *);
 
 int rtwn8723be_datapath_enqueue(struct rtwn8723be_datapath *,
-    unsigned int, struct mbuf *, const struct rtwn8723be_tx_params *,
-    bool command);
+    unsigned int, struct mbuf *, struct ieee80211_node *,
+    const struct rtwn8723be_tx_params *, bool command);
 
 #endif
