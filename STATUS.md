@@ -2,6 +2,58 @@
 
 Source checkpoint: 2026-10-29 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — UNFINISHED STOPPING / PARTIAL FIRMWARE QUARANTINE (2026-10-29)
+
+The earlier explicit DOWN retry correctly stops real `started &&
+RUNNING` hardware behind stale IFF_RUNNING. However a failed
+`STOPPING` hardware shutdown, a firmware start abandoned after
+PROBED, or dirty `STOPPED` ownership could still be falsely
+acknowledged as a clean DOWN, media change or ENETRESET when the
+ifnet flags were already down. These states must **NOT** enter
+the normal RUNNING hardware STOP path.
+
+New source-shared
+`rtwn8723be_net80211_hw_recovery_required` accepts clean
+pre-PROBED/PROBED or clean STOPPED states only when no
+`started`, `fw_ready`, `mac_func_enable` or
+`being_init_adapter` flag remains. Any state after PROBED
+except STOPPED, or any dirty ownership flag, requires
+a separately journalled hardware cleanup. The net80211
+SIOCSIFFLAGS DOWN path returns EBUSY rather than
+pretending STOPPING/partial firmware was released.
+Media change, generic ENETRESET and multicast ENETRESET
+also reject false-success reconfiguration with EBUSY.
+The narrow explicit RUNNING stop from PR #26 is retained.
+
+The new strict C11/UBSan
+`tests/test_net80211_unfinished_hw_recovery.py`
+compiles the actual source-shared cleanup predicate
+and tests clean probe/STOPPED, STOPPING, partial firmware
+and individually dirty firmware/MAC/init flags;
+**seven unsafe source mutations are rejected**.
+The existing production-extracted C11
+`test_net80211_deferred_down_retry.py` executes
+actual ifstop, ioctl, media and begin_stop functions
+against STOPPING, interrupted firmware and dirty STOPPED,
+showing EBUSY with zero unsafe HW STOP callbacks.
+Its existing deferred/false-success RUNNING recovery
+tests remain green; CI adds the new test.
+
+Disposable Linux x86_64 `legion` at exact source HEAD
+`63dbe9d7ff808566f59871cd3f7d9c8015797a26`:
+**71/71 host-permitted regressions PASS**, 0 FAIL,
+12 of 83 target-/reference-dependent tests excluded.
+`git diff --check` against PR #26 succeeds.
+See `docs/NET80211_UNFINISHED_STOPPING_RECOVERY_QUARANTINE_20261029.md`.
+
+NetBSD 11 `workqueue(9)` review documented the
+no-premature-requeue and no-new-producer-during-wait
+constraints for future sleepable auto-STOP retry.
+**No autonomous worker was installed** without a
+verified owner/drain/ifnet serialization scheme.
+Four Linux lifecycle callbacks, native NetBSD 11
+48-C-unit kernel build and real HP PCI/WLAN tests remain open.
+
 ## SOURCE CHECKPOINT — ORPHANED RUNNING HARDWARE EXPLICIT DOWN RECOVERY (2026-10-29)
 
 The native net80211 control path now distinguishes **actual Linux
