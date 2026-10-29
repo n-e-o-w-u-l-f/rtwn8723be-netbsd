@@ -140,7 +140,8 @@ reset_negatives = (
     (media.replace("return EBUSY;", "return 0;", 1), ioctl),
     (media.replace("n == NULL || !n->registered || n->sc == NULL",
                    "n == NULL || !n->registered", 1), ioctl),
-    (media, ioctl.replace("error = EBUSY;", "error = 0;", 1)),
+    (media, ioctl.rsplit("error = EBUSY;", 1)[0] +
+     "error = 0;" + ioctl.rsplit("error = EBUSY;", 1)[1]),
     (media, ioctl.replace(
         "rtwn8723be_datapath_stop_retry_ready(",
         "false && (", 3)),
