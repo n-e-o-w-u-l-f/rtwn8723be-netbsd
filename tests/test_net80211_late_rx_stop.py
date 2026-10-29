@@ -117,6 +117,7 @@ prologue = r'''
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
+#define KASSERT assert
 
 #define RTWN8723BE_RX_BUFFER_SIZE 4096
 #define IFF_RUNNING 0x40U
