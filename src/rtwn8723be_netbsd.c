@@ -1228,6 +1228,14 @@ rtwn8723be_netbsd_enable_interrupt(void *arg)
     else if (!sc->sc_irq_dispatch_ready)
         error = EAGAIN;
     else {
+        /*
+         * A new IRQ owner must never inherit completed RX/TX work from
+         * the previous STOPPED generation. Do not clear on reenable
+         * within an existing requested lifetime: a masked hard IRQ may
+         * already have published valid pending work for that owner.
+         */
+        if (!sc->sc_irq_requested)
+            rtwn8723be_irq_pending_clear(sc->sc_irq_pending);
         sc->sc_irq_requested = true;
         rtwn8723be_netbsd_irq_arm_locked(sc);
     }
@@ -1243,9 +1251,15 @@ rtwn8723be_netbsd_disable_interrupt(void *arg)
     if (sc == NULL || !sc->sc_irq_lock_initialized)
         return ENXIO;
     mutex_enter(&sc->sc_irq_lock);
-    /* Disable is permanent until the owner explicitly enables it again. */
+    /*
+     * Retire every already-ACKed pending RX/TX/overflow bit under the
+     * SAME IRQ mutex used by hard-IRQ record and softint take.
+     * A queued softint must not consume events from an old device
+     * lifetime after a later enable_interrupt() has requested IRQs.
+     */
     sc->sc_irq_requested = false;
     rtwn8723be_netbsd_irq_mask_locked(sc);
+    rtwn8723be_irq_pending_clear(sc->sc_irq_pending);
     mutex_exit(&sc->sc_irq_lock);
     return 0;
 }
