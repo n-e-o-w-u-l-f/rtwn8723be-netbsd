@@ -132,7 +132,7 @@ static void mutex_destroy(kmutex_t *m)
 static void rtwn8723be_dp_rx(void *arg) { (void)arg; }
 static void rtwn8723be_dp_tx_done(void *arg, unsigned int qid)
 { (void)arg; (void)qid; }
-static void rtwn8723be_netbsd_irq_set_dispatch(
+static int rtwn8723be_netbsd_irq_set_dispatch(
     struct rtwn8723be_softc *sc,
     const struct rtwn8723be_irq_dispatch *irq, void *arg)
 {
@@ -141,6 +141,7 @@ static void rtwn8723be_netbsd_irq_set_dispatch(
     sc->sc_irq_dispatch_ready = false;
     memset(&sc->sc_irq_dispatch, 0, sizeof(sc->sc_irq_dispatch));
     revokes++;
+    return 0;
 }
 '''
 tail = r'''
