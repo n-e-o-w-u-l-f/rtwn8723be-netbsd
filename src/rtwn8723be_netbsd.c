@@ -1080,27 +1080,47 @@ rtwn8723be_netbsd_reset_trx_ring(void *arg)
     return 0;
 }
 
-void
+int
 rtwn8723be_netbsd_irq_set_dispatch(struct rtwn8723be_softc *sc,
     const struct rtwn8723be_irq_dispatch *dispatch, void *dispatch_arg)
 {
-    if (dispatch == NULL) {
-        memset(&sc->sc_irq_dispatch, 0, sizeof(sc->sc_irq_dispatch));
-        sc->sc_irq_arg = NULL;
-        sc->sc_irq_dispatch_ready = false;
-        return;
+    if (sc == NULL || !sc->sc_irq_lock_initialized)
+        return ENXIO;
+    if (dispatch == NULL && dispatch_arg != NULL)
+        return EINVAL;
+    /*
+     * Incomplete registration must not be advertised to enable_interrupt.
+     * The callback argument is part of the owner contract, not optional.
+     */
+    if (dispatch != NULL &&
+        (dispatch->rx == NULL || dispatch->tx_done == NULL ||
+         dispatch_arg == NULL))
+        return EINVAL;
+
+    mutex_enter(&sc->sc_irq_lock);
+    /*
+     * No callback pointer may be replaced or freed while either IRQ
+     * owner is active. The outer attach/detach lifecycle also excludes
+     * new callers, but this check closes races with irq_enable itself.
+     */
+    if (sc->sc_irq_requested || sc->sc_irq_enabled ||
+        sc->sc_ih != NULL || sc->sc_soft_ih != NULL ||
+        sc->sc_pihp != NULL) {
+        mutex_exit(&sc->sc_irq_lock);
+        return EBUSY;
     }
 
-    sc->sc_irq_dispatch = *dispatch;
-    sc->sc_irq_arg = dispatch_arg;
-
-    /*
-     * Linux enables IRQ only after the rings and RX path exist.
-     * Require both packet directions before allowing HIMR/HIMRE on.
-     */
-    sc->sc_irq_dispatch_ready =
-        sc->sc_irq_dispatch.rx != NULL &&
-        sc->sc_irq_dispatch.tx_done != NULL;
+    if (dispatch == NULL) {
+        sc->sc_irq_dispatch_ready = false;
+        memset(&sc->sc_irq_dispatch, 0, sizeof(sc->sc_irq_dispatch));
+        sc->sc_irq_arg = NULL;
+    } else {
+        sc->sc_irq_dispatch = *dispatch;
+        sc->sc_irq_arg = dispatch_arg;
+        sc->sc_irq_dispatch_ready = true;
+    }
+    mutex_exit(&sc->sc_irq_lock);
+    return 0;
 }
 
 int
