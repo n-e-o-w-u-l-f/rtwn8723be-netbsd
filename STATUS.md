@@ -2,6 +2,51 @@
 
 Source checkpoint: 2026-10-29 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — NET80211 REGISTER PRE-EFFECT OWNER ADMISSION (2026-10-29)
+
+The native `rtwn8723be_net80211_register` now refuses
+out-of-order or foreign registration **before** performing
+`if_initialize`, `ieee80211_ifattach`,
+`if_percpuq_create`, `if_register` or any
+regdomain/interface owner publication. New source-shared
+`rtwn8723be_net80211_registration_checkpoint_ok`
+requires EXACTLY `R23BE_STAGE_IEEE80211_REGISTER`
+and a clean, unstarted Linux hardware state.
+The real public registration function additionally checks
+`n == &sc->sc_net80211`, a saved PCI snapshot,
+mapped BAR, initialized core, 32-bit DMA tag/rings,
+native IRQ mutex and absence of preexisting IRQ
+dispatch/handles, datapath/RX binding or RFKill owner.
+Failure retains the original ownership without
+publishing a partially registered ifnet.
+
+New strict C11/UBSan
+`tests/test_net80211_registration_owner_admission.py`
+compiles the ACTUAL source-shared stage predicate
+and tests all major probe/start/stop states plus
+each leftover Linux state owner. It extracts the
+actual `net80211_register` function for source
+ordering and 14 mutation-resistant admission checks.
+Portable CI includes it.
+
+Disposable Linux x86_64 `legion` preliminary HEAD
+`b662541b591258077a9b005286177d0ba3f298b5`:
+**73/73 host-permitted Python regressions PASS**,
+0 FAIL, 12 of 85 target/reference tests not run;
+`git diff --check` against stacked PR #28 passed.
+See `docs/NET80211_REGISTRATION_ADMISSION_20261029.md`.
+
+The actual `register_ieee80211` ops callback remains
+UNBOUND: full, safe net80211 hardware start/stop and
+management/data TX framing/node ownership methods are
+not yet implemented. `bt_prepare` and `dm_init` also
+remain unbound: callback count stays **51/54**.
+The Linux full probe still fails at callback preflight,
+before any PCI/MMIO action. No NetBSD 11 48-unit
+kernel link, HP IRQ/DMA/WPA2 tests or experimental
+install/boot occurred; `main`, recovery `/netbsd`,
+`/boot.cfg` and i915 remain unchanged.
+
 ## SOURCE CHECKPOINT — REAL RFKILL PROBE LIFECYCLE CALLBACK BOUND (2026-10-29)
 
 The NetBSD/Linux-order probe callback `init_rfkill` is now
