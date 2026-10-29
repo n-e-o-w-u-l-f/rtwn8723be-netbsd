@@ -127,7 +127,7 @@ struct rtwn8723be_datapath {
     struct rtwn8723be_softc *sc;
     kmutex_t tx_lock;
     bool prepared, tx_enabled, stop_pending;
-    unsigned int tx_callback_active, rx_callback_active;
+    unsigned int tx_callback_active, rx_callback_active, tx_start_active;
     int tx_error;
     uint64_t tx_reclaimed;
     void (*tx_complete)(void *, unsigned int, size_t);
