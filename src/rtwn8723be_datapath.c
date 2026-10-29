@@ -119,6 +119,7 @@ rtwn8723be_datapath_prepare(struct rtwn8723be_datapath *dp,
     void *tx_complete_arg)
 {
     struct rtwn8723be_irq_dispatch irq;
+    int error;
 
     if (dp == NULL || sc == NULL || rx == NULL ||
         rx->frame == NULL || rx->c2h == NULL)
@@ -149,7 +150,15 @@ rtwn8723be_datapath_prepare(struct rtwn8723be_datapath *dp,
     memset(&irq, 0, sizeof(irq));
     irq.rx = rtwn8723be_dp_rx;
     irq.tx_done = rtwn8723be_dp_tx_done;
-    rtwn8723be_netbsd_irq_set_dispatch(sc, &irq, dp);
+    error = rtwn8723be_netbsd_irq_set_dispatch(sc, &irq, dp);
+    if (error != 0) {
+        /* Publication failed: no callback owns the native TX mutex. */
+        sc->sc_datapath = NULL;
+        dp->prepared = false;
+        mutex_destroy(&dp->tx_lock);
+        memset(dp, 0, sizeof(*dp));
+        return error;
+    }
     return 0;
 }
 
@@ -343,6 +352,7 @@ int
 rtwn8723be_datapath_unprepare(struct rtwn8723be_datapath *dp)
 {
     struct rtwn8723be_softc *sc;
+    int error;
 
     if (dp == NULL || !dp->prepared || dp->sc == NULL)
         return EINVAL;
@@ -394,7 +404,9 @@ rtwn8723be_datapath_unprepare(struct rtwn8723be_datapath *dp)
     }
     mutex_exit(&dp->tx_lock);
     /* External lifecycle excludes TX enqueue/softint before lock destroy. */
-    rtwn8723be_netbsd_irq_set_dispatch(sc, NULL, NULL);
+    error = rtwn8723be_netbsd_irq_set_dispatch(sc, NULL, NULL);
+    if (error != 0)
+        return error; /* Retain all owner storage on failed unbind. */
     sc->sc_datapath = NULL;
     mutex_destroy(&dp->tx_lock);
     memset(dp, 0, sizeof(*dp));
