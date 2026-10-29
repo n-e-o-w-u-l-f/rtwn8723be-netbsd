@@ -77,18 +77,24 @@ contract(ifstop, ioctl, retry, begin_stop, HEADER)
 
 def orphaned_hw_contract(media_body: str, ioctl_body: str) -> None:
     hw = "rtwn8723be_net80211_running_hw_stop_needed("
-    assert ioctl_body.count(hw) == 3
-    assert media_body.count(hw) == 1
+    quarantine = "rtwn8723be_net80211_hw_recovery_required("
+    assert ioctl_body.count(hw) == 1
+    assert media_body.count(hw) == 0
+    assert ioctl_body.count(quarantine) == 3
+    assert media_body.count(quarantine) == 1
     down = ioctl_body.index("(ifp->if_flags & (IFF_UP | IFF_RUNNING)) == 0")
     retry = ioctl_body.index("rtwn8723be_datapath_stop_retry_ready(", down)
     detached = ioctl_body.index("error = rtwn8723be_n80211_ifstop(n);", retry)
     assert down < retry < ioctl_body.index(hw, retry) < detached
+    assert detached < ioctl_body.index(quarantine, detached)
+    assert ioctl_body.index(quarantine, detached) < ioctl_body.index(
+        "error = EBUSY;", detached)
     multi = ioctl_body.index("case SIOCADDMULTI:")
     reset = ioctl_body.index("if (error == ENETRESET)", multi)
-    assert multi < ioctl_body.index(hw, multi) < reset
-    assert "&&\n            !" + hw in ioctl_body[multi:reset]
-    assert ioctl_body.index(hw, reset) < ioctl_body.rindex("error = EBUSY;")
-    assert media_body.index(hw) < media_body.rindex("return EBUSY;")
+    assert multi < ioctl_body.index(quarantine, multi) < reset
+    assert "&&\n            !" + quarantine in ioctl_body[multi:reset]
+    assert ioctl_body.index(quarantine, reset) < ioctl_body.rindex("error = EBUSY;")
+    assert media_body.index(quarantine) < media_body.rindex("return EBUSY;")
 
 def reset_contract(media_body: str, ioctl_body: str) -> None:
     assert "if (n == NULL || !n->registered || n->sc == NULL)" in media_body
@@ -113,11 +119,11 @@ orphan_negatives = (
     (media, ioctl.replace(
         "rtwn8723be_net80211_running_hw_stop_needed(", "false && (", 1)),
     (media, ioctl.replace(
-        "rtwn8723be_net80211_running_hw_stop_needed(", "false && (", 2)),
+        "rtwn8723be_net80211_hw_recovery_required(", "false && (", 1)),
     (media, ioctl.replace(
-        "rtwn8723be_net80211_running_hw_stop_needed(", "false && (", 3)),
+        "rtwn8723be_net80211_hw_recovery_required(", "false && (", 2)),
     (media.replace(
-        "rtwn8723be_net80211_running_hw_stop_needed(", "false && (", 1),
+        "rtwn8723be_net80211_hw_recovery_required(", "false && (", 1),
      ioctl),
 )
 for i, mutated in enumerate(orphan_negatives, 1):
