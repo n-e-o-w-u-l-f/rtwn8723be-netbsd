@@ -114,15 +114,16 @@ struct rtwn8723be_datapath {
     bool prepared, tx_enabled, stop_pending;
 };
 struct mbuf { int id; };
+struct ieee80211_node { int id; };
 struct rtwn8723be_tx_params { unsigned queue; };
 static int hardware_tx_calls, hardware_tx_error;
 static int rtwn8723be_tx_native_enqueue(struct rtwn8723be_softc *sc,
-    unsigned int qid, struct mbuf *m,
+    unsigned int qid, struct mbuf *m, struct ieee80211_node *ni,
     const struct rtwn8723be_tx_params *p, bool command)
 {
     assert(sc && sc->sc_datapath && sc->sc_datapath->tx_lock.held);
     assert(sc->sc_linux.stage == R23BE_STAGE_RUNNING);
-    assert(qid == 2 && m && m->id == 1 && p && !command);
+    assert(qid == 2 && m && m->id == 1 && ni && ni->id == 7 && p && !command);
     hardware_tx_calls++;
     return hardware_tx_error;
 }
@@ -150,6 +151,7 @@ int main(void)
     struct rtwn8723be_softc sc={0};
     struct rtwn8723be_datapath dp={0};
     struct mbuf m={.id=1};
+    struct ieee80211_node node={.id=7};
     struct rtwn8723be_tx_params params={.queue=2};
 
     assert(rtwn8723be_datapath_start(NULL) == EINVAL);
@@ -167,35 +169,36 @@ int main(void)
     assert(rtwn8723be_datapath_start(&dp) == EBUSY && !dp.tx_enabled);
     dp.stop_pending = false;
     assert(rtwn8723be_datapath_start(&dp) == 0 && dp.tx_enabled);
-    assert(rtwn8723be_datapath_enqueue(&dp,2,&m,&params,false) == 0);
+    assert(rtwn8723be_datapath_enqueue(&dp,2,&m,&node,&params,false) == 0);
     assert(hardware_tx_calls == 1 && enters == exits);
 
     /* STOPPING retains Linux started and firmware flags until STOPPED.
      * It is nevertheless NOT a valid TX DMA descriptor lifetime.
      */
     sc.sc_linux.stage = R23BE_STAGE_STOPPING;
-    assert(rtwn8723be_datapath_enqueue(&dp,2,&m,&params,false) == EAGAIN);
+    assert(rtwn8723be_datapath_enqueue(&dp,2,&m,&node,&params,false) == EAGAIN);
     assert(hardware_tx_calls == 1 && enters == exits);
     sc.sc_linux.stage = R23BE_STAGE_RUNNING;
     sc.sc_datapath = NULL;
-    assert(rtwn8723be_datapath_enqueue(&dp,2,&m,&params,false) == EAGAIN);
+    assert(rtwn8723be_datapath_enqueue(&dp,2,&m,&node,&params,false) == EAGAIN);
     assert(hardware_tx_calls == 1);
     sc.sc_datapath = &dp;
     sc.sc_linux.started = false;
-    assert(rtwn8723be_datapath_enqueue(&dp,2,&m,&params,false) == EAGAIN);
+    assert(rtwn8723be_datapath_enqueue(&dp,2,&m,&node,&params,false) == EAGAIN);
     sc.sc_linux.started = true;
     sc.sc_linux.fw_ready = false;
-    assert(rtwn8723be_datapath_enqueue(&dp,2,&m,&params,false) == EAGAIN);
+    assert(rtwn8723be_datapath_enqueue(&dp,2,&m,&node,&params,false) == EAGAIN);
     sc.sc_linux.fw_ready = true;
     dp.tx_enabled = false;
-    assert(rtwn8723be_datapath_enqueue(&dp,2,&m,&params,false) == EAGAIN);
+    assert(rtwn8723be_datapath_enqueue(&dp,2,&m,&node,&params,false) == EAGAIN);
     dp.tx_enabled = true;
     hardware_tx_error = EBUSY;
-    assert(rtwn8723be_datapath_enqueue(&dp,2,&m,&params,false) == EBUSY);
+    assert(rtwn8723be_datapath_enqueue(&dp,2,&m,&node,&params,false) == EBUSY);
     assert(hardware_tx_calls == 2);
-    assert(rtwn8723be_datapath_enqueue(&dp,2,NULL,&params,false) == EINVAL);
-    assert(rtwn8723be_datapath_enqueue(&dp,2,&m,NULL,false) == EINVAL);
-    assert(rtwn8723be_datapath_enqueue(NULL,2,&m,&params,false) == EINVAL);
+    assert(rtwn8723be_datapath_enqueue(&dp,2,NULL,&node,&params,false) == EINVAL);
+    assert(rtwn8723be_datapath_enqueue(&dp,2,&m,&node,NULL,false) == EINVAL);
+    assert(rtwn8723be_datapath_enqueue(NULL,2,&m,&node,&params,false) == EINVAL);
+    assert(rtwn8723be_datapath_enqueue(&dp,2,&m,NULL,&params,false) == EINVAL);
     assert(enters == exits && !dp.tx_lock.held);
     puts("RTL_NATIVE_DATAPATH_TX_STAGE_C11_UBSAN_OK");
     return 0;

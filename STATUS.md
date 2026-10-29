@@ -2,6 +2,70 @@
 
 Source checkpoint: 2026-10-29 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — NATIVE TX DMA + NET80211 NODE PAIRED OWNER (2026-10-29)
+
+The RTL8723BE old-TRX DMA TX slot previously retained
+only the caller's `mbuf`; the referenced
+`ieee80211_node` required by NetBSD net80211 TX
+lifetime was absent. Successful TX could therefore
+leave the node prematurely released or permanently
+unowned even though the descriptor was in PCI DMA.
+This source checkpoint implements the real NetBSD
+paired TX resource owner.
+
+`struct rtwn8723be_dma_slot` now stores
+`struct ieee80211_node *ni` in addition to `m`.
+Production `rtwn8723be_datapath_enqueue` and
+`rtwn8723be_tx_native_enqueue` both require a
+non-NULL, already referenced node. No new node
+reference is fabricated. On mapping, validation,
+encoding, queue admission or STOPPING failure,
+the caller still owns both `m` and `ni`.
+After valid DMA mapping and descriptor encoding,
+the native ring stores both references before
+the producer barrier and OWN bit. Reusing a slot
+with a leftover node is refused.
+
+**All three native TX-release paths now pair
+the node with the mbuf:** `tx_native_reclaim`,
+`netbsd_reset_trx_ring`, and
+`f16_1_tx_ring_free` release the reference
+through `ieee80211_free_node` only after
+DMA POSTWRITE/unload and `m_freem`, then
+clear the node pointer. Invalid DMA metadata
+still retains both resources in quarantine.
+
+Existing strict C11/UBSan production-extracted
+datapath enqueue and STOPPING tests were updated
+for the referenced node contract and remain
+green. New `tests/test_native_tx_node_dma_lifetime.py`
+compiles and executes actual native TX queue
+preflight under C11/UBSan; source-contract
+coverage checks DMA/descriptor ownership
+publication, all three release paths and
+eight deliberately unsafe source mutations.
+**Native bus_dma/MMIO enqueue and reclaim
+are not compiled by this portable test**;
+the full NetBSD kernel and physical HP tests
+are still required. CI includes the new test.
+
+Disposable `legion` Linux x86_64 preliminary
+head `5b812b139cad2e356d2e0b5f3258e8a8ea69af4e`:
+**74/74 host-permitted regression scripts PASS**,
+0 FAIL; 12 of 86 target-/reference-specific
+tests excluded. `git diff --check` against
+stacked PR #29 passed. Full details:
+`docs/NATIVE_TX_DMA_NET80211_NODE_OWNER_20261029.md`.
+
+`register_ieee80211`, `bt_prepare`, `dm_init`
+remain unbound (**51/54 callbacks**). Management/
+data queue dequeue, 802.11 encapsulation, encryption/
+key policy and actual net80211 TX callback are
+still missing. No full 48-C-unit NetBSD 11 kernel
+build or HP PCI/IRQ/DMA/WPA2 hardware test occurred.
+`main`, trusted F77 recovery `/netbsd`,
+`/boot.cfg`, i915 and HP PCI fallback untouched.
+
 ## SOURCE CHECKPOINT — NET80211 REGISTER PRE-EFFECT OWNER ADMISSION (2026-10-29)
 
 The native `rtwn8723be_net80211_register` now refuses

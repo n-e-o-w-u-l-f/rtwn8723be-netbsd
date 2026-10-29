@@ -1060,7 +1060,11 @@ rtwn8723be_netbsd_reset_trx_ring(void *arg)
                 }
                 m_freem(ring->slot[i].m);
                 ring->slot[i].m = NULL;
+                KASSERT(ring->slot[i].ni != NULL);
+                ieee80211_free_node(ring->slot[i].ni);
+                ring->slot[i].ni = NULL;
             }
+            KASSERT(ring->slot[i].ni == NULL);
 
             memset(&desc[i], 0, sizeof(desc[i]));
             next = ring->desc_dma.paddr +

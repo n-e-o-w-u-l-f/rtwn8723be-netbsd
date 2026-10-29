@@ -108,6 +108,7 @@ struct rtwn8723be_datapath {
     unsigned int tx_callback_active, rx_callback_active, tx_start_active;
 };
 struct mbuf { unsigned id; };
+struct ieee80211_node { unsigned id; };
 struct rtwn8723be_tx_params { unsigned queue; };
 static struct rtwn8723be_softc *active_sc;
 static int on_lock, locks, unlocks, native_enqueues, invoke_stop;
@@ -127,12 +128,12 @@ static void mutex_enter(kmutex_t *m)
 static void mutex_exit(kmutex_t *m)
 { assert(m && m->held); m->held = false; unlocks++; }
 static int rtwn8723be_tx_native_enqueue(struct rtwn8723be_softc *sc,
-    unsigned int qid, struct mbuf *m,
+    unsigned int qid, struct mbuf *m, struct ieee80211_node *ni,
     const struct rtwn8723be_tx_params *p, bool command)
 {
     assert(sc->sc_datapath->tx_lock.held && !command);
     assert(sc->sc_linux.stage == R23BE_STAGE_RUNNING);
-    assert(qid == 2 && m && p);
+    assert(qid == 2 && m && ni && ni->id == 17 && p);
     native_enqueues++;
     return 0;
 }
@@ -162,12 +163,13 @@ int main(void)
     struct rtwn8723be_softc sc;
     struct rtwn8723be_datapath dp;
     struct mbuf m = {.id = 3};
+    struct ieee80211_node node = {.id = 17};
     struct rtwn8723be_tx_params p = {.queue = 2};
 
     setup(&sc, &dp);
     assert(rtwn8723be_netbsd_begin_stop(&sc, &sc.sc_linux) == 0);
     assert(sc.sc_linux.stage == R23BE_STAGE_STOPPING && !dp.tx_enabled);
-    assert(rtwn8723be_datapath_enqueue(&dp, 2, &m, &p, false) == EAGAIN);
+    assert(rtwn8723be_datapath_enqueue(&dp, 2, &m, &node, &p, false) == EAGAIN);
     assert(native_enqueues == 0);
     balanced(&dp);
 
@@ -217,10 +219,10 @@ int main(void)
     balanced(&dp);
 
     setup(&sc, &dp);
-    assert(rtwn8723be_datapath_enqueue(&dp, 2, &m, &p, false) == 0);
+    assert(rtwn8723be_datapath_enqueue(&dp, 2, &m, &node, &p, false) == 0);
     assert(native_enqueues == 1);
     assert(rtwn8723be_netbsd_begin_stop(&sc, &sc.sc_linux) == 0);
-    assert(rtwn8723be_datapath_enqueue(&dp, 2, &m, &p, false) == EAGAIN);
+    assert(rtwn8723be_datapath_enqueue(&dp, 2, &m, &node, &p, false) == EAGAIN);
     assert(native_enqueues == 1);
     balanced(&dp);
 

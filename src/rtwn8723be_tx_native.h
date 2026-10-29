@@ -4,13 +4,18 @@
 
 #include <sys/types.h>
 #include <sys/mbuf.h>
+struct ieee80211_node;
 #include "rtwn8723be_netbsd.h"
 #include "rtwn8723be_tx_desc.h"
 
 /*
  * Native old-TRX DMA queue/reclaim (Linux rtlwifi/pci.c:rtl_pci_tx).
  *
- * The caller owns the mbuf on failure; the ring owns it after success.
+ * The caller owns BOTH mbuf and referenced net80211 node on failure;
+ * the TX ring owns BOTH after successful descriptor/DMA publication.
+ * The node must be referenced by the caller; do not take a second ref.
+ * The node is freed only after DMA POSTWRITE/unload on reclaim/reset/free.
+ * NULL nodes are forbidden for normal 802.11 frame TX.
  * The caller MUST serialize enqueue against IRQ/softint completion, stop,
  * reset and detach with an IPL_NET-compatible TX lock. No NetBSD ifnet
  * callback may invoke this adapter before lifecycle/locking closure.
@@ -19,7 +24,7 @@
  * mbufs BEFORE calling this function; EFBIG is returned otherwise.
  */
 int rtwn8723be_tx_native_enqueue(struct rtwn8723be_softc *,
-    unsigned int qid, struct mbuf *,
+    unsigned int qid, struct mbuf *, struct ieee80211_node *,
     const struct rtwn8723be_tx_params *, bool command);
 
 /*
