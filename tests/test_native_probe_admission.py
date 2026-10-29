@@ -45,8 +45,12 @@ def source_contract(source: str) -> None:
     assert "rtwn8723be_native_probe_cleanup(sc)" not in refusal
     # The missing real owner gates must not be hidden by a success-only check.
     ops = NETBSD.split("const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops", 1)[1]
-    for name in ("register_ieee80211", "init_rfkill", "bt_prepare", "dm_init"):
+    for name in ("register_ieee80211", "bt_prepare", "dm_init"):
         assert "." + name + " =" not in ops
+    assert ".init_rfkill = rtwn8723be_netbsd_init_rfkill," in ops
+    assert "rtwn8723be_rfkill_native_init(sc);" in NETBSD
+    assert "sc->sc_net80211.registered" in NETBSD
+    assert "sc->sc_net80211.sc != sc" in NETBSD
 
 
 source_contract(SOURCE)
