@@ -14,6 +14,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <sys/bus.h>
 #include <sys/endian.h>
 #include <sys/atomic.h>
+#include <net80211/ieee80211_var.h>
 
 #include "rtwn8723be_tx_native.h"
 
@@ -56,7 +57,7 @@ r23be_tx_queue_check(unsigned int qid, unsigned int fwq, bool command)
 
 int
 rtwn8723be_tx_native_enqueue(struct rtwn8723be_softc *sc,
-    unsigned int qid, struct mbuf *m,
+    unsigned int qid, struct mbuf *m, struct ieee80211_node *ni,
     const struct rtwn8723be_tx_params *input, bool command)
 {
     struct rtwn8723be_tx_ring *ring;
@@ -69,7 +70,7 @@ rtwn8723be_tx_native_enqueue(struct rtwn8723be_softc *sc,
     unsigned int idx;
     int error;
 
-    if (sc == NULL || m == NULL || input == NULL ||
+    if (sc == NULL || m == NULL || ni == NULL || input == NULL ||
         qid >= RTWN8723BE_TX_QUEUE_COUNT)
         return EINVAL;
     if (!sc->sc_mapped || !sc->sc_rings_allocated ||
@@ -101,7 +102,7 @@ rtwn8723be_tx_native_enqueue(struct rtwn8723be_softc *sc,
     idx = ring->producer;
     slot = &ring->slot[idx];
     desc = &((struct rtwn8723be_tx_desc *)ring->desc_dma.kva)[idx];
-    if (slot->m != NULL)
+    if (slot->m != NULL || slot->ni != NULL)
         return EBUSY;
     if (slot->map == NULL)
         return EIO;
@@ -162,6 +163,7 @@ rtwn8723be_tx_native_enqueue(struct rtwn8723be_softc *sc,
     bus_dmamap_sync(sc->sc_dmat, slot->map, 0,
         slot->map->dm_mapsize, BUS_DMASYNC_PREWRITE);
     slot->m = m;
+    slot->ni = ni;
     membar_producer();
     desc->d[0] = htole32(le32toh(desc->d[0]) | R23BE_TXD0_OWN);
     rtwn8723be_f16_1_dma_sync_for_device(sc->sc_dmat,
@@ -250,6 +252,9 @@ rtwn8723be_tx_native_reclaim(struct rtwn8723be_softc *sc,
         bus_dmamap_unload(sc->sc_dmat, slot->map);
         m_freem(slot->m);
         slot->m = NULL;
+        KASSERT(slot->ni != NULL);
+        ieee80211_free_node(slot->ni);
+        slot->ni = NULL;
 
         /* Keep the linked 64-byte PCI descriptor ring intact. */
         next = (uint32_t)(ring->desc_dma.paddr +
