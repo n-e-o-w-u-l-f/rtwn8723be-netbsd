@@ -1300,37 +1300,35 @@ rtwn8723be_netbsd_intr(void *arg)
     inta = rawa & sc->sc_irq_mask[0];
     intb = rawb & sc->sc_irq_mask[1];
 
-    if (inta != 0)
-        rtwn8723be_write_4(sc, R23BE_REG_HISR, inta);
-    if (intb != 0)
-        rtwn8723be_write_4(sc, R23BE_REG_HISRE, intb);
-
     /*
-     * HISRE RXFOVW is an independent RX event. An empty HISR alone must
-     * not discard that already-ACKed overflow: the softint consumes both
-     * banks and schedules RX when HISRE RXFOVW is set. Treat only BOTH
-     * empty banks as a shared/non-device interrupt; keep the Linux
-     * invalid all-ones INTA rejection.
+     * Reading PCI status requires dropping the IRQ lock, but neither
+     * W1C ACK nor pending publication may cross a STOP -> new enable.
+     * Recheck the epoch BEFORE touching the status registers again.
+     * Keep ACK and pending publication in the same IPL_NET section,
+     * so a new owner cannot begin between them.
      */
-    if ((inta | intb) == 0 || inta == 0xffffU) {
-        rtwn8723be_netbsd_irq_rearm_if_requested(sc);
+    mutex_enter(&sc->sc_irq_lock);
+    if (irq_epoch != sc->sc_irq_epoch ||
+        !sc->sc_irq_requested || !sc->sc_irq_dispatch_ready) {
+        mutex_exit(&sc->sc_irq_lock);
         return 0;
     }
 
     /*
-     * The permanent STOP may have revoked requested while MMIO status
-     * was read. Recheck under the owner lock rather than queue a stale
-     * completion for a softint that must no longer access RX/TX rings.
+     * HISRE RXFOVW is independent of HISR. A vector with only second
+     * bank bits must not be discarded as a shared interrupt.
      */
-    mutex_enter(&sc->sc_irq_lock);
-    /*
-     * STOP may have cleared pending and a fresh owner may already have
-     * called enable_interrupt() while HISR/HISRE MMIO was read. The
-     * requested flag alone then belongs to the NEW owner; reject a
-     * stale previous-epoch sample even though requested is true again.
-     */
-    if (irq_epoch != sc->sc_irq_epoch ||
-        !rtwn8723be_irq_pending_record(sc->sc_irq_pending,
+    if ((inta | intb) == 0 || inta == 0xffffU) {
+        mutex_exit(&sc->sc_irq_lock);
+        rtwn8723be_netbsd_irq_rearm_if_requested(sc);
+        return 0;
+    }
+
+    if (inta != 0)
+        rtwn8723be_write_4(sc, R23BE_REG_HISR, inta);
+    if (intb != 0)
+        rtwn8723be_write_4(sc, R23BE_REG_HISRE, intb);
+    if (!rtwn8723be_irq_pending_record(sc->sc_irq_pending,
         sc->sc_irq_requested, sc->sc_irq_dispatch_ready, inta, intb)) {
         mutex_exit(&sc->sc_irq_lock);
         return 0;
