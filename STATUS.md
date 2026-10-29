@@ -2,6 +2,55 @@
 
 Source checkpoint: 2026-10-29 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — ORPHANED RUNNING HARDWARE EXPLICIT DOWN RECOVERY (2026-10-29)
+
+The native net80211 control path now distinguishes **actual Linux
+RUNNING hardware** from cleared or stale `IFF_RUNNING` flags.
+A failed/false-success start or post-start RFKill rollback can
+leave `sc_linux.started && stage == RUNNING` while the ifnet is
+already DOWN **without** a `stop_pending` latch. Previously
+an explicit SIOCSIFFLAGS DOWN would not call `hw_stop` in this
+case, leaving a real PCI/MAC hardware owner with no supported
+ifnet retry path.
+
+New source-shared `rtwn8723be_net80211_running_hw_stop_needed`
+accepts only genuinely started RUNNING hardware, never a partial
+firmware start or interrupted STOPPING phase. The explicit DOWN
+path now attempts the actual `n80211_ifstop` when either this
+real hardware owner or the previous pending STOP predicate is
+present, leaving IFF_RUNNING cleared and relying on native
+`begin_stop` to revalidate callback/IRQ owners under `tx_lock`.
+Media change, generic `ENETRESET`, and the multicast
+ENETRESET shortcut now refuse false-success reconfiguration
+with `EBUSY` if a RUNNING MAC is hidden behind a DOWN ifnet.
+
+`tests/test_net80211_deferred_down_retry.py` executes the real
+production net80211 ifstop/ioctl/media and native begin_stop/
+stop-retry C bodies under strict C11/UBSan. It now tests orphaned
+RUNNING with no pending STOP, ignored multicast reset
+prevention, borrowed RX DMA deferral, false-success hardware
+STOP returning EIO, and foreign IRQ owner refusal. Four new
+unsafe orphan-check mutations are rejected in addition to the
+existing 11 DOWN and five ENETRESET source controls.
+New `tests/test_net80211_orphaned_running_hw_predicate.py`
+compiles and exercises the actual source-shared Linux RUNNING
+predicate under C11/UBSan with four negative source controls.
+Both are covered by CI.
+
+Disposable `legion` Linux x86_64 exact HEAD
+`d0f1c3e04feffb3a1b7b768e878d957b9cf995e2`:
+**70/70 host-permitted regression scripts PASS**,
+0 failures; 12 of 82 target-/pinned-reference-specific
+tests not run. `git diff --check` against PR #25 passed.
+See
+`docs/NET80211_ORPHANED_RUNNING_EXPLICIT_DOWN_RECOVERY_20261029.md`.
+
+This is an **explicit** user-initiated DOWN recovery, NOT an
+automatic deferred STOP worker or recovery of a partially
+started/STOPPING firmware controller. Native NetBSD 11 full
+48-unit kernel link, HP IRQ/DMA/WPA2 hardware tests and the
+four unbound lifecycle callbacks all remain OPEN.
+
 ## SOURCE CHECKPOINT — ATOMIC IRQ DISPATCH OWNER PUBLICATION (2026-10-29)
 
 The native `rtwn8723be_netbsd_irq_set_dispatch` now
