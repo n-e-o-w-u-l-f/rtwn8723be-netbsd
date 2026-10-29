@@ -176,7 +176,7 @@ static void mutex_destroy(kmutex_t *m)
 static void rtwn8723be_dp_rx(void *arg) { (void)arg; }
 static void rtwn8723be_dp_tx_done(void *arg, unsigned int id)
 { (void)arg; (void)id; }
-static void rtwn8723be_netbsd_irq_set_dispatch(
+static int rtwn8723be_netbsd_irq_set_dispatch(
     struct rtwn8723be_softc *sc,
     const struct rtwn8723be_irq_dispatch *callbacks, void *arg)
 {
@@ -185,6 +185,7 @@ static void rtwn8723be_netbsd_irq_set_dispatch(
     sc->sc_irq_arg = NULL;
     memset(&sc->sc_irq_dispatch, 0, sizeof(sc->sc_irq_dispatch));
     unbinds++;
+    return 0;
 }
 '''
 epilogue = r'''
