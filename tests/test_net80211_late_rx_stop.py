@@ -32,6 +32,8 @@ def extract(name: str, declaration: str, source: str = SOURCE) -> str:
 rx = extract("rtwn8723be_net80211_input", "int")
 tx = extract("rtwn8723be_n80211_ifstart", "static void")
 ready = extract("rtwn8723be_datapath_running_ready", "bool", DP)
+begin = extract("rtwn8723be_datapath_tx_start_begin", "bool", DP)
+end = extract("rtwn8723be_datapath_tx_start_end", "void", DP)
 
 def verify(rx_source: str, tx_source: str, ready_source: str) -> None:
     copied = rx_source.index("m = m_devget(")
@@ -61,9 +63,11 @@ def verify(rx_source: str, tx_source: str, ready_source: str) -> None:
         assert token in tx_source, token
     assert tx_source.index("n->sc->sc_linux.stage != R23BE_STAGE_RUNNING") < (
         tx_source.index("n->methods.tx_start(n->sc, ifp);"))
-    assert readiness in tx_source
-    assert tx_source.index(readiness) < tx_source.index(
-        "n->methods.tx_start(n->sc, ifp);")
+    acquire = "rtwn8723be_datapath_tx_start_begin(dp)"
+    release = "rtwn8723be_datapath_tx_start_end(dp);"
+    callback = "n->methods.tx_start(n->sc, ifp);"
+    assert acquire in tx_source and release in tx_source
+    assert tx_source.index(acquire) < tx_source.index(callback) < tx_source.index(release)
     assert "bool rtwn8723be_datapath_running_ready(" in DHP
     lock = ready_source.index("mutex_enter(&dp->tx_lock);")
     unlock = ready_source.index("mutex_exit(&dp->tx_lock);")
@@ -95,7 +99,7 @@ unsafe = (
     (rx, tx.replace("n->sc == NULL ||", "", 1)),
     (rx.replace("rtwn8723be_datapath_running_ready(n->sc->sc_datapath)", "true", 1), tx),
     (rx.replace("rtwn8723be_datapath_running_ready(n->sc->sc_datapath)", "true", 2), tx),
-    (rx, tx.replace("rtwn8723be_datapath_running_ready(n->sc->sc_datapath)", "true", 1)),
+    (rx, tx.replace("rtwn8723be_datapath_tx_start_begin(dp)", "true", 1)),
 )
 for i, (mutated_rx, mutated_tx) in enumerate(unsafe, 1):
     assert mutated_rx != rx or mutated_tx != tx, i
@@ -125,6 +129,7 @@ struct rtwn8723be_datapath {
     struct rtwn8723be_softc *sc;
     kmutex_t tx_lock;
     bool prepared, tx_enabled, stop_pending;
+    unsigned int tx_start_active;
 };
 struct ifnet { void *if_softc; unsigned int if_flags; };
 struct ieee80211_frame_min { uint8_t octets[24]; };
@@ -349,6 +354,7 @@ int main(void)
     assert(tx_calls == 1);
     assert(locks == unlocks && !held);
     assert(dp_locks == dp_unlocks && !sc.bridge.tx_lock.locked);
+    assert(sc.bridge.tx_start_active == 0);
     puts("RTL_NET80211_LATE_RX_STOP_TX_C11_UBSAN_OK");
     return 0;
 }
@@ -356,7 +362,7 @@ int main(void)
 with tempfile.TemporaryDirectory(prefix="rtl-n80211-late-rx-") as path:
     src = Path(path) / "check.c"
     out = Path(path) / "check"
-    src.write_text(prologue + ready + "\n" + rx + "\n" + tx + "\n" + epilogue)
+    src.write_text(prologue + ready + "\n" + begin + "\n" + end + "\n" + rx + "\n" + tx + "\n" + epilogue)
     subprocess.run([
         "cc", "-std=c11", "-Wall", "-Wextra", "-Werror", "-pedantic",
         "-fsanitize=undefined", "-fno-sanitize-recover=all",
