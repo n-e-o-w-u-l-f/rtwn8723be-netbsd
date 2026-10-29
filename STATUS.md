@@ -2,6 +2,48 @@
 
 Source checkpoint: 2026-10-27 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — DATAPATH UNPREPARE LINUX HARDWARE STAGE PROOF (2026-10-29)
+
+The native `rtwn8723be_datapath_unprepare` no longer
+permits IRQ callback revocation and TX-mutex destruction merely
+because IRQ/softint handles are disestablished, TX admission
+is disabled and all RX/TX callback references are zero.
+
+It now also checks **under the existing IPL_NET TX mutex**
+that Linux has no remaining `started`, `fw_ready`,
+`mac_func_enable` or `being_init_adapter` owner.
+Linux stages beyond `PROBED` (except fully `STOPPED`)
+are refused with `EBUSY`. This prevents release under
+still-RUNNING hardware, partially completed `STOPPING`,
+or an unjournalled pre-RUNNING hardware-start failure.
+A genuinely firmware-free, unstarted probe rollback up
+to `PROBED` and a completely STOPPED adapter remain
+eligible, subject to all existing IRQ/callback guarantees.
+
+New strict C11/UBSan
+`tests/test_datapath_unprepare_linux_lifecycle.py`
+compiles the **actual production unprepare function**
+and imports the real Linux stage enum. It tests early
+probe rollback, pre-RUNNING firmware phase, RUNNING with
+TX already disabled, interrupted STOPPING, stale firmware/
+MAC/initialization flags, callback references and an
+active softint handle. Fourteen unsafe source mutations
+are rejected. RX/TX lease harnesses now require a
+real STOPPED transition before successful unprepare.
+
+Disposable `legion` Linux x86_64 exact head
+`7e268b2368bfd01f14b3f9e639ecee054276bc06`:
+**66/66 host-permitted regression scripts PASS**,
+0 failures, 12 of 78 target/pinned-source scripts not run.
+`git diff --check` against stacked PR #20 succeeded.
+See `docs/DATAPATH_UNPREPARE_LINUX_STOPPED_PROOF_20261029.md`.
+
+This is a **fail-closed release precondition**, not a
+new hardware STOP controller, a real IRQ/softint drain or
+an automated EBUSY retry. Four unbound lifecycle callbacks,
+native NetBSD 11 full 48-C-unit link and actual HP RTL8723BE
+WLAN operation all remain OPEN.
+
 ## SOURCE CHECKPOINT — NET80211 TX-START CALLBACK LEASE (2026-10-29)
 
 The native net80211 `if_start` queue consumer now holds
