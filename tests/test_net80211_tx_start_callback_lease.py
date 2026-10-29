@@ -195,7 +195,11 @@ static void callback(struct rtwn8723be_softc *sc, struct ifnet *ifp)
     assert(rtwn8723be_datapath_begin_stop(dp, &sc->sc_linux) == EBUSY);
     assert(sc->sc_linux.stage == R23BE_STAGE_RUNNING);
     assert(dp->stop_pending && !dp->tx_enabled);
+    /* Model IRQ handlers already disestablished: only the lease can
+     * still prohibit unprepare. Restore IRQ owner after this probe. */
+    sc->sc_ih = NULL;
     assert(rtwn8723be_datapath_unprepare(dp) == EBUSY);
+    sc->sc_ih = sc;
     assert(dp->prepared && dp->tx_start_active == 1);
     assert(sc->sc_datapath == dp && sc->sc_irq_arg == dp);
     assert(destroys == 0 && unbinds == 0);
