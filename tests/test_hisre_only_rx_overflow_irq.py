@@ -199,6 +199,7 @@ static void mutex_enter(kmutex_t *m)
 static void mutex_exit(kmutex_t *m)
 { assert(m && m->held); m->held = false; exit_count++; }
 static int rtwn8723be_netbsd_disable_interrupt(void *);
+int rtwn8723be_netbsd_enable_interrupt(void *);
 static uint32_t rtwn8723be_read_4(struct rtwn8723be_softc *sc, int reg)
 {
     assert(sc && !sc->sc_irq_lock.held);
