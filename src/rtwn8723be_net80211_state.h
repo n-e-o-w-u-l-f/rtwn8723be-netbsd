@@ -22,6 +22,24 @@ rtwn8723be_net80211_start_checkpoint_ok(
 }
 
 /*
+ * An ifnet's IFF_RUNNING flag is not the authority for PCI/MAC lifetime.
+ * A false-success start or an incomplete RFKill rollback may leave Linux
+ * hardware genuinely RUNNING even after the interface is logically DOWN.
+ * A later explicit DOWN must be able to attempt a real hardware STOP.
+ *
+ * This is an advisory snapshot: begin_stop() revalidates real owners under
+ * the native TX mutex. STOPPING and partial-start states are NOT promoted
+ * back to RUNNING by this helper.
+ */
+static inline bool
+rtwn8723be_net80211_running_hw_stop_needed(
+    const struct rtwn8723be_linux_state *state)
+{
+    return state != NULL && state->started &&
+        state->stage == R23BE_STAGE_RUNNING;
+}
+
+/*
  * A net80211 registration can complete before RFKill/IRQ probe setup does.
  * Only an UNSTARTED, hardware-quiescent interface may be released by the
  * probe rollback without invoking a normal hardware STOP callback.
