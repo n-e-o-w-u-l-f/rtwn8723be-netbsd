@@ -35,7 +35,8 @@ def verify_native(src: str) -> None:
         "rtwn8723be_irq_pending_record(sc->sc_irq_pending,")
     record = hard.index("rtwn8723be_irq_pending_record(sc->sc_irq_pending,")
     assert hard.index("mutex_enter(&sc->sc_irq_lock);", hard.index(
-        "if ((inta | intb) == 0 || inta == 0xffffU)")) < record
+        "intb = rawb & sc->sc_irq_mask[1];")) < hard.index(
+        "if ((inta | intb) == 0 || inta == 0xffffU)") < record
     assert record < hard.index("mutex_exit(&sc->sc_irq_lock);", record)
     assert record < hard.index("softint_schedule(sc->sc_soft_ih);")
     assert "sc->sc_irq_requested, sc->sc_irq_dispatch_ready, inta, intb" in hard
