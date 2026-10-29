@@ -107,10 +107,12 @@ prefix = r'''
 #define KASSERT assert
 #define R23BE_STAGE_RUNNING 43
 #define R23BE_STAGE_STOPPING 44
+#define R23BE_STAGE_PROBED 18
+#define R23BE_STAGE_STOPPED 45
 
 typedef struct { bool held, destroyed; } kmutex_t;
 struct rtwn8723be_datapath;
-struct rtwn8723be_linux_state { int stage; bool started, fw_ready; };
+struct rtwn8723be_linux_state { int stage; bool started, fw_ready, mac_func_enable, being_init_adapter; };
 struct rtwn8723be_irq_dispatch {
     void (*rx)(void *);
     void (*tx_done)(void *, unsigned int);
@@ -215,6 +217,12 @@ int main(void)
     rtwn8723be_dp_rx(&dp);
     assert(drain_calls == 1);
 
+    /* A completed begin_stop is NOT a completed hardware shutdown. */
+    assert(rtwn8723be_datapath_unprepare(&dp) == EBUSY);
+    assert(sc.sc_datapath == &dp && dp.prepared);
+    sc.sc_linux.stage = R23BE_STAGE_STOPPED;
+    sc.sc_linux.started = false;
+    sc.sc_linux.fw_ready = false;
     assert(rtwn8723be_datapath_unprepare(&dp) == 0);
     assert(destroys == 1 && dispatch_revoked == 1);
     assert(sc.sc_datapath == NULL && !sc.sc_irq_dispatch_ready);

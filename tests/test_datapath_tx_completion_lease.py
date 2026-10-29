@@ -54,7 +54,7 @@ def contract(done_src: str, stop_src: str, unprepare_src: str,
 
     check = ("if (dp->tx_enabled || dp->stop_pending ||\n"
              "        dp->tx_callback_active != 0 || dp->rx_callback_active != 0 ||\n"
-             "        dp->tx_start_active != 0)")
+             "        dp->tx_start_active != 0 ||")
     lock = unprepare_src.index("mutex_enter(&dp->tx_lock);")
     test = unprepare_src.index(check)
     leave_busy = unprepare_src.index("return EBUSY;", test)
@@ -104,13 +104,15 @@ prefix = r'''
 #define KASSERT assert
 #define R23BE_STAGE_RUNNING 43
 #define R23BE_STAGE_STOPPING 44
+#define R23BE_STAGE_PROBED 18
+#define R23BE_STAGE_STOPPED 45
 #define RTWN8723BE_TX_QUEUE_COUNT 9
 
 typedef struct { bool held, destroyed; } kmutex_t;
 struct rtwn8723be_datapath;
 struct rtwn8723be_linux_state {
     int stage;
-    bool started, fw_ready;
+    bool started, fw_ready, mac_func_enable, being_init_adapter;
 };
 struct rtwn8723be_irq_dispatch {
     void (*rx)(void *);
@@ -215,6 +217,12 @@ int main(void)
     assert(rtwn8723be_datapath_begin_stop(&dp, &sc.sc_linux) == 0);
     assert(sc.sc_linux.stage == R23BE_STAGE_STOPPING);
     assert(!dp.stop_pending);
+    /* A completed begin_stop is NOT a completed hardware shutdown. */
+    assert(rtwn8723be_datapath_unprepare(&dp) == EBUSY);
+    assert(sc.sc_datapath == &dp && dp.prepared);
+    sc.sc_linux.stage = R23BE_STAGE_STOPPED;
+    sc.sc_linux.started = false;
+    sc.sc_linux.fw_ready = false;
     assert(rtwn8723be_datapath_unprepare(&dp) == 0);
     assert(destroys == 1 && unbinds == 1 && sc.sc_datapath == NULL);
     assert(!sc.sc_irq_dispatch_ready && sc.sc_irq_arg == NULL);

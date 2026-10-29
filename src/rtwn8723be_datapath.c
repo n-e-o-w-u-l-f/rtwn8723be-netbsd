@@ -370,9 +370,25 @@ rtwn8723be_datapath_unprepare(struct rtwn8723be_datapath *dp)
      * completion needs this same mutex to drop its lifetime reference.
      */
     mutex_enter(&dp->tx_lock);
+    /*
+     * A disabled TX admission gate and drained IRQ handlers are NOT
+     * proof that the Linux hardware STOP actually completed. In
+     * particular, an interrupted STOPPING phase may still own live
+     * firmware/MAC state. Preserve the bridge until real STOPPED or
+     * an unstarted, firmware-free probe rollback is established.
+     *
+     * Pre-RUNNING start failures retain stages beyond PROBED; even
+     * when fw_ready is not yet published they require a separate
+     * journalled hardware unwind, never a speculative unprepare.
+     */
     if (dp->tx_enabled || dp->stop_pending ||
         dp->tx_callback_active != 0 || dp->rx_callback_active != 0 ||
-        dp->tx_start_active != 0) {
+        dp->tx_start_active != 0 ||
+        sc->sc_linux.started || sc->sc_linux.fw_ready ||
+        sc->sc_linux.mac_func_enable ||
+        sc->sc_linux.being_init_adapter ||
+        (sc->sc_linux.stage != R23BE_STAGE_STOPPED &&
+         sc->sc_linux.stage > R23BE_STAGE_PROBED)) {
         mutex_exit(&dp->tx_lock);
         return EBUSY;
     }
