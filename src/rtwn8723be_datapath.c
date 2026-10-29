@@ -215,6 +215,45 @@ rtwn8723be_datapath_running_ready(struct rtwn8723be_datapath *dp)
 }
 
 /*
+ * The net80211 if_start callback is external and may reenter the STOP
+ * controller. Unlike a read-only RUNNING snapshot, this reference remains
+ * published throughout the whole external tx_start call. STOP must first
+ * close TX admission and return EBUSY; it may not enter STOPPING while a
+ * caller still borrows its ifnet/PCI bridge. No waiting under IPL_NET.
+ */
+bool
+rtwn8723be_datapath_tx_start_begin(struct rtwn8723be_datapath *dp)
+{
+    struct rtwn8723be_softc *sc;
+    bool ready;
+
+    if (dp == NULL || !dp->prepared || dp->sc == NULL)
+        return false;
+    sc = dp->sc;
+    mutex_enter(&dp->tx_lock);
+    ready = dp->tx_enabled && !dp->stop_pending &&
+        sc->sc_datapath == dp && sc->sc_irq_arg == dp &&
+        sc->sc_irq_dispatch_ready && sc->sc_ih != NULL &&
+        sc->sc_mapped && sc->sc_rings_allocated &&
+        sc->sc_linux.started && sc->sc_linux.fw_ready &&
+        sc->sc_linux.stage == R23BE_STAGE_RUNNING;
+    if (ready)
+        dp->tx_start_active++;
+    mutex_exit(&dp->tx_lock);
+    return ready;
+}
+
+void
+rtwn8723be_datapath_tx_start_end(struct rtwn8723be_datapath *dp)
+{
+    KASSERT(dp != NULL && dp->prepared && dp->sc != NULL);
+    mutex_enter(&dp->tx_lock);
+    KASSERT(dp->tx_start_active != 0);
+    dp->tx_start_active--;
+    mutex_exit(&dp->tx_lock);
+}
+
+/*
  * A complete RUNNING hardware owner must close TX descriptor admission
  * and enter STOPPING as ONE transition. The stage is shared with the
  * Linux-order stop controller, which will subsequently disable IRQ and
@@ -243,7 +282,7 @@ rtwn8723be_datapath_begin_stop(struct rtwn8723be_datapath *dp,
         dp->tx_enabled = false;
         error = EAGAIN;
     } else if (dp->rx_callback_active != 0 ||
-        dp->tx_callback_active != 0) {
+        dp->tx_callback_active != 0 || dp->tx_start_active != 0) {
         /*
          * Do not begin destructive hardware STOP with borrowed RX DMA
          * or external TX-completion callbacks still executing. Close
@@ -332,7 +371,8 @@ rtwn8723be_datapath_unprepare(struct rtwn8723be_datapath *dp)
      */
     mutex_enter(&dp->tx_lock);
     if (dp->tx_enabled || dp->stop_pending ||
-        dp->tx_callback_active != 0 || dp->rx_callback_active != 0) {
+        dp->tx_callback_active != 0 || dp->rx_callback_active != 0 ||
+        dp->tx_start_active != 0) {
         mutex_exit(&dp->tx_lock);
         return EBUSY;
     }
