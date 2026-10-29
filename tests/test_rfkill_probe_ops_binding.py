@@ -33,6 +33,7 @@ def extract(src: str, name: str, typ: str) -> str:
 adapter = extract(NET, "rtwn8723be_netbsd_init_rfkill", "static int")
 init = extract(RF, "rtwn8723be_rfkill_native_init", "int")
 worker = extract(RF, "rtwn8723be_rfkill_worker", "static void")
+timer = extract(RF, "rtwn8723be_rfkill_timer", "static void")
 fini = extract(RF, "rtwn8723be_rfkill_native_fini", "int")
 
 def contract(a: str, b: str, c: str) -> None:
@@ -138,7 +139,7 @@ struct rtwn8723be_softc {
 };
 static int create_error, gpio_error, create_count, destroy_count;
 static int callout_init_count, callout_destroy_count, halt_count, wait_count;
-static int gpio_count, schedule_count;
+static int gpio_count, schedule_count, enqueue_count;
 static bool gpio_valid = true, gpio_on = true;
 static bool hard_irq, soft_irq;
 static struct workqueue queue;
@@ -169,6 +170,8 @@ static int workqueue_create(struct workqueue **target,const char *name,
     if (create_error) return create_error;
     *target = &queue; return 0;
 }
+static void workqueue_enqueue(struct workqueue *wq,struct work *wk,void *cpu)
+{ assert(wq==&queue && wk && cpu==NULL); enqueue_count++; }
 static void workqueue_wait(struct workqueue *wq,struct work *wk)
 { assert(wq==&queue && wk);wait_count++; }
 static void workqueue_destroy(struct workqueue *wq)
@@ -193,7 +196,7 @@ static void reset(struct rtwn8723be_softc *sc)
     sc->sc_core_initialized=true;
     create_error=gpio_error=create_count=destroy_count=0;
     callout_init_count=callout_destroy_count=halt_count=wait_count=0;
-    gpio_count=schedule_count=0;
+    gpio_count=schedule_count=enqueue_count=0;
     gpio_valid=gpio_on=true;
     hard_irq=soft_irq=false;
 }
@@ -266,6 +269,12 @@ int main(void)
     assert(rtwn8723be_netbsd_init_rfkill(&sc)==0);
     assert(sc.sc_rfkill_native.last_valid && sc.sc_rfkill_native.last_radio_on);
     assert(rtwn8723be_netbsd_init_rfkill(&sc)==EALREADY);
+    rtwn8723be_rfkill_timer(&sc);
+    assert(sc.sc_rfkill_native.work_queued && enqueue_count==1);
+    rtwn8723be_rfkill_timer(&sc);
+    assert(enqueue_count==1); /* Cannot requeue same outstanding work. */
+    rtwn8723be_rfkill_worker(&sc.sc_rfkill_native.poll_work,&sc);
+    assert(!sc.sc_rfkill_native.work_queued && schedule_count==2);
     assert(rtwn8723be_rfkill_native_fini(&sc)==0);
     assert(halt_count==1 && wait_count==1 && destroy_count==1 &&
         callout_destroy_count==1);
@@ -279,8 +288,8 @@ int main(void)
 with tempfile.TemporaryDirectory(prefix="rtl-rfkill-ops-binding-") as td:
     source = Path(td) / "check.c"
     exe = Path(td) / "check"
-    source.write_text(prefix + "\n" + worker + "\n" + init + "\n" +
-                      fini + "\n" + adapter + "\n" + tail)
+    source.write_text(prefix + "\n" + worker + "\n" + timer + "\n" +
+                      init + "\n" + fini + "\n" + adapter + "\n" + tail)
     subprocess.run(["cc","-std=c11","-Wall","-Wextra","-Werror",
                     "-pedantic","-fsanitize=undefined",
                     "-fno-sanitize-recover=all","-I",str(ROOT/"src"),
