@@ -1,6 +1,49 @@
 # RTL8723BE NetBSD project status
 
-Source checkpoint: 2026-10-27 (last verified HP native build: 2026-10-11)
+Source checkpoint: 2026-10-29 (last verified HP native build: 2026-10-11)
+
+## SOURCE CHECKPOINT — HISRE-ONLY RX OVERFLOW IRQ DELIVERY (2026-10-29)
+
+The native RTL8723BE `HISR/HISRE` hard IRQ now handles a
+second-bank-only `HISRE RXFOVW` signal even when the
+first-bank `HISR INTA` mask is empty. Previously the hard
+IRQ acknowledged HISRE and prematurely treated `inta == 0`
+as a shared interrupt, dropping a legitimate RX overflow
+without notifying the existing SOFTINT_NET RX consumer.
+
+The shared/non-device test is now **both masked banks
+empty**: `(inta | intb) == 0`. The existing all-ones
+invalid vector and permanent STOP guards remain active.
+HISRE-only overflow is recorded in the IRQ pending ledger
+under `sc_irq_lock`, scheduled into SOFTINT_NET and
+delivered to the existing RX handler; STOP either before
+record or between scheduling and softint execution drops
+the event without re-enabling interrupts.
+
+New `tests/test_hisre_only_rx_overflow_irq.py`
+compiles **the actual production NetBSD hard IRQ,
+softint, mask, arm, rearm, enable and disable C bodies**
+with the real shared pending ledger and hardware macro
+definitions extracted from the native register header.
+It verifies HISRE-only RX, dual-bank RX/TX, shared
+interrupts, invalid MMIO bus reads, permanent STOP
+races, and no stale RX delivery or IRQ rearm. Eleven
+unsafe source mutations are rejected. The existing
+IRQ pending source-order test now enforces the revised
+both-bank empty condition; CI executes both tests.
+
+Exact disposable `legion` Linux x86_64 head
+`37e5279f31fe6e96e8d80a53b2dfaac0f21c4c9a`:
+**68/68 host-permitted Python regressions PASS**, zero
+failures; 12 of 80 target-/reference-specific scripts not
+run. `git diff --check` against stacked PR #22 passed.
+See `docs/HISRE_ONLY_RX_OVERFLOW_20261029.md`.
+
+This is an interrupt delivery fix, **not** full NetBSD
+SMP/PCI/IRQ hardware verification or a sleepable
+automatic STOP retry. Four Linux lifecycle callbacks
+remain unbound; the native 48-unit kernel build and
+actual HP RTL8723BE WLAN tests remain outstanding.
 
 ## SOURCE CHECKPOINT — NET80211 FINAL ASYNC OWNER DETACH GATE (2026-10-29)
 
