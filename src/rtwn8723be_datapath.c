@@ -388,8 +388,7 @@ rtwn8723be_datapath_unprepare(struct rtwn8723be_datapath *dp)
         sc->sc_linux.mac_func_enable ||
         sc->sc_linux.being_init_adapter ||
         (sc->sc_linux.stage != R23BE_STAGE_STOPPED &&
-         (sc->sc_linux.stage < R23BE_STAGE_IDLE ||
-          sc->sc_linux.stage > R23BE_STAGE_PROBED))) {
+         sc->sc_linux.stage > R23BE_STAGE_PROBED)) {
         mutex_exit(&dp->tx_lock);
         return EBUSY;
     }
