@@ -6,7 +6,7 @@ import re
 import sys
 
 EXPECTED_MISSING = {
-    "probe": ("register_ieee80211", "init_rfkill"),
+    "probe": ("register_ieee80211",),
     "start": ("bt_prepare", "dm_init"),
     "stop": (),
 }
@@ -202,8 +202,14 @@ def check(root, require_closure=False):
         raise ValueError("source or native build manifest changed; re-inventory required")
     if set(missing) != expected:
         raise ValueError("callback inventory changed: now missing " + repr(missing))
-    if len(bound) != 50:
+    if len(bound) != 51:
         raise ValueError("bound callback count changed; re-inventory required")
+    if dict(bound).get("init_rfkill") != "rtwn8723be_netbsd_init_rfkill":
+        raise ValueError("real RFKill probe callback is no longer bound")
+    if "sc->sc_net80211.sc != sc" not in body:
+        raise ValueError("RFKill callback must reject foreign net80211 owner")
+    if "return rtwn8723be_rfkill_native_init(sc);" not in body:
+        raise ValueError("RFKill binding must reach real native GPIO/workqueue owner")
     if dict(bound).get("wait_rf_change_idle") != \
             "rtwn8723be_netbsd_wait_rf_change_idle":
         raise ValueError("RF-change wait callback binding changed")
