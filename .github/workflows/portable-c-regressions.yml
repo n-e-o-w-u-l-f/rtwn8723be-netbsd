@@ -160,9 +160,9 @@ jobs:
         run: python3 tests/test_native_stopping_tx_atomic.py
       - name: Verify RX/C2H owner release and staged Bluetooth admission
         run: python3 tests/test_rx_binding_owner_lifetime.py
-      - name: Serialize and drain pending hard/soft IRQ work (C11 / UBSan)
+      - name: Serialize IRQ pending and reject stale hard-IRQ epoch before W1C ACK (C11 / UBSan)
         run: python3 tests/test_irq_pending_quiescence.py
-      - name: Dispatch HISRE-only RX FIFO overflow through native hard and soft IRQ (C11 / UBSan)
+      - name: Dispatch HISRE overflow and quarantine pending IRQ across STOP/restart (C11 / UBSan)
         run: python3 tests/test_hisre_only_rx_overflow_irq.py
       - name: Gate Bluetooth MP C2H under native IPL_SOFTNET lock (C11 / UBSan)
         run: python3 tests/test_bt_mp_rx_gate.py
