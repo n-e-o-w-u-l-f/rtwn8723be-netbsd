@@ -2,6 +2,58 @@
 
 Source checkpoint: 2026-10-29 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — REAL RFKILL PROBE LIFECYCLE CALLBACK BOUND (2026-10-29)
+
+The NetBSD/Linux-order probe callback `init_rfkill` is now
+**genuinely bound**, reducing the missing callback table
+from **four to three** (`register_ieee80211`,
+`bt_prepare`, `dm_init`). The new
+`rtwn8723be_netbsd_init_rfkill` adapter requires a
+registered net80211 interface whose `sc` points to
+the same native device, then calls the existing
+`rtwn8723be_rfkill_native_init`. Linux probe
+sets `R23BE_STAGE_RFKILL` before this callback;
+the real native owner separately enforces this stage,
+sleepable noninterrupt execution, BAR/core/RF-PS
+availability, real GPIO sampling, periodic NetBSD
+workqueue polling and complete rollback.
+
+The native post-registration unwind already calls
+`rtwn8723be_rfkill_native_fini` after IRQ/datapath/RX
+teardown and before net80211 unregister. The real
+fini halts the timer, drains `poll_work`, destroys
+its queue, timer and lock in the required order.
+The newly added strict production-extracted C11/UBSan
+`tests/test_rfkill_probe_ops_binding.py`
+compiles/runs the real wrapper, RFKill init, timer,
+worker and fini under simulated NetBSD lifecycle.
+It verifies missing/foreign interface refusal,
+wrong stage/IRQ context, failed workqueue/GPIO
+allocation rollback, busy sample, no duplicate
+pending poll enqueue, and idempotent teardown.
+Nine unsafe mutations fail.
+
+Other source contracts and the callback inventory
+now require **51/54** bound and prove the real RFKill
+owner+reverse dependency, rather than incorrectly
+prohibiting the newly implemented callback.
+The portable CI workflow includes the new test.
+See `docs/RFKILL_REAL_PROBE_OPS_BINDING_20261029.md`.
+
+Disposable Linux x86_64 `legion` at source HEAD
+`d1ecfe87814b095922be46756dc5b57611c5e601`:
+**72/72 host-permitted regression scripts PASS**,
+0 FAIL; 12 of 84 target/reference tests excluded;
+`git diff --check` against PR #27 passed.
+
+The native `register_ieee80211` probe callback
+remains unbound so full Linux probe preflight still
+returns ENOSYS **before any PCI/MMIO side effects**.
+No NetBSD 11 native 48-C-unit kernel build,
+HP PCI/RFKill/DMA validation, or WLAN association
+has occurred. Recovery `/netbsd`, `/boot.cfg`,
+i915 and `main` remain unchanged.
+
 ## SOURCE CHECKPOINT — UNFINISHED STOPPING / PARTIAL FIRMWARE QUARANTINE (2026-10-29)
 
 The earlier explicit DOWN retry correctly stops real `started &&
