@@ -63,7 +63,6 @@ def contract(hard_src: str, soft_src: str, rearm_src: str) -> None:
     assert "sc->sc_irq_dispatch.rx(sc->sc_irq_arg);" in soft_src
     assert soft_src.index("rtwn8723be_irq_pending_take(") < (
         soft_src.index("sc->sc_irq_dispatch.rx("))
-    assert soft_src.index("rtwn8723be_irq_rearm_if_requested") if False else True
     assert "rtwn8723be_netbsd_irq_rearm_if_requested(sc);" in soft_src
     assert "sc->sc_irq_requested && sc->sc_mapped &&" in rearm_src
     assert "sc->sc_ih != NULL && sc->sc_soft_ih != NULL &&" in rearm_src
@@ -319,8 +318,10 @@ int main(void)
 with tempfile.TemporaryDirectory(prefix="rtl-hisre-overflow-") as td:
     source = Path(td) / "test.c"
     exe = Path(td) / "test"
-    source.write_text(prefix + "\n" + "\n".join(defines) + "\n" +
-        mask + "\n" + arm + "\n" + rearm + "\n" +
+    source.write_text(prefix.replace(
+        "typedef struct { bool held; } kmutex_t;",
+        "\n".join(defines) + "\ntypedef struct { bool held; } kmutex_t;"
+    ) + "\n" + mask + "\n" + arm + "\n" + rearm + "\n" +
         enable + "\n" + disable + "\n" + hard + "\n" + soft + "\n" + tail)
     subprocess.run([
         "cc", "-std=c11", "-Wall", "-Wextra", "-Werror", "-pedantic",
