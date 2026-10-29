@@ -134,8 +134,10 @@ jobs:
         run: python3 tests/test_net80211_false_stop_unregister.py
       - name: Refuse net80211 detach while IRQ, RX, datapath or RFKill owner remains (C11 / UBSan)
         run: python3 tests/test_net80211_owner_drained_unregister.py
-      - name: Retry deferred STOP on explicit net80211 DOWN ioctl (C11 / UBSan)
+      - name: Retry deferred and orphaned RUNNING hardware STOP on explicit net80211 DOWN (C11 / UBSan)
         run: python3 tests/test_net80211_deferred_down_retry.py
+      - name: Classify real hardware RUNNING STOP ownership independently of IFF_RUNNING (C11 / UBSan)
+        run: python3 tests/test_net80211_orphaned_running_hw_predicate.py
       - name: Inert runtime-owner lifecycle foundation
         run: python3 tests/test_runtime_owner.py
       - name: Pure BTC context preparation (strict C11 / UBSan)
