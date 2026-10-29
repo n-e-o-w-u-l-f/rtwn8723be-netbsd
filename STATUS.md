@@ -2,6 +2,54 @@
 
 Source checkpoint: 2026-10-27 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — NET80211 FINAL ASYNC OWNER DETACH GATE (2026-10-29)
+
+The production `rtwn8723be_net80211_unregister` now rejects
+direct ifnet/net80211 detach with EBUSY when **any outstanding
+NetBSD asynchronous owner** still refers to its native softc:
+hard IRQ, SOFTINT_NET handler, PCI interrupt handles or IRQ
+state flags; published RX/TX/power IRQ dispatch callbacks or
+dispatch argument; native datapath and RX binding; RFKill
+worker initialized/active state or its workqueue.
+
+A successful Linux MAC STOP is **not evidence of net80211
+callback quiescence**. This final owner check runs after
+the existing hardware-stop/postcondition path but before
+security policy clearing, `ieee80211_ifdetach`,
+`if_detach` or clearing `registered`. It retains the
+registered interface and callback methods on EBUSY;
+the external lifecycle must drain owners and retry.
+The existing failed-probe rollback already performs
+IRQ -> datapath -> RX binding -> RFKill -> net80211,
+and the public unregister now independently enforces
+the matching final release precondition.
+
+New strict portable C11/UBSan
+`tests/test_net80211_owner_drained_unregister.py`
+compiles **the actual production ifstop and unregister
+C functions** and exercises fifteen independently live
+async owners, one by one; none may permit net80211
+detach. It also tests a genuinely RUNNING adapter whose
+hardware STOP succeeds while IRQ/RFKill remain live,
+requiring a subsequent explicit unregister. Nineteen
+unsafe source mutations are rejected. The previous
+false-success hardware STOP test remains active with
+its complete mock owner fields; CI includes the new
+script.
+
+Disposable `legion` Linux x86_64 exact HEAD
+`cf2e4c18135a861d3463055dbdd3322db375ba8b`:
+**67/67 host-permitted tests PASS**, 0 failures,
+12 of 79 NetBSD/HP or pinned-reference tests excluded;
+`git diff --check` against stacked PR #21 succeeded.
+See `docs/NET80211_FINAL_OWNER_DETACH_GATE_20261029.md`.
+
+This is a fail-closed release state gate, NOT a complete
+native IRQ/softint drain, automatic STOP retry, SMP
+exclusion or fully linked HP Wi-Fi driver. Four native
+Linux lifecycle callbacks remain unbound; native
+NetBSD kernel and WLAN validation are still open.
+
 ## SOURCE CHECKPOINT — DATAPATH UNPREPARE LINUX HARDWARE STAGE PROOF (2026-10-29)
 
 The native `rtwn8723be_datapath_unprepare` no longer
