@@ -2398,6 +2398,30 @@ rtwn8723be_netbsd_begin_stop(void *arg,
 }
 
 /*
+ * Linux rtl_pci_probe -> rtl_init_rfkill must occur AFTER successful
+ * ieee80211 registration. The real native RFKill owner provides the GPIO
+ * sample, timer and sleepable workqueue plus a rollback/fini path; this
+ * adapter only establishes its registration dependency. Never publish a
+ * poller against a foreign, incomplete or already detached ifnet.
+ *
+ * linux_probe sets stage=RFKILL before invoking this callback. Its
+ * mandatory probe preflight still refuses absent ieee80211, BT and DM
+ * callbacks before performing any PCI/MMIO writes.
+ */
+static int
+rtwn8723be_netbsd_init_rfkill(void *arg)
+{
+    struct rtwn8723be_softc *sc = arg;
+
+    if (sc == NULL)
+        return EINVAL;
+    if (!sc->sc_net80211.registered ||
+        sc->sc_net80211.sc != sc)
+        return EAGAIN;
+    return rtwn8723be_rfkill_native_init(sc);
+}
+
+/*
  * Foundation of the full Linux probe/start state machine.  Unspecified
  * callbacks remain NULL until their exact Linux hardware semantics have been
  * ported; rtwn8723be_linux_state.c will reject such an incomplete transition
@@ -2418,6 +2442,7 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .init_aspm = rtwn8723be_netbsd_init_aspm,
     .init_core = rtwn8723be_netbsd_init_core,
     .init_pci_rings = rtwn8723be_netbsd_init_pci_rings,
+    .init_rfkill = rtwn8723be_netbsd_init_rfkill,
     .reset_trx_ring = rtwn8723be_netbsd_reset_trx_ring,
     .disable_aspm = rtwn8723be_netbsd_disable_aspm,
     .read_cr = rtwn8723be_netbsd_read_cr,
