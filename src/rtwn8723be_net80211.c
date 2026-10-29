@@ -227,6 +227,16 @@ rtwn8723be_n80211_ioctl(struct ifnet *ifp, u_long cmd, void *data)
              * IFF_RUNNING, and lets begin_stop revalidate under tx_lock.
              */
             error = rtwn8723be_n80211_ifstop(n);
+        } else if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) == 0 &&
+            rtwn8723be_net80211_hw_recovery_required(
+                &n->sc->sc_linux)) {
+            /*
+             * STOPPING or a failed pre-RUNNING firmware init cannot be
+             * resumed through the normal RUNNING hw_stop path. Keep
+             * the interface logically DOWN, but report the unresolved
+             * recovery obligation rather than falsely returning success.
+             */
+            error = EBUSY;
         }
         break;
     case SIOCADDMULTI:
@@ -236,7 +246,7 @@ rtwn8723be_n80211_ioctl(struct ifnet *ifp, u_long cmd, void *data)
         if (error == ENETRESET && (ifp->if_flags & IFF_RUNNING) == 0 &&
             !rtwn8723be_datapath_stop_retry_ready(
                 n->sc->sc_datapath) &&
-            !rtwn8723be_net80211_running_hw_stop_needed(
+            !rtwn8723be_net80211_hw_recovery_required(
                 &n->sc->sc_linux))
             error = 0;
         break;
@@ -253,7 +263,7 @@ rtwn8723be_n80211_ioctl(struct ifnet *ifp, u_long cmd, void *data)
                 error = rtwn8723be_n80211_ifinit(ifp);
         } else if (rtwn8723be_datapath_stop_retry_ready(
             n->sc->sc_datapath) ||
-            rtwn8723be_net80211_running_hw_stop_needed(
+            rtwn8723be_net80211_hw_recovery_required(
                 &n->sc->sc_linux)) {
             /*
              * A real hardware RUNNING owner may be orphaned behind
@@ -292,7 +302,7 @@ rtwn8723be_n80211_media_change(struct ifnet *ifp)
      * pending hardware STOP or claim successful reconfiguration.
      */
     if (rtwn8723be_datapath_stop_retry_ready(n->sc->sc_datapath) ||
-        rtwn8723be_net80211_running_hw_stop_needed(
+        rtwn8723be_net80211_hw_recovery_required(
             &n->sc->sc_linux))
         return EBUSY;
     return 0;
