@@ -66,11 +66,14 @@ assert "if (error != 0)" in cleanup
 assert "return;" in cleanup.split("if (error != 0)", 1)[1].split("\n    }", 1)[0]
 assert "if (sc->sc_linux.stage >= R23BE_STAGE_IEEE80211_REGISTER)\n        return EBUSY;" not in native
 
-# The existing four real-owner gaps remain blocked, and no runtime PCI
-# attachment, hardware init or i915 policy is introduced by this change.
+# The remaining three real-owner gaps stay blocked. The RFKill probe
+# callback is genuinely implemented and retains the existing reverse owner.
+# No runtime PCI attach, hardware init or i915 policy is enabled.
 ops = netbsd.split("const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops", 1)[1]
-for slot in ("register_ieee80211", "init_rfkill", "bt_prepare", "dm_init"):
+for slot in ("register_ieee80211", "bt_prepare", "dm_init"):
     assert "." + slot + " =" not in ops
+assert ".init_rfkill = rtwn8723be_netbsd_init_rfkill," in ops
+assert "rtwn8723be_rfkill_native_fini(sc);" in native
 
 HARNESS = r'''
 #include <assert.h>

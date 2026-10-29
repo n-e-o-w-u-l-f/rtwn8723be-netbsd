@@ -6,7 +6,7 @@ import re
 import sys
 
 EXPECTED_MISSING = {
-    "probe": ("register_ieee80211", "init_rfkill"),
+    "probe": ("register_ieee80211",),
     "start": ("bt_prepare", "dm_init"),
     "stop": (),
 }
@@ -202,8 +202,14 @@ def check(root, require_closure=False):
         raise ValueError("source or native build manifest changed; re-inventory required")
     if set(missing) != expected:
         raise ValueError("callback inventory changed: now missing " + repr(missing))
-    if len(bound) != 50:
+    if len(bound) != 51:
         raise ValueError("bound callback count changed; re-inventory required")
+    if dict(bound).get("init_rfkill") != "rtwn8723be_netbsd_init_rfkill":
+        raise ValueError("real RFKill probe callback is no longer bound")
+    if "sc->sc_net80211.sc != sc" not in body:
+        raise ValueError("RFKill callback must reject foreign net80211 owner")
+    if "return rtwn8723be_rfkill_native_init(sc);" not in body:
+        raise ValueError("RFKill binding must reach real native GPIO/workqueue owner")
     if dict(bound).get("wait_rf_change_idle") != \
             "rtwn8723be_netbsd_wait_rf_change_idle":
         raise ValueError("RF-change wait callback binding changed")
@@ -425,8 +431,42 @@ def check(root, require_closure=False):
         raise ValueError("GPIO RF owner is not released on both paths")
     if "if (sc->sc_linux.stage == R23BE_STAGE_RUNNING &&" not in sample:
         raise ValueError("GPIO sample must not report unstarted hardware")
-    if ".init_rfkill = " in initializer.group(1):
-        raise ValueError("rfkill probe callback bound before poll/teardown owner")
+    # A real RFKill callback can be bound ONLY when both the producer and
+    # reverse owner exist, not merely because a function is named in ops.
+    rfkill = (src / "rtwn8723be_rfkill_native.c").read_text()
+    native = (src / "rtwn8723be_native.c").read_text()
+    needed = (
+        "rtwn8723be_rfkill_native_init(void *arg)",
+        "rtwn8723be_rfkill_worker(struct work *wk, void *arg)",
+        "rtwn8723be_rfkill_timer(void *arg)",
+        "workqueue_create(&n->wq,",
+        "rtwn8723be_netbsd_rfkill_gpio_sample(sc, &on, &valid)",
+        "n->last_valid = error == 0 && valid;",
+        "if (n->initialized)",
+        "if (cpu_intr_p() || cpu_softintr_p())",
+        "sc->sc_linux.stage != R23BE_STAGE_RFKILL",
+        "workqueue_destroy(n->wq);",
+        "callout_destroy(&n->timer);",
+        "mutex_destroy(&n->lock);",
+        "n->active = false;",
+        "callout_halt(&n->timer, NULL);",
+        "workqueue_wait(n->wq, &n->poll_work);",
+    )
+    if not all(token in rfkill for token in needed):
+        raise ValueError("RFKill probe callback lacks actual GPIO/poll/teardown owner")
+    fini = rfkill.split("rtwn8723be_rfkill_native_fini(", 1)[1]
+    if not (fini.index("n->active = false;") <
+            fini.index("callout_halt(&n->timer, NULL);") <
+            fini.index("workqueue_wait(n->wq, &n->poll_work);") <
+            fini.index("workqueue_destroy(n->wq);") <
+            fini.index("mutex_destroy(&n->lock);")):
+        raise ValueError("RFKill reverse owner must halt timer and drain worker before mutex")
+    if ("rtwn8723be_rfkill_native_fini(sc);" not in native or
+            native.index("rtwn8723be_native_unwind_irq(") >
+            native.index("rtwn8723be_native_unwind_rfkill(")):
+        raise ValueError("RFKill rollback must follow IRQ teardown")
+    if ".init_rfkill = rtwn8723be_netbsd_init_rfkill," not in initializer.group(1):
+        raise ValueError("RFKill binding lost or points to a placeholder")
     shutdown_native = (src / "rtwn8723be_hw_disable_native.c").read_text()
     if ("sc_rfchange_inprogress = true" not in netbsd or
             "ETIMEDOUT" not in netbsd or
