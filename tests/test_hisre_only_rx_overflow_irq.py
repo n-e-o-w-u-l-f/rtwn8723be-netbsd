@@ -72,6 +72,54 @@ def contract(hard_src: str, soft_src: str, rearm_src: str) -> None:
     assert "pending[1] |= intb;" in PENDING
 
 contract(hard, soft, rearm)
+
+def verify_epoch(e: str, d: str, h: str) -> None:
+    begin = e.index("if (!sc->sc_irq_requested) {")
+    cleared = e.index("rtwn8723be_irq_pending_clear(sc->sc_irq_pending);", begin)
+    generation = e.index("sc->sc_irq_epoch++;", begin)
+    new_owner = e.index("sc->sc_irq_requested = true;", begin)
+    assert begin < cleared < generation < new_owner
+    assert e.index("mutex_enter(&sc->sc_irq_lock);") < begin < (
+        e.index("mutex_exit(&sc->sc_irq_lock);"))
+
+    stop = d.index("sc->sc_irq_requested = false;")
+    age = d.index("sc->sc_irq_epoch++;", stop)
+    wipe = d.index("rtwn8723be_irq_pending_clear(sc->sc_irq_pending);", age)
+    out = d.index("mutex_exit(&sc->sc_irq_lock);", wipe)
+    assert stop < age < wipe < out
+    assert d.index("mutex_enter(&sc->sc_irq_lock);") < stop
+    assert "irq_epoch = sc->sc_irq_epoch;" in h
+    assert h.index("irq_epoch = sc->sc_irq_epoch;") < h.index(
+        "rtwn8723be_read_4(sc, R23BE_REG_HISR);")
+    assert h.index("irq_epoch != sc->sc_irq_epoch ||") < h.index(
+        "rtwn8723be_irq_pending_record(sc->sc_irq_pending,")
+    phase_lock = h.index("mutex_enter(&sc->sc_irq_lock);", h.index(
+        "intb = rawb & sc->sc_irq_mask[1];"))
+    epoch_guard = h.index("irq_epoch != sc->sc_irq_epoch ||")
+    first_ack = h.index("rtwn8723be_write_4(sc, R23BE_REG_HISR, inta);")
+    second_ack = h.index("rtwn8723be_write_4(sc, R23BE_REG_HISRE, intb);")
+    record = h.index("rtwn8723be_irq_pending_record(sc->sc_irq_pending,")
+    unlock = h.rindex("mutex_exit(&sc->sc_irq_lock);", phase_lock)
+    assert phase_lock < epoch_guard < first_ack < second_ack < record < unlock
+
+verify_epoch(enable, disable, hard)
+epoch_mutants = (
+    (enable.replace("if (!sc->sc_irq_requested) {", "if (false) {", 1), disable, hard),
+    (enable.replace("rtwn8723be_irq_pending_clear(sc->sc_irq_pending);", "", 1), disable, hard),
+    (enable.replace("sc->sc_irq_epoch++;", "", 1), disable, hard),
+    (enable, disable.replace("sc->sc_irq_epoch++;", "", 1), hard),
+    (enable, disable.replace("rtwn8723be_irq_pending_clear(sc->sc_irq_pending);", "", 1), hard),
+    (enable, disable, hard.replace("irq_epoch = sc->sc_irq_epoch;", "", 1)),
+    (enable, disable, hard.replace("irq_epoch != sc->sc_irq_epoch ||", "", 1)),
+)
+for i, candidate in enumerate(epoch_mutants, 1):
+    assert candidate != (enable, disable, hard), i
+    try:
+        verify_epoch(*candidate)
+    except (AssertionError, ValueError):
+        continue
+    raise AssertionError(f"unsafe STOP/restart IRQ epoch mutation {i}")
+
 mutants = (
     (hard.replace("(inta | intb) == 0", "inta == 0", 1), soft, rearm),
     (hard.replace("inta == 0xffffU", "false", 1), soft, rearm),
@@ -145,6 +193,7 @@ struct rtwn8723be_softc {
     void *sc_ih, *sc_soft_ih, *sc_irq_arg;
     uint32_t sc_irq_mask[2], sc_sys_irq_mask;
     volatile uint32_t sc_irq_pending[2];
+    uint32_t sc_irq_epoch;
     struct rtwn8723be_irq_dispatch sc_irq_dispatch;
 };
 static uint32_t raw_hisr, raw_hisre, mmio_himr, mmio_himre;
@@ -155,22 +204,26 @@ static void mutex_enter(kmutex_t *m)
 static void mutex_exit(kmutex_t *m)
 { assert(m && m->held); m->held = false; exit_count++; }
 static int rtwn8723be_netbsd_disable_interrupt(void *);
+int rtwn8723be_netbsd_enable_interrupt(void *);
 static uint32_t rtwn8723be_read_4(struct rtwn8723be_softc *sc, int reg)
 {
     assert(sc && !sc->sc_irq_lock.held);
     if (reg == R23BE_REG_HISR)
         return raw_hisr;
     assert(reg == R23BE_REG_HISRE);
-    if (stop_on_read)
+    if (stop_on_read) {
+        int mode = stop_on_read;
+        stop_on_read = 0;
         assert(rtwn8723be_netbsd_disable_interrupt(sc) == 0);
+        if (mode == 2)
+            assert(rtwn8723be_netbsd_enable_interrupt(sc) == 0);
+    }
     return raw_hisre;
 }
 static void rtwn8723be_write_4(struct rtwn8723be_softc *sc,
     int reg, uint32_t value)
 {
-    assert(sc && sc->sc_irq_lock.held == (
-        reg == R23BE_REG_HIMR || reg == R23BE_REG_HIMRE ||
-        reg == R23BE_REG_HSIMR));
+    assert(sc && sc->sc_irq_lock.held);
     if (reg == R23BE_REG_HISR) {
         assert(value == (raw_hisr & sc->sc_irq_mask[0]));
         hisr_acks++;
@@ -226,6 +279,8 @@ static void setup(struct rtwn8723be_softc *sc)
     stop_on_read = stop_on_schedule = 0;
     assert(rtwn8723be_netbsd_enable_interrupt(sc) == 0);
     assert(sc->sc_irq_requested && sc->sc_irq_enabled);
+    assert(sc->sc_irq_epoch == 1);
+    assert(sc->sc_irq_pending[0] == 0 && sc->sc_irq_pending[1] == 0);
 }
 static void balanced(struct rtwn8723be_softc *sc)
 {
@@ -297,11 +352,45 @@ int main(void)
     stop_on_schedule = 1;
     assert(rtwn8723be_netbsd_intr(&sc) == 1);
     assert(schedule_count == 1 && !sc.sc_irq_requested);
-    assert(sc.sc_irq_pending[1] == R23BE_IMR_RXFOVW);
+    assert(sc.sc_irq_pending[1] == 0);
+    /* Same IRQ handler lifetime is now dead. A new owner enables IRQ
+     * before the old queued softint executes; no stale callback fires. */
+    assert(rtwn8723be_netbsd_enable_interrupt(&sc) == 0);
+    assert(sc.sc_irq_requested && sc.sc_irq_enabled);
     rtwn8723be_netbsd_softintr(&sc);
     assert(rx_count == 0 && tx_count == 0);
     assert(sc.sc_irq_pending[0] == 0 && sc.sc_irq_pending[1] == 0);
-    assert(!sc.sc_irq_enabled && mmio_himre == 0);
+    assert(sc.sc_irq_enabled && mmio_himre == sc.sc_irq_mask[1]);
+    balanced(&sc);
+
+    /* A new owner must reject an old hard IRQ that resumes MMIO reads
+     * after STOP and a fresh enable, even though requested is true. */
+    setup(&sc);
+    raw_hisre = R23BE_IMR_RXFOVW;
+    stop_on_read = 2;
+    uint32_t old_epoch = sc.sc_irq_epoch;
+    assert(rtwn8723be_netbsd_intr(&sc) == 0);
+    assert(sc.sc_irq_requested && sc.sc_irq_enabled);
+    assert(sc.sc_irq_epoch == old_epoch + 2);
+    assert(sc.sc_irq_pending[0] == 0 && sc.sc_irq_pending[1] == 0);
+    assert(hisre_acks == 0 && hisr_acks == 0);
+    assert(schedule_count == 0);
+    rtwn8723be_netbsd_softintr(&sc);
+    assert(rx_count == 0);
+    balanced(&sc);
+
+    /* A repeated enable inside the SAME IRQ lifetime may not drop
+     * already published pending work from a masked hard IRQ. */
+    setup(&sc);
+    raw_hisre = R23BE_IMR_RXFOVW;
+    assert(rtwn8723be_netbsd_intr(&sc) == 1);
+    assert(sc.sc_irq_pending[1] == R23BE_IMR_RXFOVW);
+    uint32_t same_epoch = sc.sc_irq_epoch;
+    assert(rtwn8723be_netbsd_enable_interrupt(&sc) == 0);
+    assert(sc.sc_irq_epoch == same_epoch);
+    assert(sc.sc_irq_pending[1] == R23BE_IMR_RXFOVW);
+    rtwn8723be_netbsd_softintr(&sc);
+    assert(rx_count == 1);
     balanced(&sc);
 
     /* Already stopped: hardirq ignores even an overflow-only vector. */
@@ -329,4 +418,4 @@ with tempfile.TemporaryDirectory(prefix="rtl-hisre-overflow-") as td:
         "-I", str(ROOT / "src"), str(source), "-o", str(exe)
     ], check=True)
     subprocess.run([str(exe)], check=True)
-print("RTL_HISRE_RXFOVW_SOURCE_MUTATIONS_OK negatives=11")
+print("RTL_HISRE_RXFOVW_SOURCE_MUTATIONS_OK negatives=18")

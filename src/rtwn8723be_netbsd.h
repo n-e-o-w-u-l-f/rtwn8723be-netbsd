@@ -105,6 +105,12 @@ struct rtwn8723be_softc {
     /* Pending RX/TX bits use sc_irq_lock; cleared after IRQ drain. */
     volatile uint32_t sc_irq_pending[2];
     /*
+     * Fresh enable/STOP epochs also use sc_irq_lock. A hard IRQ that
+     * drops the lock to read HISR/HISRE must never publish a status
+     * sampled across a STOP -> new enable transition.
+     */
+    uint32_t sc_irq_epoch;
+    /*
      * A hard IRQ temporarily masks HIMR/HIMRE until SOFTINT_NET drains.
      * Distinguish that temporary mask from an owner-requested shutdown.
      * Both desired and enabled state are serialized at IPL_NET, so a

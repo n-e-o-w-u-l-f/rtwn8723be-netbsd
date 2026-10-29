@@ -27,10 +27,16 @@ def verify_native(src: str) -> None:
     soft = body(src, "rtwn8723be_netbsd_softintr")
     release = body(src, "rtwn8723be_netbsd_disestablish_irq")
     assert '#include "rtwn8723be_irq_pending.h"' in src
-    assert "if (!rtwn8723be_irq_pending_record(sc->sc_irq_pending," in hard
+    assert "if (irq_epoch != sc->sc_irq_epoch ||" in hard
+    assert "!rtwn8723be_irq_pending_record(sc->sc_irq_pending," in hard
+    assert hard.index("irq_epoch = sc->sc_irq_epoch;") < hard.index(
+        "rtwn8723be_read_4(sc, R23BE_REG_HISR);")
+    assert hard.index("irq_epoch != sc->sc_irq_epoch ||") < hard.index(
+        "rtwn8723be_irq_pending_record(sc->sc_irq_pending,")
     record = hard.index("rtwn8723be_irq_pending_record(sc->sc_irq_pending,")
     assert hard.index("mutex_enter(&sc->sc_irq_lock);", hard.index(
-        "if ((inta | intb) == 0 || inta == 0xffffU)")) < record
+        "intb = rawb & sc->sc_irq_mask[1];")) < hard.index(
+        "if ((inta | intb) == 0 || inta == 0xffffU)") < record
     assert record < hard.index("mutex_exit(&sc->sc_irq_lock);", record)
     assert record < hard.index("softint_schedule(sc->sc_soft_ih);")
     assert "sc->sc_irq_requested, sc->sc_irq_dispatch_ready, inta, intb" in hard
@@ -57,8 +63,8 @@ def verify_native(src: str) -> None:
 verify_native(SOURCE)
 
 mutations = (
-    SOURCE.replace("if (!rtwn8723be_irq_pending_record(sc->sc_irq_pending,",
-                   "if (true || !rtwn8723be_irq_pending_record(sc->sc_irq_pending,",1),
+    SOURCE.replace("if (irq_epoch != sc->sc_irq_epoch ||",
+                   "if (false ||",1),
     SOURCE.replace("sc->sc_irq_requested, sc->sc_irq_dispatch_ready, inta, intb",
                    "true, true, inta, intb",1),
     SOURCE.replace("if (!rtwn8723be_irq_pending_take(sc->sc_irq_pending,",

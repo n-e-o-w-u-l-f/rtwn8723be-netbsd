@@ -1228,6 +1228,16 @@ rtwn8723be_netbsd_enable_interrupt(void *arg)
     else if (!sc->sc_irq_dispatch_ready)
         error = EAGAIN;
     else {
+        /*
+         * A new IRQ owner must never inherit completed RX/TX work from
+         * the previous STOPPED generation. Do not clear on reenable
+         * within an existing requested lifetime: a masked hard IRQ may
+         * already have published valid pending work for that owner.
+         */
+        if (!sc->sc_irq_requested) {
+            rtwn8723be_irq_pending_clear(sc->sc_irq_pending);
+            sc->sc_irq_epoch++;
+        }
         sc->sc_irq_requested = true;
         rtwn8723be_netbsd_irq_arm_locked(sc);
     }
@@ -1243,9 +1253,16 @@ rtwn8723be_netbsd_disable_interrupt(void *arg)
     if (sc == NULL || !sc->sc_irq_lock_initialized)
         return ENXIO;
     mutex_enter(&sc->sc_irq_lock);
-    /* Disable is permanent until the owner explicitly enables it again. */
+    /*
+     * Retire every already-ACKed pending RX/TX/overflow bit under the
+     * SAME IRQ mutex used by hard-IRQ record and softint take.
+     * A queued softint must not consume events from an old device
+     * lifetime after a later enable_interrupt() has requested IRQs.
+     */
     sc->sc_irq_requested = false;
+    sc->sc_irq_epoch++;
     rtwn8723be_netbsd_irq_mask_locked(sc);
+    rtwn8723be_irq_pending_clear(sc->sc_irq_pending);
     mutex_exit(&sc->sc_irq_lock);
     return 0;
 }
@@ -1254,7 +1271,7 @@ static int
 rtwn8723be_netbsd_intr(void *arg)
 {
     struct rtwn8723be_softc *sc = arg;
-    uint32_t rawa, rawb, inta, intb;
+    uint32_t rawa, rawb, inta, intb, irq_epoch;
 
     if (!sc->sc_irq_lock_initialized)
         return 0;
@@ -1268,6 +1285,7 @@ rtwn8723be_netbsd_intr(void *arg)
      * still wants IRQs. STOP may clear sc_irq_requested in the meantime.
      * SOFTINT_NET must never override that explicit shutdown.
      */
+    irq_epoch = sc->sc_irq_epoch;
     rtwn8723be_netbsd_irq_mask_locked(sc);
     mutex_exit(&sc->sc_irq_lock);
 
@@ -1282,29 +1300,34 @@ rtwn8723be_netbsd_intr(void *arg)
     inta = rawa & sc->sc_irq_mask[0];
     intb = rawb & sc->sc_irq_mask[1];
 
-    if (inta != 0)
-        rtwn8723be_write_4(sc, R23BE_REG_HISR, inta);
-    if (intb != 0)
-        rtwn8723be_write_4(sc, R23BE_REG_HISRE, intb);
-
     /*
-     * HISRE RXFOVW is an independent RX event. An empty HISR alone must
-     * not discard that already-ACKed overflow: the softint consumes both
-     * banks and schedules RX when HISRE RXFOVW is set. Treat only BOTH
-     * empty banks as a shared/non-device interrupt; keep the Linux
-     * invalid all-ones INTA rejection.
+     * Reading PCI status requires dropping the IRQ lock, but neither
+     * W1C ACK nor pending publication may cross a STOP -> new enable.
+     * Recheck the epoch BEFORE touching the status registers again.
+     * Keep ACK and pending publication in the same IPL_NET section,
+     * so a new owner cannot begin between them.
      */
-    if ((inta | intb) == 0 || inta == 0xffffU) {
-        rtwn8723be_netbsd_irq_rearm_if_requested(sc);
+    mutex_enter(&sc->sc_irq_lock);
+    if (irq_epoch != sc->sc_irq_epoch ||
+        !sc->sc_irq_requested || !sc->sc_irq_dispatch_ready) {
+        mutex_exit(&sc->sc_irq_lock);
         return 0;
     }
 
     /*
-     * The permanent STOP may have revoked requested while MMIO status
-     * was read. Recheck under the owner lock rather than queue a stale
-     * completion for a softint that must no longer access RX/TX rings.
+     * HISRE RXFOVW is independent of HISR. A vector with only second
+     * bank bits must not be discarded as a shared interrupt.
      */
-    mutex_enter(&sc->sc_irq_lock);
+    if ((inta | intb) == 0 || inta == 0xffffU) {
+        mutex_exit(&sc->sc_irq_lock);
+        rtwn8723be_netbsd_irq_rearm_if_requested(sc);
+        return 0;
+    }
+
+    if (inta != 0)
+        rtwn8723be_write_4(sc, R23BE_REG_HISR, inta);
+    if (intb != 0)
+        rtwn8723be_write_4(sc, R23BE_REG_HISRE, intb);
     if (!rtwn8723be_irq_pending_record(sc->sc_irq_pending,
         sc->sc_irq_requested, sc->sc_irq_dispatch_ready, inta, intb)) {
         mutex_exit(&sc->sc_irq_lock);
