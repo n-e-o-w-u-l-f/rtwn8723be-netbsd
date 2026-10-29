@@ -2,6 +2,56 @@
 
 Source checkpoint: 2026-10-29 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — IRQ STOP/RESTART PENDING AND W1C EPOCH (2026-10-29)
+
+The native IRQ owner now protects against **stale softint
+pending bits surviving a STOP -> fresh IRQ enable**.
+`rtwn8723be_netbsd_disable_interrupt` clears both
+pending banks under `sc_irq_lock` while irrevocably
+masking IRQ and invalidating the old generation.
+A newly requested owner also clears the ledger before
+arming; a repeated enable for the same owner preserves
+its legitimate pending work.
+
+New `sc_irq_epoch` in the actual NetBSD softc is
+incremented under the same IPL_NET IRQ lock on STOP
+and fresh owner enable. The real hard IRQ snapshots
+the epoch before releasing `sc_irq_lock` for HISR/HISRE
+MMIO reads. After reacquiring the lock, a changed
+epoch/revoked owner is refused **before W1C
+acknowledgements**. Status ACK and pending publication
+now execute in the same locked critical section,
+preventing old reads from ACKing or publishing into
+the next owner. The independent HISRE RXFOVW fix
+from PR #23 remains intact.
+
+The strict C11/UBSan
+`tests/test_hisre_only_rx_overflow_irq.py`
+executes the actual NetBSD hard/softirq, IRQ mask/
+arm/rearm and enable/disable C bodies, and now
+simulates pending STOP->restart->late softint
+(no old callbacks), old hard IRQ suspended mid-MMIO
+across STOP and fresh enable (no stale ACK or
+publication), and same-owner reenable (no loss of
+legitimate pending). Eighteen unsafe source mutations
+are rejected. The shared pending-quiescence test
+continues protecting all lock and teardown ordering.
+CI descriptions and docs are updated.
+
+Disposable Linux x86_64 `legion` at exact head
+`53b1b1899acd9eadd3274adb369c50f379f16165`:
+**68/68 host-permitted Python regressions PASS**,
+0 failures, 12 of 80 target-/reference-specific
+scripts not run. `git diff --check` against PR #23
+succeeded. See
+`docs/IRQ_STOP_RESTART_EPOCH_QUARANTINE_20261029.md`.
+
+These interleaving tests do NOT prove native NetBSD
+SMP/PCI DMA safety, already-active softint drain or
+automatic STOP retry. Four unbound lifecycle callbacks
+and the full 48-C-unit NetBSD/HP kernel and WLAN tests
+remain OPEN.
+
 ## SOURCE CHECKPOINT — HISRE-ONLY RX OVERFLOW IRQ DELIVERY (2026-10-29)
 
 The native RTL8723BE `HISR/HISRE` hard IRQ now handles a
