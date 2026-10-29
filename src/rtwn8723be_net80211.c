@@ -214,15 +214,17 @@ rtwn8723be_n80211_ioctl(struct ifnet *ifp, u_long cmd, void *data)
             IFF_RUNNING) {
             error = rtwn8723be_n80211_ifstop(n);
         } else if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) == 0 &&
-            rtwn8723be_datapath_stop_retry_ready(
-                n->sc->sc_datapath)) {
+            (rtwn8723be_datapath_stop_retry_ready(
+                n->sc->sc_datapath) ||
+             rtwn8723be_net80211_running_hw_stop_needed(
+                &n->sc->sc_linux))) {
             /*
-             * The prior down request closed IFF_RUNNING before a
-             * borrowed RX/TX callback forced begin_stop to return
-             * EBUSY. Keep the interface logically DOWN, but allow
-             * a fresh explicit SIOCSIFFLAGS/down to retry hardware
-             * STOPPING once that callback is gone. Never manufacture
-             * IFF_RUNNING or permit net80211 dequeue for a retry.
+             * IFF_RUNNING may already have been cleared by ifstop()
+             * returning EBUSY, or by a failed/false-success hw_start
+             * or RFKill rollback. A real Linux RUNNING MAC still owns
+             * PCI/DMA even if no stop_pending lease was ever latched.
+             * An explicit DOWN retries the real stop, never fabricates
+             * IFF_RUNNING, and lets begin_stop revalidate under tx_lock.
              */
             error = rtwn8723be_n80211_ifstop(n);
         }
@@ -231,7 +233,11 @@ rtwn8723be_n80211_ioctl(struct ifnet *ifp, u_long cmd, void *data)
     case SIOCDELMULTI:
         error = ether_ioctl(ifp, cmd, data);
         /* Multicast filter programming requires full hardware callbacks. */
-        if (error == ENETRESET && (ifp->if_flags & IFF_RUNNING) == 0)
+        if (error == ENETRESET && (ifp->if_flags & IFF_RUNNING) == 0 &&
+            !rtwn8723be_datapath_stop_retry_ready(
+                n->sc->sc_datapath) &&
+            !rtwn8723be_net80211_running_hw_stop_needed(
+                &n->sc->sc_linux))
             error = 0;
         break;
     default:
@@ -246,11 +252,13 @@ rtwn8723be_n80211_ioctl(struct ifnet *ifp, u_long cmd, void *data)
             if (error == 0)
                 error = rtwn8723be_n80211_ifinit(ifp);
         } else if (rtwn8723be_datapath_stop_retry_ready(
-            n->sc->sc_datapath)) {
+            n->sc->sc_datapath) ||
+            rtwn8723be_net80211_running_hw_stop_needed(
+                &n->sc->sc_linux)) {
             /*
-             * No RUNNING interface exists to restart, but an earlier
-             * STOP was deferred by RX/TX lifetime references. Do not
-             * turn ENETRESET into a false-success reconfiguration.
+             * A real hardware RUNNING owner may be orphaned behind
+             * cleared ifnet flags even without a pending STOP lease.
+             * Reconfiguration must not conceal that unsatisfied STOP.
              */
             error = EBUSY;
         }
@@ -283,7 +291,9 @@ rtwn8723be_n80211_media_change(struct ifnet *ifp)
      * lease. Explicit media change is not permission to discard that
      * pending hardware STOP or claim successful reconfiguration.
      */
-    if (rtwn8723be_datapath_stop_retry_ready(n->sc->sc_datapath))
+    if (rtwn8723be_datapath_stop_retry_ready(n->sc->sc_datapath) ||
+        rtwn8723be_net80211_running_hw_stop_needed(
+            &n->sc->sc_linux))
         return EBUSY;
     return 0;
 }
