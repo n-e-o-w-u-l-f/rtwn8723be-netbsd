@@ -66,7 +66,7 @@ def contract(src: str, unwind: str, native: str) -> None:
     busy = pos[4]
     for own in OWNERS:
         assert claim <= src.index(own, claim) < busy, own
-    assert src.index("splx(s);", busy) < busy
+    assert src.rfind("splx(s);", claim, busy) != -1
     assert src.index("return EBUSY;", claim) < src.index(
         "n->sc->sc_security_policy_valid = false;")
     assert "if (n == NULL)" in src
