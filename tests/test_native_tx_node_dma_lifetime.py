@@ -76,7 +76,9 @@ def contract(e: str, r: str, f: str, t: str, d: str) -> None:
         sync = fn.index("BUS_DMASYNC_POSTWRITE")
         unload = fn.index("bus_dmamap_unload(", sync)
         assert sync < unload < release_m < release_n < clear_n, label
-        assert "KASSERT(" in fn and "ni == NULL" in fn, label
+        assert "KASSERT(" in fn, label
+        assert ("slot->ni != NULL" if label == "reclaim" else
+                "ring->slot[i].ni == NULL") in fn, label
     assert "slot->map == NULL || slot->map->dm_nsegs != 1" in r
 
 contract(enq, rec, fre, res, dep)
