@@ -2,6 +2,71 @@
 
 Source checkpoint: 2026-10-29 (last verified HP native build: 2026-10-11)
 
+## SOURCE CHECKPOINT — NET80211 802.11 FRAME/QOS TX DMA POLICY (2026-10-29)
+
+The native TX ring already owns a referenced 802.11 node
+and its mbuf together (PR #30), but there was no real
+802.11 header, queue or software encryption admission
+between a future if_start and its PCI DMA descriptor.
+This change implements that bounded production step.
+
+New source-shared `rtwn8723be_tx_frame.h` provides
+`rtwn8723be_tx_frame_plan` to check 802.11 protocol-v0
+management and data frames, three-address headers,
+frame length, fragment state, optional QoS TID,
+group/unicast receiver address and protected-frame
+software-crypto completion. It rejects control/WDS/
+fragmented/null/unsupported QoS HT-control frames
+before any descriptor or node ownership transfer,
+and maps WME TIDs 1/2 BK, 0/3 BE, 4/5 VI, 6/7 VO.
+Management uses the RTL8723BE MGNT firmware queue.
+
+New native `rtwn8723be_datapath_enqueue_80211`
+accepts a **previously encapsulated, contiguous**
+802.11 MPDU and an already referenced node. It
+requires a valid software-crypto policy and no
+hardware CAM security request. It constructs the
+native descriptor packet/buffer length, actual
+sequence number, hardware ring/fw queue, QoS,
+multicast, explicit unaggregated segmentation and
+software security bits, forcing CCK 1 Mbps for
+management/group frames. Unicast data rate control
+remains supplied by an external owner. The wrapper
+then calls the existing IPL_NET serialized
+`rtwn8723be_datapath_enqueue`: success transfers
+both mbuf and node to the DMA ring, error retains
+both for the future net80211 queue consumer.
+
+New strict production-extracted C11/UBSan
+`tests/test_net80211_tx_frame_submission.py`
+executes the actual frame parser plus the real
+native datapath wrapper with a lower-level DMA
+mock. It checks management queue, broadcast,
+TIDs 0..7, protected-frame attestation, SW/HW
+crypto refusal, invalid header/fragment/QoS,
+one-segment admission and failed DMA enqueue.
+Eight unsafe production-source mutations fail.
+CI executes the test. Full context:
+`docs/NET80211_TX_FRAME_QOS_DMA_POLICY_20261029.md`.
+
+Disposable Linux x86_64 `legion` preliminary HEAD
+`e0e5176fedb183682b777a2fc45e2730d7104f1a`:
+**75/75 host-permitted regression scripts PASS**,
+0 FAIL; 12 of 87 target-/reference-specific
+tests not run. `git diff --check` against
+stacked PR #30 succeeds.
+
+The net80211 queue owner still needs to dequeue
+management/data mbufs, acquire their nodes,
+encapsulate Ethernet, perform actual WPA2 software
+crypto, linearize DMA buffers and handle errors.
+Consequently `register_ieee80211` remains unbound;
+`bt_prepare` and `dm_init` also remain missing
+(**51/54 callbacks**). No full 48-C-unit
+NetBSD 11 kernel build or HP IRQ/DMA/WPA2 test
+has occurred. `main`, F77 recovery `/netbsd`,
+`/boot.cfg` and i915 remain untouched.
+
 ## SOURCE CHECKPOINT — NATIVE TX DMA + NET80211 NODE PAIRED OWNER (2026-10-29)
 
 The RTL8723BE old-TRX DMA TX slot previously retained
