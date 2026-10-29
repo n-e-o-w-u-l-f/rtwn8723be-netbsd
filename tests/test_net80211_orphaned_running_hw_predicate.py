@@ -37,7 +37,10 @@ for token in (
     "&n->sc->sc_linux",
 ):
     assert token in NET
-assert NET.count("rtwn8723be_net80211_running_hw_stop_needed(") == 4
+# Only the explicit DOWN-to-hardware-STOP admission uses the narrow
+# RUNNING predicate. All media/reset paths use the broader quarantine.
+assert NET.count("rtwn8723be_net80211_running_hw_stop_needed(") == 1
+assert NET.count("rtwn8723be_net80211_hw_recovery_required(") == 4
 
 mutants = (
     body.replace("state != NULL &&", "true &&", 1),
