@@ -93,9 +93,14 @@ def verify_epoch(e: str, d: str, h: str) -> None:
         "rtwn8723be_read_4(sc, R23BE_REG_HISR);")
     assert h.index("irq_epoch != sc->sc_irq_epoch ||") < h.index(
         "rtwn8723be_irq_pending_record(sc->sc_irq_pending,")
-    assert h.index("mutex_enter(&sc->sc_irq_lock);", h.index(
-        "if ((inta | intb) == 0 || inta == 0xffffU)")) < h.index(
-        "irq_epoch != sc->sc_irq_epoch ||")
+    phase_lock = h.index("mutex_enter(&sc->sc_irq_lock);", h.index(
+        "intb = rawb & sc->sc_irq_mask[1];"))
+    epoch_guard = h.index("irq_epoch != sc->sc_irq_epoch ||")
+    first_ack = h.index("rtwn8723be_write_4(sc, R23BE_REG_HISR, inta);")
+    second_ack = h.index("rtwn8723be_write_4(sc, R23BE_REG_HISRE, intb);")
+    record = h.index("rtwn8723be_irq_pending_record(sc->sc_irq_pending,")
+    unlock = h.rindex("mutex_exit(&sc->sc_irq_lock);", phase_lock)
+    assert phase_lock < epoch_guard < first_ack < second_ack < record < unlock
 
 verify_epoch(enable, disable, hard)
 epoch_mutants = (
@@ -218,9 +223,7 @@ static uint32_t rtwn8723be_read_4(struct rtwn8723be_softc *sc, int reg)
 static void rtwn8723be_write_4(struct rtwn8723be_softc *sc,
     int reg, uint32_t value)
 {
-    assert(sc && sc->sc_irq_lock.held == (
-        reg == R23BE_REG_HIMR || reg == R23BE_REG_HIMRE ||
-        reg == R23BE_REG_HSIMR));
+    assert(sc && sc->sc_irq_lock.held);
     if (reg == R23BE_REG_HISR) {
         assert(value == (raw_hisr & sc->sc_irq_mask[0]));
         hisr_acks++;
@@ -370,6 +373,7 @@ int main(void)
     assert(sc.sc_irq_requested && sc.sc_irq_enabled);
     assert(sc.sc_irq_epoch == old_epoch + 2);
     assert(sc.sc_irq_pending[0] == 0 && sc.sc_irq_pending[1] == 0);
+    assert(hisre_acks == 0 && hisr_acks == 0);
     assert(schedule_count == 0);
     rtwn8723be_netbsd_softintr(&sc);
     assert(rx_count == 0);
