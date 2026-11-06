@@ -19,6 +19,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "rtwn8723be_mac_table.h"
 #include "rtwn8723be_package.h"
 #include "rtwn8723be_rf_native.h"
+#include "rtwn8723be_h2c_native.h"
 
 static int rtwn8723be_netbsd_intr(void *);
 static void rtwn8723be_netbsd_softintr(void *);
@@ -527,13 +528,29 @@ rtwn8723be_netbsd_read_eeprom_info(void *arg)
 {
     struct rtwn8723be_softc *sc = arg;
     uint8_t cr9346, bt;
+    uint32_t sys_cfg1, sys_cfg;
     int error;
 
-    /* Never retain an earlier package identity across failed re-probes. */
+    if (sc == NULL)
+        return EINVAL;
+    /* A failed re-probe must never retain previously published identity. */
     sc->sc_package_valid = false;
     sc->sc_package_type = RTWN8723BE_PACKAGE_DEFAULT;
+    sc->sc_phy_identity_valid = false;
+    sc->sc_rf_path_count_valid = false;
+    sc->sc_xtal_valid = false;
+    sc->sc_bt_ant_valid = false;
+    sc->sc_rf_path_count = 0;
+    sc->sc_xtal_cap = 0;
+    memset(&sc->sc_phy_identity, 0, sizeof(sc->sc_phy_identity));
     if (!sc->sc_mapped)
         return ENXIO;
+
+    /* Pinned Linux _rtl8723be_read_chip_version(): probe before EFUSE. */
+    sys_cfg1 = rtwn8723be_read_4(sc, R23BE_REG_SYS_CFG1);
+    if ((sys_cfg1 & 0x06U) != 0x06U) /* CHIP_8723B: BIT(1)|BIT(2). */
+        return ENODEV;
+    sys_cfg = rtwn8723be_read_4(sc, R23BE_REG_SYS_CFG);
 
     cr9346 = rtwn8723be_read_1(sc, R23BE_REG_9346CR);
     sc->sc_boot_from_efuse = (cr9346 & (1U << 4)) == 0;
@@ -585,6 +602,21 @@ rtwn8723be_netbsd_read_eeprom_info(void *arg)
         rtwn8723be_netbsd_package_read_byte, &sc->sc_package_type);
     if (error != 0)
         return error;
+
+    /* Exact Linux 8723BE RF_1T1R, SYS_CFG cut and ODM_BOARD_BT mapping. */
+    sc->sc_phy_identity.cut_version = (uint8_t)
+        ((sys_cfg & 0x0000f000U) >> 12);
+    sc->sc_phy_identity.package_type = sc->sc_package_type;
+    sc->sc_phy_identity.board_type = sc->sc_btcoexist ? (1U << 2) : 0U;
+    sc->sc_phy_identity.pci_interface = true;
+    /* Linux leaves per-amplifier type fields at their zeroed defaults. */
+    sc->sc_rf_path_count = 1;
+    sc->sc_xtal_cap = sc->sc_efuse_map[R23BE_EEPROM_XTAL_8723BE];
+    if (sc->sc_xtal_cap == 0xff)
+        sc->sc_xtal_cap = 0x20;
+    sc->sc_xtal_valid = true;
+    sc->sc_rf_path_count_valid = true;
+    sc->sc_phy_identity_valid = true;
     sc->sc_package_valid = true;
 
     /* _rtl8723be_hal_customized_behavior() always enables open-drain LED. */
@@ -609,7 +641,7 @@ rtwn8723be_netbsd_init_sw_vars(void *arg)
     sc->sc_led_opendrain = true;
     sc->sc_rfoff_reason = 0; /* RF_CHANGE_BY_INIT */
 
-    return 0;
+    return rtwn8723be_h2c_native_init(sc);
 }
 
 int
@@ -1513,6 +1545,8 @@ rtwn8723be_netbsd_poweroff_adapter(void *arg)
 
     if (!sc->sc_mapped)
         return ENXIO;
+    /* Stop publication immediately, even if the LPS power flow fails. */
+    rtwn8723be_h2c_native_reset(sc);
     sc->sc_linux.mac_func_enable = false;
 
     /*
@@ -1591,6 +1625,7 @@ rtwn8723be_netbsd_download_firmware(void *arg)
 
     if (!sc->sc_mapped)
         return ENXIO;
+    rtwn8723be_h2c_native_reset(sc);
 
     error = firmware_open(RTWN8723BE_FIRMWARE_DRIVER,
         RTWN8723BE_FIRMWARE_FILE, &fwh);
@@ -1638,8 +1673,12 @@ rtwn8723be_netbsd_download_firmware(void *arg)
      */
     error = rtwn8723be_fw_download(sc->sc_st, sc->sc_sh,
         payload, payload_len);
+    if (error == 0)
+        error = rtwn8723be_h2c_native_fw_ready(sc);
 
 out:
+    if (error != 0)
+        rtwn8723be_h2c_native_reset(sc);
     if (payload != NULL)
         kmem_free(payload, payload_len);
     if (fwh != NULL)
@@ -1949,7 +1988,7 @@ rtwn8723be_netbsd_mark_hal_start(void *arg)
     struct rtwn8723be_softc *sc = arg;
 
     if (sc == NULL || !sc->sc_linux.fw_ready ||
-        sc->sc_linux.stage != R23BE_STAGE_RUNNING ||
+        sc->sc_linux.stage != R23BE_STAGE_RX_CONFIG ||
         !sc->sc_core_initialized || !sc->sc_rings_allocated ||
         !sc->sc_irq_enabled || !sc->sc_irq_dispatch_ready)
         return EAGAIN;
@@ -2003,6 +2042,7 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .phy_mac_config = rtwn8723be_netbsd_phy_mac_config,
     .rcr_postprocess = rtwn8723be_netbsd_rcr_postprocess,
     .phy_rf_config = rtwn8723be_netbsd_phy_rf_config,
+    .rf_channel_state_init = rtwn8723be_netbsd_rf_channel_state_init,
     .hw_configure = rtwn8723be_netbsd_hw_configure,
     .cam_reset_all = rtwn8723be_netbsd_cam_reset_all,
     .set_mac_address = rtwn8723be_netbsd_set_mac_address,

@@ -1,8 +1,7 @@
 #ifndef _RTWN8723BE_LINUX_STATE_H_
 #define _RTWN8723BE_LINUX_STATE_H_
 
-#include <stdbool.h>
-#include <stdint.h>
+#include "rtwn8723be_os_compat.h"
 
 enum rtwn8723be_linux_stage {
     R23BE_STAGE_IDLE = 0,

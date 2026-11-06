@@ -1,5 +1,4 @@
-#include <errno.h>
-#include <stddef.h>
+#include "rtwn8723be_os_compat.h"
 
 #include "rtwn8723be_linux_state.h"
 

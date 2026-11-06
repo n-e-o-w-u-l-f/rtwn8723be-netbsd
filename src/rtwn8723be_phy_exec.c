@@ -4,10 +4,7 @@
  * delegated to the platform writer.  Never MMIO-write a Radio-A condition.
  */
 #include <sys/types.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stddef.h>
-#include <errno.h>
+#include "rtwn8723be_os_compat.h"
 
 #include "rtwn8723be_phy_tables.h"
 #include "rtwn8723be_phy_exec.h"

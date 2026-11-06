@@ -2,9 +2,7 @@
 #ifndef _RTWN8723BE_TX_DESC_H_
 #define _RTWN8723BE_TX_DESC_H_
 
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
+#include "rtwn8723be_os_compat.h"
 
 /*
  * Linux rtl8723be/trx.c: rtl8723be_tx_fill_desc() and trx.h bitfields.

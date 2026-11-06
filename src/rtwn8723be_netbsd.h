@@ -10,11 +10,18 @@
 
 #include <net/if.h>
 #include <net/if_ether.h>
+#include <net/if_media.h>
+
+/* Match pinned if_rtwn.c: NetBSD net80211 currently has no HT ABI. */
+#ifndef IEEE80211_NO_HT
+#define IEEE80211_NO_HT
+#endif
 #include <net80211/ieee80211_var.h>
 
 #include "rtwn8723be_f16_1.h"
 #include "rtwn8723be_linux_state.h"
 #include "rtwn8723be_phy_exec.h"
+#include "rtwn8723be_h2c_native.h"
 
 #define RTWN8723BE_PCI_BAR_MMIO        0x18
 #define RTWN8723BE_DMA_MAXADDR         0xffffffffULL
@@ -89,6 +96,7 @@ struct rtwn8723be_softc {
     void *sc_irq_arg;
 
     struct rtwn8723be_linux_state sc_linux;
+    struct rtwn8723be_h2c_native sc_h2c;
 
     uint32_t sc_receive_config;
     uint32_t sc_mac_rx_conf;
@@ -110,8 +118,13 @@ struct rtwn8723be_softc {
     /* Invalid until the hardware/EFUSE cut, board and RF paths are proved. */
     struct rtwn8723be_phy_identity sc_phy_identity;
     uint8_t sc_rf_path_count;
+    uint8_t sc_xtal_cap;
+    /* Linux rtlphy->rfreg_chnlval: publish only after both reads pass. */
+    uint32_t sc_rf_chnlval[2];
+    bool sc_rf_chnlval_valid;
     bool sc_phy_identity_valid;
     bool sc_rf_path_count_valid;
+    bool sc_xtal_valid;
     bool sc_efuse_autoload_ok;
     bool sc_boot_from_efuse;
     bool sc_btcoexist;
@@ -159,6 +172,7 @@ int rtwn8723be_netbsd_init_io(void *);
 int rtwn8723be_netbsd_read_eeprom_info(void *);
 int rtwn8723be_netbsd_init_sw_vars(void *);
 int rtwn8723be_netbsd_init_leds(void *);
+int rtwn8723be_netbsd_init_core(void *);
 int rtwn8723be_netbsd_init_pci_rings(void *);
 int rtwn8723be_netbsd_reset_trx_ring(void *);
 void rtwn8723be_netbsd_free_pci_rings(struct rtwn8723be_softc *);

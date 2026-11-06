@@ -69,6 +69,8 @@
 #define R23BE_EEPROM_DID               0x00d8
 #define R23BE_EEPROM_SVID              0x00da
 #define R23BE_EEPROM_SMID              0x00dc
+/* Pinned Linux rtl8723be/reg.h: EEPROM_XTAL_8723BE. */
+#define R23BE_EEPROM_XTAL_8723BE       0x00b9
 #define R23BE_EEPROM_RF_BT_SETTING     0x00c3
 #define R23BE_REG_MCUFWDL              0x0080
 #define R23BE_REG_FW_START_ADDR        0x1000

@@ -6,8 +6,7 @@
 #ifndef _RTWN8723BE_PACKAGE_H_
 #define _RTWN8723BE_PACKAGE_H_
 
-#include <stdbool.h>
-#include <stdint.h>
+#include "rtwn8723be_os_compat.h"
 
 #define RTWN8723BE_PACKAGE_EFUSE_ADDRESS 0x01fbU
 

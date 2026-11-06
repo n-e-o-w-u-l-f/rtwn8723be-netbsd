@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Pinned Linux rtl8723be/trx.h descriptor layout and trx.c fill order. */
-#include <errno.h>
-#include <string.h>
+#include "rtwn8723be_os_compat.h"
 #include "rtwn8723be_tx_desc.h"
 
 static void

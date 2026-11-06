@@ -6,8 +6,7 @@
 #ifndef _RTWN8723BE_OEM_H_
 #define _RTWN8723BE_OEM_H_
 
-#include <stdbool.h>
-#include <stdint.h>
+#include "rtwn8723be_os_compat.h"
 
 /* The Linux EEPROM_CID_DEFAULT branch has value zero. */
 #define RTWN8723BE_EEPROM_CID_DEFAULT 0x00U

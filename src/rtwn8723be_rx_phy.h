@@ -1,8 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _RTWN8723BE_RX_PHY_H_
 #define _RTWN8723BE_RX_PHY_H_
-#include <stddef.h>
-#include <stdint.h>
+#include "rtwn8723be_os_compat.h"
 
 /*
  * Portable RTL8723BE RSSI extraction from the Linux phy_status_rpt.

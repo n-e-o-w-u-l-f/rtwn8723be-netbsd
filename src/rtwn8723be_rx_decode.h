@@ -2,9 +2,7 @@
 #ifndef _RTWN8723BE_RX_DECODE_H_
 #define _RTWN8723BE_RX_DECODE_H_
 
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
+#include "rtwn8723be_os_compat.h"
 
 /*
  * Frozen Linux rtl8723be/trx.h descriptor: 8 little-endian DWORDs;

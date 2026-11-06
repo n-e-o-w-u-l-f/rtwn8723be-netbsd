@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#include <errno.h>
-#include <stddef.h>
+#include "rtwn8723be_os_compat.h"
 #include "rtwn8723be_package.h"
 
 uint8_t

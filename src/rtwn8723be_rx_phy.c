@@ -6,7 +6,7 @@
  * extracted here; PHY calibration, path-EVM and CCK signal quality
  * remain separate integration work.
  */
-#include <errno.h>
+#include "rtwn8723be_os_compat.h"
 #include "rtwn8723be_rx_phy.h"
 
 #define R23BE_PHY_RX_DESC_BYTES 32U

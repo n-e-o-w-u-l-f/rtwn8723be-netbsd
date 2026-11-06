@@ -9,5 +9,7 @@
 
 /* Linux-order phy_rf_config callback; no MMIO on an invalid preflight. */
 int rtwn8723be_netbsd_phy_rf_config(void *);
+/* Linux rtl8723be_hw_init(): A/B RF_CHNLBW snapshot, pre-IRQ only. */
+int rtwn8723be_netbsd_rf_channel_state_init(void *);
 
 #endif /* _RTWN8723BE_RF_NATIVE_H_ */

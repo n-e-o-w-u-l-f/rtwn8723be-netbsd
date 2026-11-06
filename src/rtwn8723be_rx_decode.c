@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Exact old-TRX 8723BE descriptor fields from pinned Linux trx.h/trx.c. */
-#include <errno.h>
-#include <string.h>
+#include "rtwn8723be_os_compat.h"
 
 #include "rtwn8723be_rx_decode.h"
 
