@@ -1,0 +1,260 @@
+{
+  "acceptance": "PASS",
+  "attempt_id": "A01",
+  "baseline": "d916b778a4794c3aed2bbb8e88d551cef1730312",
+  "changed_files": {
+    "src/rtwn8723be_f16_1_dma.c": {
+      "after": "5a356afa44eaa7a83250ced9e51253ebb88185e48185397aa8889d935a001014",
+      "before": "f9941a63dd9b12c6a15252fd484cb3846b653a83b90fc0906bdf096ca50322dd"
+    },
+    "src/rtwn8723be_tx_native.c": {
+      "after": "d292ba4388cd0879ec059f5aa8bce55fb4dc203b43969ee421ea21d6c4320a46",
+      "before": "17ec9f161fd567434b135644606a6af069f9b829218ddd5d93720876de9653f4"
+    }
+  },
+  "checks": [
+    {
+      "exit": 0,
+      "kind": "native_dependencies",
+      "targets": 48
+    },
+    {
+      "exit": 0,
+      "kind": "native_objects",
+      "targets": 48
+    },
+    {
+      "exit": 0,
+      "test": "test_dma_mem_unwind.py"
+    },
+    {
+      "exit": 0,
+      "test": "test_native_tx_node_dma_lifetime.py"
+    },
+    {
+      "exit": 0,
+      "test": "test_tx_queue_lifetime.py"
+    }
+  ],
+  "file_manifest_sha256": "c16b39661419a8e05b83bf89a73e9b741480a60cea1a30e4a26c307cf99971fa",
+  "finished": "2026-11-09T22:27:44.158295+00:00",
+  "full_kernel_link": "NOT_RUN",
+  "hardware": "NOT_RUN",
+  "host": "hp-tpnw121.lan",
+  "initial_failure": {
+    "cause": "missing net/if_media.h before net80211/ieee80211_var.h",
+    "configure_rules": 48,
+    "dependency_exit": 0,
+    "log_sha256": "b97d34d81a287be12a2bcbdb112ac33828b519a756c03e745d3c97463cabe4fb",
+    "object_exit": 2
+  },
+  "objects": {
+    "rtwn8723be_aspm_native.o": {
+      "bytes": 234888,
+      "sha256": "13802f414fb523985c55112fd9b364ecd831fa275f63cd81aa61eda40b77d17e"
+    },
+    "rtwn8723be_bb_native.o": {
+      "bytes": 238664,
+      "sha256": "22853a0b4f63cf609e2d11be368140d2b6259042812b11b1a3d3fede4308e5c8"
+    },
+    "rtwn8723be_btc1.o": {
+      "bytes": 271896,
+      "sha256": "1499d214d6bc32fd6b53f1f6fd6d6a4a2368ccbc31f3e3148e2d25acff139923"
+    },
+    "rtwn8723be_btc2.o": {
+      "bytes": 310600,
+      "sha256": "c160a18b212445dba7b03bbec712414766e3c07bb8a6ec49e485b607ecf0be76"
+    },
+    "rtwn8723be_btc_context.o": {
+      "bytes": 34904,
+      "sha256": "313f7919023a7f976645a1ca656f31c86512e34f5d98feebc578f3bf59728e20"
+    },
+    "rtwn8723be_btc_engine.o": {
+      "bytes": 57816,
+      "sha256": "df214b62e4fdee4749921ff3a6f9833b6e1f10c227584804d54a3a7ab15d6fc3"
+    },
+    "rtwn8723be_btc_mp.o": {
+      "bytes": 13040,
+      "sha256": "66fe8494db0001872c89c0a16a7745b01d55a84a8f74c7eb326b46d59f86b502"
+    },
+    "rtwn8723be_btc_mp_native.o": {
+      "bytes": 240712,
+      "sha256": "69f109a81f7b3a883527c0c32dc42d233f41c3f7d3925fffe0c0d9aebb14cec1"
+    },
+    "rtwn8723be_btc_native.o": {
+      "bytes": 252104,
+      "sha256": "e10d545e27a6c96e1c94ff5315c8955bd8cb05578390c78bd38faacda36fe638"
+    },
+    "rtwn8723be_btc_policy.o": {
+      "bytes": 72472,
+      "sha256": "573334c6b6c8d9c761cbfca83fabfb462eaabe0a32b9d1c15c0806406229dcc9"
+    },
+    "rtwn8723be_btc_providers_native.o": {
+      "bytes": 293792,
+      "sha256": "a01568ad0a71f7b9fe0a16af1d39172b41ef77b1141e7fa34af6e52cb612f4cc"
+    },
+    "rtwn8723be_c2h.o": {
+      "bytes": 11480,
+      "sha256": "9b279b050beebe672d5b196b69f70375e699e8c6b29294f455ddeb2519b1e88a"
+    },
+    "rtwn8723be_c2h_native.o": {
+      "bytes": 13136,
+      "sha256": "2a56fac2d15d860cf50a45cc7ae5d80c1afba95092ece88a9d95fe5cb52466f2"
+    },
+    "rtwn8723be_calibration.o": {
+      "bytes": 112496,
+      "sha256": "135022093622e03b60f7b6c9638b2af27e32906c58d0fdb768ed1b1dd8d463bd"
+    },
+    "rtwn8723be_calibration_native.o": {
+      "bytes": 265992,
+      "sha256": "c91876fa27f08680e480a13f6ab57d0c5236240ac5ce316b2aa5b82d41bc4b27"
+    },
+    "rtwn8723be_datapath.o": {
+      "bytes": 253520,
+      "sha256": "e56434750480bb5ceab6f7fb8c6142bc8088b3f7a137b46eb8ac0a91fd7b2830"
+    },
+    "rtwn8723be_f16_1_dma.o": {
+      "bytes": 171432,
+      "sha256": "f7786e729fd816603fdfaac82140ac420ec2d70f988366ca486316d190874752"
+    },
+    "rtwn8723be_fw.o": {
+      "bytes": 41040,
+      "sha256": "e6c421515fe125ee6cc629ad82b8636db97bb54692e716b34d77aebeb3662bf3"
+    },
+    "rtwn8723be_h2c.o": {
+      "bytes": 14168,
+      "sha256": "42dc9d0d399d818e4c58c2de7f38826999bf40bb182a4d9d3b227af53ce5bf53"
+    },
+    "rtwn8723be_h2c_native.o": {
+      "bytes": 238008,
+      "sha256": "aedcbb6e50eb5a307e9f3524eaad6cf856353b26ae4f2c39bf33eb5c40a71b0f"
+    },
+    "rtwn8723be_hw_disable.o": {
+      "bytes": 20552,
+      "sha256": "45958a21b90307d282bef6e4731525b2ef0d579a76bfefa7d9d5d2499ee0109f"
+    },
+    "rtwn8723be_hw_disable_native.o": {
+      "bytes": 234160,
+      "sha256": "560fff239b6a877575fff22a67518db729759526e5924cc3037b7a378cf0ba24"
+    },
+    "rtwn8723be_linux_state.o": {
+      "bytes": 34184,
+      "sha256": "985d53cfc6bfd2bff49413b71dcea2819ecfda52008450d872303c263524e2e3"
+    },
+    "rtwn8723be_native.o": {
+      "bytes": 266432,
+      "sha256": "41ede717e9b4c32db2736afeacfa209527ee1aabe4a6db58a0dce1eb36247bcd"
+    },
+    "rtwn8723be_net80211.o": {
+      "bytes": 251296,
+      "sha256": "6bbd5746a6820e921c0693550d4f5eb8cd10e143efd536a0654f18badac77d06"
+    },
+    "rtwn8723be_netbsd.o": {
+      "bytes": 477896,
+      "sha256": "7c82b7254fca32b1940ded6f77f48240020eaa51bd1a32758816fec115a4504c"
+    },
+    "rtwn8723be_oem.o": {
+      "bytes": 6512,
+      "sha256": "5f5ed04798e6e79e9ebdd308f27129990d4db9212285707ca4890d478c0632ef"
+    },
+    "rtwn8723be_package.o": {
+      "bytes": 10624,
+      "sha256": "528b40e7ebbd8433ee07687f74a281e27a45cbf68a2efc74d194791c6c73f339"
+    },
+    "rtwn8723be_phy_bb_sequence.o": {
+      "bytes": 11304,
+      "sha256": "196a59f4d45f7f44fabf1d659fe08403737e2cd3cba7f35509de90ca0fcbe47a"
+    },
+    "rtwn8723be_phy_exec.o": {
+      "bytes": 24392,
+      "sha256": "ddec4ca495887087bb6206f1e5e41cc3173fbeeabef40ae0e80a9c4d20f87ad7"
+    },
+    "rtwn8723be_pre_running_recovery.o": {
+      "bytes": 29080,
+      "sha256": "ea7782212b809401eb3da7b8de649321d0d7e250672883ba7334e1b73c8d5133"
+    },
+    "rtwn8723be_pwrseq.o": {
+      "bytes": 38192,
+      "sha256": "afe24d14ebb655450e9d3a5a9f2e2e9823f86a9fb476d44b2929ddafff4e0038"
+    },
+    "rtwn8723be_regdomain.o": {
+      "bytes": 5984,
+      "sha256": "610e9b5412fbf1cb02181c8559d6b714d889b33693f1cbb4b638af8272f935dc"
+    },
+    "rtwn8723be_rf_channel_state.o": {
+      "bytes": 8088,
+      "sha256": "98f9757cb9311f3773334665a028164976671d25a8e41b265c6131e92da5aa1a"
+    },
+    "rtwn8723be_rf_native.o": {
+      "bytes": 232312,
+      "sha256": "fa2a93c041747639ab7ec257e58a5d5abe5699f848cd31104810c137e2f2106d"
+    },
+    "rtwn8723be_rf_path.o": {
+      "bytes": 13016,
+      "sha256": "a1a1cde47447e6daa83e331225b4a49f78bed6dccc884e9d627e6cc4363b4733"
+    },
+    "rtwn8723be_rf_serial.o": {
+      "bytes": 23936,
+      "sha256": "63d12c561d122bad50d32eb99363721e010e61912cec3c429f5f7f83f1dbf5cb"
+    },
+    "rtwn8723be_rfkill_native.o": {
+      "bytes": 232784,
+      "sha256": "31c7449ef12507534afd2c65cf2ae695241f972fb8d04fd9a637ad43b2ffca52"
+    },
+    "rtwn8723be_runtime_owner.o": {
+      "bytes": 221752,
+      "sha256": "89ce5745b46fa3f1e53b2e386a1aadfa3d6263470a5dad2601cf08849810af72"
+    },
+    "rtwn8723be_rx_binding.o": {
+      "bytes": 229008,
+      "sha256": "186596a34fb57d1e82b2edcb637e9499c4af56daeb63f10ece81107d27037376"
+    },
+    "rtwn8723be_rx_decode.o": {
+      "bytes": 11880,
+      "sha256": "5435548342d4e83a5c5966f84802ea7c62255dda88c7096a863bd1867d657798"
+    },
+    "rtwn8723be_rx_native.o": {
+      "bytes": 232152,
+      "sha256": "6afda4e156604538ee8d1981ab1b26c956e72609d4a869bb23eb5f96fad847f8"
+    },
+    "rtwn8723be_rx_phy.o": {
+      "bytes": 11944,
+      "sha256": "88c55ad380b99cb3c2ef5085cdd1733c43e5abc1ac9284e8045d6b2875388603"
+    },
+    "rtwn8723be_security_native.o": {
+      "bytes": 221032,
+      "sha256": "637edf3b4222c63376ae558b3b398497c7ad0187337c616e726a594eaa9eec47"
+    },
+    "rtwn8723be_thermal.o": {
+      "bytes": 38112,
+      "sha256": "322d3d395774bf6679adc495ff8f58026c4eada3e3ca6c55721794307f7ae6ee"
+    },
+    "rtwn8723be_tx_desc.o": {
+      "bytes": 14768,
+      "sha256": "8171d8b4cad730e43077579df17cb5d5eaf6373cc58944e3dac82072254d9b30"
+    },
+    "rtwn8723be_tx_native.o": {
+      "bytes": 237488,
+      "sha256": "4fbcaeed637539ffe722cfe5483c327c1ae91c1e9b1f6d9699f8f8afb2459693"
+    },
+    "rtwn8723be_txpwr_pg.o": {
+      "bytes": 26048,
+      "sha256": "a1c3b836965efc8059d0d027e1c7cf62fb0bd344ccf9460c4e020ef06627a3f5"
+    }
+  },
+  "protected_after": {
+    "/boot.cfg": "f7e0ccc00308172d5787f47c2c66b33921c53341f896e2339079a66980b6a4df",
+    "/netbsd": "9b65629c0527bbd40f7ffa0d4ef0c59a32b5edceb597a5df8c86d1e7be1c8fde",
+    "/usr/src/sys/dev/pci/files.pci": "584bf78070c5868e2e48d0e563949cbf70a958b08166150f5363cfcbf5d7b707"
+  },
+  "protected_before": {
+    "/boot.cfg": "f7e0ccc00308172d5787f47c2c66b33921c53341f896e2339079a66980b6a4df",
+    "/netbsd": "9b65629c0527bbd40f7ffa0d4ef0c59a32b5edceb597a5df8c86d1e7be1c8fde",
+    "/usr/src/sys/dev/pci/files.pci": "584bf78070c5868e2e48d0e563949cbf70a958b08166150f5363cfcbf5d7b707"
+  },
+  "protected_unchanged": true,
+  "repair_log_sha256": "a9f0fd92c251f347d39aedc79334b06e20c1781807d71f406fbe11504756821c",
+  "started": "2026-11-09T22:27:17.588269+00:00",
+  "state": "NATIVE48_AND_REGRESSIONS_PASS",
+  "step_id": "HP-RTL-NATIVE-HEADER-20261109"
+}

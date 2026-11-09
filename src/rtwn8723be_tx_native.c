@@ -14,6 +14,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <sys/bus.h>
 #include <sys/endian.h>
 #include <sys/atomic.h>
+#include <net/if_media.h>
 #include <net80211/ieee80211_var.h>
 
 #include "rtwn8723be_tx_native.h"
