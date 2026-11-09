@@ -1,0 +1,157 @@
+{
+  "acceptance": "PASS",
+  "attempt_id": "A01",
+  "boot": "NOT_RUN",
+  "commands": [
+    {
+      "argv": [
+        "/usr/tools/bin/x86_64--netbsd-ld",
+        "-r",
+        "-o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be-native48.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_native.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_netbsd.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_runtime_owner.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_regdomain.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_aspm_native.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_security_native.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_f16_1_dma.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_fw.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_h2c.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_h2c_native.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_rfkill_native.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_linux_state.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_pre_running_recovery.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_package.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_pwrseq.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_phy_bb_sequence.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_bb_native.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_txpwr_pg.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_phy_exec.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_rf_serial.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_rf_path.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_rf_native.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_rf_channel_state.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_rx_decode.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_c2h.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_btc_mp.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_btc_mp_native.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_btc1.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_btc2.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_btc_engine.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_btc_policy.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_btc_context.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_btc_native.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_btc_providers_native.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_c2h_native.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_rx_binding.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_rx_phy.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_rx_native.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_tx_desc.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_tx_native.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_datapath.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_net80211.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_oem.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_calibration.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_calibration_native.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_thermal.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_hw_disable.o",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be_hw_disable_native.o"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "/usr/tools/bin/nbmake-amd64",
+        "-C",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj",
+        "-j2",
+        "depend"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "/usr/tools/bin/nbmake-amd64",
+        "-C",
+        "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj",
+        "-j2",
+        "netbsd"
+      ],
+      "exit": 0
+    }
+  ],
+  "file_manifest": "/home/andreas/rtwn8723be0-netbsd-20261109/audit/fullkernel-manifest.json",
+  "file_manifest_sha256": "e8352ea127f1f9c05351c8906da2718b26a7d793755cb4cb75845a3caed2552f",
+  "finished": "2026-11-09T23:16:45.472972+00:00",
+  "hardware": "NOT_RUN",
+  "header_regressions": {
+    "result": "PASS",
+    "scripts": [
+      "test_dma_mem_unwind.py",
+      "test_native_tx_node_dma_lifetime.py",
+      "test_tx_queue_lifetime.py"
+    ]
+  },
+  "host": "hp-tpnw121.lan",
+  "independent_verified_at": "2026-11-09T23:18:19.446484+00:00",
+  "installed": "NOT_RUN",
+  "kernel": {
+    "bytes": 27291000,
+    "format": "ELF64 little-endian x86-64 executable",
+    "path": "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/netbsd",
+    "sha256": "21dccebbbbd92cc1fa185522489a766e515f1e8a062ed6aa99b2645a907ef4ca",
+    "undefined_symbols": 0
+  },
+  "link_map": {
+    "bytes": 12463454,
+    "path": "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/netbsd.map",
+    "sha256": "0035dc2faf53311e8f278b2d609978499c392e5d71a4ec1c41515f41f9bd7ff8"
+  },
+  "log_sha256": "fdc9c156755d16fba5ceae92359387e8dec7800970fb0bcd0437e820c5291dd1",
+  "native_inclusion": {
+    "attachment_symbols": [
+      "rtwn8723be_native_ca"
+    ],
+    "i915_selected": false,
+    "kernel_sha256": "21dccebbbbd92cc1fa185522489a766e515f1e8a062ed6aa99b2645a907ef4ca",
+    "missing_native_symbols": [],
+    "native_global_symbols": 318,
+    "native_selected_units": 48
+  },
+  "netbsd_source": {
+    "live_commit": "UNVERIFIED: installed source has no Git metadata",
+    "param_h_sha256": "69cf7459352f71bfb597d7421db49823c163c499da55fcdaf092ce8c5e1ba26f",
+    "reference_commit": "03d918f6d0e81fa05b8f1160eca0628ad39988a6",
+    "version": "11.0"
+  },
+  "parent_acceptance": "PARTIAL",
+  "protected_after": {
+    "/boot.cfg": "f7e0ccc00308172d5787f47c2c66b33921c53341f896e2339079a66980b6a4df",
+    "/netbsd": "9b65629c0527bbd40f7ffa0d4ef0c59a32b5edceb597a5df8c86d1e7be1c8fde",
+    "/usr/src/sys/dev/pci/files.pci": "584bf78070c5868e2e48d0e563949cbf70a958b08166150f5363cfcbf5d7b707"
+  },
+  "protected_before": {
+    "/boot.cfg": "f7e0ccc00308172d5787f47c2c66b33921c53341f896e2339079a66980b6a4df",
+    "/netbsd": "9b65629c0527bbd40f7ffa0d4ef0c59a32b5edceb597a5df8c86d1e7be1c8fde",
+    "/usr/src/sys/dev/pci/files.pci": "584bf78070c5868e2e48d0e563949cbf70a958b08166150f5363cfcbf5d7b707"
+  },
+  "protected_unchanged": true,
+  "relocatable": {
+    "path": "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/rtwn8723be-native48.o",
+    "sha256": "f48572274ab516507a8b2f44fee61ae8af2972c93914696b935c85bf391df85d"
+  },
+  "source_head": "d96edb70d9c0e5332f69ba8eb286fb86481e6370",
+  "source_tree": "84fc3b9513025ecb374021c7bfa6e2c839c534a4",
+  "source_unchanged": true,
+  "started": "2026-11-09T22:34:34.965989+00:00",
+  "state": "FULL_KERNEL_LINK_PASS",
+  "step_id": "HP-RTL-FULLKERNEL-20261109",
+  "testready": false,
+  "tool_hashes": {
+    "nbmake-amd64": "a706303b48bbe9213e6d80a70c854f711200651d0a162e1d3bedfbbcf4317da3",
+    "x86_64--netbsd-gcc": "34e3b5d21de6047acd46df0d5c52efe677eed51a028bbc6218f7f1cd4ba4a4f5"
+  },
+  "verification_phase": "COMPLETE",
+  "wlan_wpa2_pm": "NOT_RUN"
+}

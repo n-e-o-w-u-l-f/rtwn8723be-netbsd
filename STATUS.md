@@ -1,6 +1,21 @@
 # RTL8723BE NetBSD project status
 
-Source checkpoint: 2026-10-29 (last verified HP native build: 2026-10-11)
+Source checkpoint: 2026-11-10 Europe/Paris; native build source d96edb70.
+
+## CURRENT NATIVE CHECKPOINT — 2026-11-10
+
+DONE: two native ifmedia header dependencies repaired; 48 native objects and
+three focused DMA/TX regressions PASS; private full kernel link PASS on HP.
+All 48 RTL units / 318 global native symbols and the attachment are present,
+with zero undefined kernel symbols. F77, boot configuration and installed
+sources are unchanged. Source-only promotion is separate from installation.
+
+[Full native gate and exact receipt](docs/HP_NATIVE_KERNEL_GATE_20261109.md).
+Parent port remains PARTIAL. Actual upstream NetBSD Git pin UNVERIFIED;
+physical RX/WPA2/PM, recovery drill and console acceptance OPEN.
+NEXT: real net80211 queue/crypto ownership and three missing lifecycle callbacks.
+Earlier checkpoints below are historical evidence.
+
 
 ## SOURCE CHECKPOINT — NET80211 802.11 FRAME/QOS TX DMA POLICY (2026-10-29)
 
