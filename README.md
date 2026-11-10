@@ -20,28 +20,44 @@ Version **0.1.0** remains experimental. F77 is the verified HP recovery
 kernel; it is not evidence that the current source tree is a working WLAN
 driver.
 
-The genuine register_ieee80211 callback now owns actual ifnet/net80211 registration and persistent RX/datapath backing. Native start/stop methods serialize lifecycle operations, preserve failed owners, drain old softints before hardware shutdown and retain IRQ resources for restart. The exact source passed 33 regression scripts, 18 owner and 13 IRQ behavioral mutations, all 48 native objects and a fresh full private HP kernel link. Missing genuine providers still reject attach before PCI/MMIO effects. See the [registration/ownership checkpoint](docs/NET80211_REGISTER_OWNER_20261110.md).
+The genuine `bt_prepare` and complete `dm_init` callbacks are now bound.
+The device owns persistent policy/DM history, immutable configured action
+providers, accepted BTC work and serialized native I/O. All 54 lifecycle
+callback slots are bound; absent genuine providers still reject admission
+before PCI/MMIO effects. This structural count does not establish runnable
+hardware. The corrected source has qualified 56 regression-script results,
+a complete 49-unit native link and 336 selected RTL global definitions with
+zero final undefined symbols. Its final independent proof passed all 4675
+checks. See the [BTC/DM ownership checkpoint](docs/BT_DM_PROVIDER_OWNERSHIP_20261110.md).
+
+The final native gate rebuilt the changed runtime object, verified the other
+48 objects unchanged from an independently proved fresh private build, and
+completed normal dependency generation and the full kernel relink. The earlier
+kernel/map and evidence remain archived. The candidate remains uninstalled,
+unbooted and BUILT_NOT_TESTREADY.
+
+Historical registration/ownership checkpoint: The genuine register_ieee80211 callback now owns actual ifnet/net80211 registration and persistent RX/datapath backing. Native start/stop methods serialize lifecycle operations, preserve failed owners, drain old softints before hardware shutdown and retain IRQ resources for restart. The exact source passed 33 regression scripts, 18 owner and 13 IRQ behavioral mutations, all 48 native objects and a fresh full private HP kernel link. Missing genuine providers still reject attach before PCI/MMIO effects. See the [registration/ownership checkpoint](docs/NET80211_REGISTER_OWNER_20261110.md).
 
 The native net80211 management/data TX consumer now implements explicit packet/node ownership, real software-CCMP preparation, ring-full retention and completion wakeup, key/context invalidation, and validated legacy rate/protection policy. That previous checkpoint passed 24 focused regressions, a fresh 48-object native HP build and an independently verified full private kernel link. Its kernel retains all 321 selected RTL global definitions, with zero final undefined symbols; no hardware WLAN result is claimed. See the [TX checkpoint](docs/NET80211_TX_CONSUMER_20261110.md) and [current status](STATUS.md).
 
-The current private manifest selects 48 C units. The conservative
+The current private manifest selects 49 C units. The conservative
 world-regdomain unit represents Linux's safe baseline: channels 1–11 are
 active CCK/OFDM, 12–13 are passive CCK/OFDM, and channel 14 is passive
-CCK-only. EFUSE channel-plan mapping and the country-IE notifier are still
-open. The 46th unit is an unbound, resource-journaled pre-`RUNNING` recovery
-owner. The 47th is a unit-tested, unbound port of the Linux BTC high-level
-`get`/`set` policy; it does not supply the missing whole-driver lifecycle
-owner or activate PCI, DMA, IRQ, RFKill, or net80211 hardware. The 48th is a
-pure, atomic BTC context-preparation boundary: it accepts a fully parsed board
-identity, maps the raw RTL8723BE antenna encoding, applies the Linux-shaped
-BTC defaults, invokes low-level then policy callback binders in a temporary
-context, and publishes only after the existing callback gate and invariants
-succeed. It does not bind `bt_prepare`, PCI, DMA, IRQ, RFKill, net80211,
-workqueues, or native hardware state.
+CCK-only. EFUSE channel-plan mapping and the country-IE notifier remain open.
+
+The 46th unit remains an unbound, resource-journaled pre-`RUNNING` recovery
+owner. The 47th high-level BTC `get`/`set` policy and 48th atomic BTC-context
+builder now participate in genuine native `bt_prepare`. The new 49th unit
+implements the full frozen RTL8723BE DM initializer: DIG, rate adaptation,
+EDCA, BB power saving, dynamic TX power, tracking initialization and ATC.
+Cold construction happens once; warm initialization preserves fields that
+the Linux initializer does not assign. Genuine coherent snapshot/action,
+C2H, calibration and hardware-disable suppliers remain required; MP transport
+activation and complete recovery/detach integration remain open.
 
 Shadow H is the exact historical 47-unit private build at source checkout
-`66fed5c6e732a373e4faa16f96b5742725c99d3b`; it does **not** cover the current
-48th context unit. Its private configuration explicitly contains
+`66fed5c6e732a373e4faa16f96b5742725c99d3b`; it does **not** cover the then-added
+48th context unit or the current 49-unit selection. Its private configuration explicitly contains
 `no i915drmkms*`; the private PCI manifest and rendered Makefile contain no
 i915 input. All 47 selected objects are nonempty, the original PCI source
 manifest stayed intact, and the separate kernel identifies as
@@ -56,7 +72,8 @@ booted, and no i915 action occurred. The [native object history](docs/HP_NATIVE_
 [Shadow H record](docs/HP_NATIVE_SHADOW_H_20261011.md), and historical 46-unit
 Shadow G result remain retained as source-specific evidence.
 
-Remaining genuine-provider integration, complete recovery/detach ownership,
+Remaining genuine snapshot/action/C2H/calibration/hardware-disable integration,
+MP activation, complete recovery/detach ownership,
 PCI/IRQ admission and physical WLAN acceptance remain open. An object build or portable C test is
 not a functional driver release. Packaging in `.tgz`, `.tbz` and `.txz`
 formats begins only after hardware acceptance.

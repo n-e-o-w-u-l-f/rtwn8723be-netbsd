@@ -39,7 +39,10 @@ struct rtwn8723be_btc_native {
 
 /* Storage/activation/fini are serialized by the external lifecycle owner.
  * Full providers, actual parsed board/context and real owner are mandatory.
- * This module is built but remains unbound to start/stop until those exist.
+ * Genuine bt_prepare supplies that owner/context. Public execute/enqueue
+ * first acquire permanent runtime admission before reading mutable child
+ * state; accepted calls/events retain that pin through their final drop.
+ * The external caller still retains the live softc/detach lifetime.
  */
 int rtwn8723be_btc_native_init(struct rtwn8723be_softc *,
     const struct btc_coexist *, const struct rtwn8723be_btc_native_owner *, void *);

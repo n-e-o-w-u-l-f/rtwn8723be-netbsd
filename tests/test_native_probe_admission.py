@@ -49,7 +49,7 @@ def source_contract(source: str) -> None:
     ops = NETBSD.split("const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops", 1)[1]
     assert ".register_ieee80211 = rtwn8723be_netbsd_register_ieee80211," in ops
     for name in ("bt_prepare", "dm_init"):
-        assert "." + name + " =" not in ops
+        assert "." + name + " = rtwn8723be_netbsd_" + name + "," in ops
     assert ".init_rfkill = rtwn8723be_netbsd_init_rfkill," in ops
     assert "rtwn8723be_rfkill_native_init(sc);" in NETBSD
     assert "sc->sc_net80211.registered" in NETBSD

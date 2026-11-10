@@ -66,13 +66,14 @@ assert "if (error != 0)" in cleanup
 assert "return;" in cleanup.split("if (error != 0)", 1)[1].split("\n    }", 1)[0]
 assert "if (sc->sc_linux.stage >= R23BE_STAGE_IEEE80211_REGISTER)\n        return EBUSY;" not in native
 
-# Registration is genuinely bound; the remaining BT/DM start gaps stay blocked.
+# Registration and BT/DM callbacks are genuinely bound; missing configured
+# suppliers still fail the early structural provider gate.
 # The early native provider gate preserves rejection before PCI effects.
 # RFKill and the existing reverse owner remain required.
 ops = netbsd.split("const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops", 1)[1]
 assert ".register_ieee80211 = rtwn8723be_netbsd_register_ieee80211," in ops
 for slot in ("bt_prepare", "dm_init"):
-    assert "." + slot + " =" not in ops
+    assert "." + slot + " = rtwn8723be_netbsd_" + slot + "," in ops
 assert ".init_rfkill = rtwn8723be_netbsd_init_rfkill," in ops
 assert "rtwn8723be_rfkill_native_fini(sc);" in native
 

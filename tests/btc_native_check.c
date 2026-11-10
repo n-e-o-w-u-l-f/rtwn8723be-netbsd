@@ -13,10 +13,24 @@ static _Thread_local kmutex_t *held[16];
 static _Thread_local unsigned int held_count;
 static unsigned int scenarios,queues_created,queues_destroyed;
 static atomic_uint checks;
+static _Thread_local int test_giant_depth;
+static atomic_uint giant_drops,giant_locks;
 static bool fail_create;
+/* Explicit permanent-lifetime boundary model for this broker unit fixture.
+ * The full native-provider fixture compiles the real runtime admission/pins.
+ * Existing copied-event, workqueue and stop races below remain unchanged. */
+int rtwn8723be_runtime_btc_admit(struct rtwn8723be_softc *sc) { (void)sc;return 0; }
+void rtwn8723be_runtime_btc_drop(struct rtwn8723be_softc *sc) { (void)sc; }
+int rtwn8723be_runtime_btc_stop_ready(struct rtwn8723be_softc *sc) { (void)sc;return 0; }
+int rtwn8723be_runtime_btc_retire(struct rtwn8723be_softc *sc) { (void)sc;return 0; }
 #define CHECK(x) do {++checks;assert(x);}while(0)
+bool btc_test_kernel_locked(void){return test_giant_depth!=0;}
+void btc_test_kernel_unlock_all(int *count){CHECK(count!=NULL&&test_giant_depth>0);*count=test_giant_depth;test_giant_depth=0;++giant_drops;}
+void btc_test_kernel_lock(int count){CHECK(count>=0);test_giant_depth+=count;if(count>0)++giant_locks;}
 bool cpu_intr_p(void){return hard_irq;}
 bool cpu_softintr_p(void){return soft_irq;}
+/* This unit fixture enters no pserialize read-side section. */
+bool pserialize_not_in_read_section(void){return true;}
 bool mutex_owned(kmutex_t *m){unsigned int i;for(i=0;i<held_count;++i)if(held[i]==m)return true;return false;}
 void mutex_init(kmutex_t *m,int type,int ipl){CHECK(type==MUTEX_DEFAULT&&(ipl==IPL_NONE||ipl==IPL_SOFTNET));CHECK(!pthread_mutex_init(&m->p,NULL));}
 void mutex_destroy(kmutex_t *m){CHECK(!pthread_mutex_destroy(&m->p));}
@@ -55,6 +69,7 @@ void workqueue_enqueue(struct workqueue *q,struct work *w,void *cpu)
 }
 void workqueue_wait(struct workqueue *q,struct work *w)
 {
+    CHECK(test_giant_depth==0);
     /* Pinned NetBSD returns immediately for its own worker, so the native
      * caller must reject self-stop BEFORE depending on this API. */
     if(pthread_equal(pthread_self(),q->thread))return;
@@ -83,6 +98,7 @@ static void pause_at(struct test_env *e,bool enabled)
 static int acquire(void *arg,struct rtwn8723be_softc *sc)
 {
     struct test_env *e=arg;assert(btc_test_lwp.unused==0);assert(!hard_irq&&!soft_irq);
+    CHECK(test_giant_depth==0);
     if(e->acquire_error)return e->acquire_error;
     assert(!pthread_mutex_lock(&e->resource));++e->acquired;
     if(e->self_acquire)e->self_result=rtwn8723be_btc_native_stop(sc);
@@ -206,9 +222,24 @@ static void unwind(void)
     fail_create=true;CHECK(rtwn8723be_btc_native_init(&sc,&context,&owner,&e)==ENOMEM);CHECK(!sc.sc_btc.initialized&&!sc.sc_btc.engine.prepared&&!sc.sc_btc.workqueue);
     fail_create=false;free(m);++scenarios;
 }
+static void giant_halt_wrapper(void)
+{
+    for(unsigned depth=0;depth<=3;depth++) {
+        struct rtwn8723be_softc sc;struct test_env e;
+        init_env(&sc,&e);sc.sc_linux.stage=R23BE_STAGE_STOPPING;
+        unsigned drops=giant_drops,locks=giant_locks;
+        test_giant_depth=(int)depth;
+        CHECK(rtwn8723be_netbsd_bt_halt_deinit(&sc)==0);
+        CHECK(test_giant_depth==(int)depth);
+        CHECK(giant_drops==drops+(depth!=0)&&giant_locks==locks+(depth!=0));
+        CHECK(!sc.sc_btc.initialized&&e.halted==1&&e.acquired==e.released);
+        test_giant_depth=0;
+        destroy_env(&sc,&e,false);++scenarios;
+    }
+}
 int main(int argc,char **argv)
 {
     if(argc==2&&!strcmp(argv[1],"copy-only")){copied_info();return 0;}
-    CHECK(argc==1);copied_info();stop_race();overflow();provider_fault();guards();unwind();
+    CHECK(argc==1);copied_info();stop_race();overflow();provider_fault();guards();unwind();giant_halt_wrapper();
     CHECK(queues_created==queues_destroyed);printf("BTC_NATIVE_SCENARIOS=%u CHECKS=%u\n",scenarios,checks);return 0;
 }

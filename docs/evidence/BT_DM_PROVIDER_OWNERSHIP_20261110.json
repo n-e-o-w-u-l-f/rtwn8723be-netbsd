@@ -1,0 +1,469 @@
+{
+  "schema_version": 1,
+  "project_id": "HP-RTL8723BE",
+  "project_name": "rtwn8723be0-netbsd",
+  "repository": "n-e-o-w-u-l-f/rtwn8723be-netbsd",
+  "date": "2026-11-10",
+  "document_state": "FINAL_CORRECTED_SOURCE_AND_LINK_EVIDENCE",
+  "version": "0.1.0",
+  "parent_port": "PARTIAL",
+  "acceptance": {
+    "source_tests": "PASS",
+    "native_49_object_selection_and_full_link": "PASS",
+    "final_independent_verification": "PASS",
+    "component_governance_acceptance": "RECORDED_SEPARATELY_IN_PROJECT_GOVERNANCE",
+    "hardware": "NOT_RUN",
+    "private_kernel": "BUILT_NOT_TESTREADY",
+    "publication": "RECORDED_SEPARATELY_IN_GOVERNANCE"
+  },
+  "source": {
+    "parent_commit": "3d9c371488e5a4d93baca5939c2971be3360f35d",
+    "tested_files": 1016,
+    "tested_source_manifest_sha256": "6ed170156fc04d868b6457b5da4d920a085f962d94cfa0a6e4a4850000dcc075",
+    "physical_source_result_sha256": "58eadafee022e56ab7da5bcda00a05d1156035bc703436ad96599c5806d117cd",
+    "physical_source_exact": true,
+    "implementation_changed_paths": 33,
+    "changed_path_groups": {
+      "production": 7,
+      "manifest": 1,
+      "tests": 24,
+      "tool": 1
+    },
+    "changed_paths": {
+      "config/files.rtwn8723be_native": {
+        "blob": "995e44d36619fd7da050620bbc3313fbcbeb06b1",
+        "bytes": 3628,
+        "mode": "100644",
+        "sha256": "a8629416930d40915a8330faf82d0ba0a0dd97a666e3ed35ae171ce99edf4ef4"
+      },
+      "src/rtwn8723be_btc_native.c": {
+        "blob": "baf8d62f36444d19d7b0c747e260c840c546631b",
+        "bytes": 14535,
+        "mode": "100644",
+        "sha256": "336707ef12e8551648ed3b6651758daba3a1c430387f9f3942a98efccde36f03"
+      },
+      "src/rtwn8723be_btc_native.h": {
+        "blob": "1b1093e6397cb04f7c6cec4de4e0b558fc7f09b4",
+        "bytes": 3216,
+        "mode": "100644",
+        "sha256": "bd29f0bcb706f48f6340adce3fcfe81b74b8bc08974d6863aae8b82f2aecb739"
+      },
+      "src/rtwn8723be_dm.c": {
+        "blob": "d9ff256f277b78fbc796b029ec4fedd3365098ae",
+        "bytes": 5507,
+        "mode": "100644",
+        "sha256": "b06d1675e7a4d30746383ee2729cab656369a8d52a95127116a5b2c5bc2fe2a4"
+      },
+      "src/rtwn8723be_dm.h": {
+        "blob": "c204a9b93ef0f5501cbaf5805feeb5ea57cf5008",
+        "bytes": 3991,
+        "mode": "100644",
+        "sha256": "57512544c03c69d802a4acc317c42e904daf7cafb94d42c28b4252e3d841eb24"
+      },
+      "src/rtwn8723be_netbsd.c": {
+        "blob": "5e294c3c912ddeae136f52f55b6dde50290e2298",
+        "bytes": 78343,
+        "mode": "100644",
+        "sha256": "6c16747c10f30799451e4e93f205581d37032b1ab6ebbe3337ef199ead3de0ae"
+      },
+      "src/rtwn8723be_runtime_owner.c": {
+        "blob": "1d32282955fcb41a2a7dcee8755c1ae1d94a161f",
+        "bytes": 47254,
+        "mode": "100644",
+        "sha256": "fb679e0b4a02ebcd457192111d5df6dcbd09c9931f0ff5cbef40b05f6fafba1a"
+      },
+      "src/rtwn8723be_runtime_owner.h": {
+        "blob": "d70bf8124bd67c29008ead71c73ffaeb4cc655bf",
+        "bytes": 3162,
+        "mode": "100644",
+        "sha256": "685b9d2dafdf4c3a3f75a4b2401c3353b2b333e111ae8203d4b0ab889b2a5460"
+      },
+      "tests/btc_native_check.c": {
+        "blob": "06571eef439b82bf13dea7da6123d5ab18a7e011",
+        "bytes": 16595,
+        "mode": "100644",
+        "sha256": "89a79b2fd441b18ecb31dc686c6c4b1a40c29e6e0c9bec6230f35c4f51db1cc5"
+      },
+      "tests/btc_native_kernel_model.h": {
+        "blob": "895c722ff8067e5fa66c88c6427d55ea324b90fd",
+        "bytes": 1660,
+        "mode": "100644",
+        "sha256": "aafec4f271bc35b7b4216166314b5733542b10921d8c679089ecc61f654f9980"
+      },
+      "tests/runtime_owner_fixture.py": {
+        "blob": "c8cba3aba36d64b07751c1c124246a155c593a19",
+        "bytes": 32305,
+        "mode": "100644",
+        "sha256": "6d637bae25a390fb756071ab2786764e23a5a4443db0061fdbd2aeab3c5100f7"
+      },
+      "tests/test_btc_context.py": {
+        "blob": "99d32b62bdda677613b14f662adaa7aad7589efc",
+        "bytes": 19206,
+        "mode": "100644",
+        "sha256": "37b8650823ca359d06e24ad6884135029152ce82bbd184a307930afa40075dac"
+      },
+      "tests/test_btc_mp_native.py": {
+        "blob": "2b637376d96e32eac0c70922576335d53dd17842",
+        "bytes": 8482,
+        "mode": "100644",
+        "sha256": "47a85dc35dea815eaae8cc9d4d61832ca2e5ed509d39e2b9783d30159bef73cd"
+      },
+      "tests/test_btc_native.py": {
+        "blob": "c92e7c7e79eabfea8a5763bfbbefd8e0d77ba0f0",
+        "bytes": 5553,
+        "mode": "100644",
+        "sha256": "9705dea31229852b07932765d30dfa9eaae7cec50d4a36605e0478b484023d8d"
+      },
+      "tests/test_btc_policy.py": {
+        "blob": "5c225b2918fd415826683c0288647497eb4ece20",
+        "bytes": 11754,
+        "mode": "100644",
+        "sha256": "7371751a3c596a1ab238510a12abbba95249926bdc25acd8d7cbef6e77d7fef8"
+      },
+      "tests/test_calibration.py": {
+        "blob": "c61b2dfa991f5e0fc0bbba366ada2192dd41797d",
+        "bytes": 2081,
+        "mode": "100644",
+        "sha256": "74f454b4d65230e91327b92e78536e4489194cab43fc2f534ce5f6001816317b"
+      },
+      "tests/test_calibration_native.py": {
+        "blob": "72ea0480e440195fc89350b1ed6bb7e999da2877",
+        "bytes": 2062,
+        "mode": "100644",
+        "sha256": "6bdca955244255ca663662381f499f6e9a567c61d519066896270fe36bfd3aa7"
+      },
+      "tests/test_dm.py": {
+        "blob": "e3025fb898766385241c23dd5ff08ccd2b220a71",
+        "bytes": 14843,
+        "mode": "100644",
+        "sha256": "d48e80c8df1efd4bd2c1bc7445d9fce6d480a89dd7b3f78540e87064d8f62ef2"
+      },
+      "tests/test_hw_disable.py": {
+        "blob": "16dc8f4d1757e4436e9acfeea206515e3046c977",
+        "bytes": 1789,
+        "mode": "100644",
+        "sha256": "62b12781f1b2c756ed0d85936f2945fbcc2914688fd4a2f0ac2ab0675d6bd23a"
+      },
+      "tests/test_hw_disable_native.py": {
+        "blob": "17b8bb300566e4c0772d85ca1fe2aadc798d0c81",
+        "bytes": 2319,
+        "mode": "100644",
+        "sha256": "be4cb7828ec9ccc5f1ca520cd8575f0576dbfe61bbfd1e8a2d6d4c971385998a"
+      },
+      "tests/test_kernel_shadow_manifest.py": {
+        "blob": "ae48bf70fb2c8526d7845405cf71328c77a51d0f",
+        "bytes": 3184,
+        "mode": "100644",
+        "sha256": "aebb74271cc4a78064076f90627a669bba1fb2ecb42369e3bebb242dddf0fba6"
+      },
+      "tests/test_kernel_source_integrity.py": {
+        "blob": "37f79a9f54b96ddc064357cf6990b6d9becd6af9",
+        "bytes": 3221,
+        "mode": "100644",
+        "sha256": "067d586955fad2b3650afee179be23fc43d11e5817c300d5128c93bf4d395d87"
+      },
+      "tests/test_native_probe_admission.py": {
+        "blob": "892fbb7a47158dc475afc5e18e3b473066002a08",
+        "bytes": 5716,
+        "mode": "100644",
+        "sha256": "eae5f9085d141bfeb631f6e89354336f97804bea2aa880ce520bbe9749348629"
+      },
+      "tests/test_native_provider_ownership.py": {
+        "blob": "ea8cfae8a3f39a12e99b63d50eb818f82b07b4ea",
+        "bytes": 86030,
+        "mode": "100644",
+        "sha256": "b7435166a7887ed154576af654c04ac361a895fbe3262c14d4c9d1f42a16ed51"
+      },
+      "tests/test_native_runtime_owner.py": {
+        "blob": "817e0431503c9191cde31bbff2be09617b6b3a7d",
+        "bytes": 24967,
+        "mode": "100644",
+        "sha256": "517f213b09dd13e309a38e8b47fd646a3390ade708c285060eb0e939f51b9b02"
+      },
+      "tests/test_net80211_owner_storage.py": {
+        "blob": "027e0e907d58100286ea70653c92e76e91b39b6f",
+        "bytes": 3369,
+        "mode": "100644",
+        "sha256": "ce06cf6c44b691c66585b85df30428dba4d56754427cf9726133920eb68d5983"
+      },
+      "tests/test_net80211_registration_owner_admission.py": {
+        "blob": "1ab9fee69d69c36b486343d89f240d10d187e36e",
+        "bytes": 8292,
+        "mode": "100644",
+        "sha256": "e598325c15d990884c18a980dc8e30b5976d9db796e10788a9fa6261708a036e"
+      },
+      "tests/test_port_closure_inventory.py": {
+        "blob": "db1a5c6adb0699b161513662296ee8257aadea57",
+        "bytes": 39302,
+        "mode": "100644",
+        "sha256": "93f87c9133c6f2bc4595baff6384ce5befeeece35bba54387dc4a8ad86b91d32"
+      },
+      "tests/test_post_registration_probe_unwind.py": {
+        "blob": "b336f2d8eb0a0271a2b03358a0c7e8db9d89fa83",
+        "bytes": 13773,
+        "mode": "100644",
+        "sha256": "90fd74d6c938ad8ef89f6d5547cc3fc2d5a1f7fc7558633273629dda4dbec910"
+      },
+      "tests/test_rfkill_probe_ops_binding.py": {
+        "blob": "4c9fcf8938a3d17d554616cf4677d64fbdfac28e",
+        "bytes": 12335,
+        "mode": "100644",
+        "sha256": "28dd0c653ca476081d0029210e7183cb40cf393cc0e37802837c69da289129f4"
+      },
+      "tests/test_runtime_owner.py": {
+        "blob": "6c58c44908ac7b17867492f25f9a30178b23349e",
+        "bytes": 5500,
+        "mode": "100644",
+        "sha256": "3c216f92e1520c321bf10daf5cfc1ff4b68255fa1bcc3923604c804558b839f3"
+      },
+      "tests/test_thermal.py": {
+        "blob": "d50866a1ddd43a4c1f1c6f699ca34036b5187922",
+        "bytes": 2081,
+        "mode": "100644",
+        "sha256": "737c707678ba9a0d8febe97c50637b074df34efc19b45e27d1136b3c75f8450e"
+      },
+      "tools/configure_hp_native_kernel_shadow.py": {
+        "blob": "84f0e1dd6d4a01223a546622fae45e6b55e1cd70",
+        "bytes": 11991,
+        "mode": "100644",
+        "sha256": "743a435955a7b1d66c449c5f7ddc5c2b252d9959812d9b927b0b8fdee2236932"
+      }
+    },
+    "proposed_documentation_paths": [
+      "README.md",
+      "STATUS.md",
+      "docs/BT_DM_PROVIDER_OWNERSHIP_20261110.md",
+      "docs/evidence/BT_DM_PROVIDER_OWNERSHIP_20261110.json"
+    ]
+  },
+  "bindings": {
+    "structural_callbacks_bound": 54,
+    "structural_callbacks_total": 54,
+    "native_units": 49,
+    "hardware_readiness_implied": false,
+    "mandatory_policy_ports": [
+      "snapshot",
+      "clock_msec",
+      "aggregate_apply",
+      "lps_enter",
+      "lps_leave",
+      "bt_query",
+      "fault"
+    ],
+    "configuration": "immutable once copied complete table; arg is owning softc",
+    "policy_aggregation_interval_msec": 8000,
+    "normal_stop_history": "policy clock and unassigned DM/thermal history retained",
+    "missing_genuine_provider_result": "ENOSYS before PCI/MMIO",
+    "observed_fault_at_release": {
+      "recorded_error": "native child last_error snapshotted under queue lock, released outside it",
+      "individual_callback_return": "unchanged EINVAL or success",
+      "async_scope": "No atomic mirror claim for faults arriving after snapshot"
+    }
+  },
+  "tests": {
+    "aggregate_receipt_sha256": "75e27c0f709d189f98b8a334a7b2fc04a986dca2d1233fdf932b74667a9f3212",
+    "distinct_scripts": 56,
+    "fresh_executed_scripts": 53,
+    "input_equivalent_carried_scripts": 3,
+    "carried_names": [
+      "tests/test_btc_context.py",
+      "tests/test_btc_policy.py",
+      "tests/test_dm.py"
+    ],
+    "carry_qualification": {
+      "all_other_inputs_byteexact": true,
+      "only_changed_broad_input_not_consumed": [
+        "src/rtwn8723be_runtime_owner.c"
+      ]
+    },
+    "provider": {
+      "logical_cases": 12,
+      "positive_executions": 24,
+      "build_modes": [
+        "normal",
+        "NDEBUG"
+      ],
+      "executed_mutants": 22,
+      "compile_failure_kills": 0,
+      "proof_sha256": "617593348b2383d9dc7f6c1351ccd52fe557c13735c1b0fc643a2e4366f34399",
+      "receipt_sha256": "5d162a5287f15b2d1ce37a40721333a8cb40404ad45656c9f72cbd54e32449df",
+      "artifact_manifest_sha256": "21ac2d9a70fb9109b78fd5f41e6fdba47ddda20307df04f5ed3415f20493c972",
+      "receipt_path_private": "native-provider-full-R04-V2.json"
+    },
+    "pure_dm": {
+      "vectors": 768,
+      "executed_mutants": 12,
+      "receipt_sha256": "8fca4b1b3df5916b1a0c532b47981362b0a348eff55207e608c3137b394726c4"
+    },
+    "preserved_executed_mutants": {
+      "runtime_owner": 18,
+      "irq_drain": 13,
+      "tx_consumer": 13,
+      "tx_crypto": 11
+    },
+    "source_negative_controls": 17,
+    "source_negative_controls_kind": "static, not behavioral mutation executions",
+    "new_behavioral_mutants": 34,
+    "diagnostic_red_probe": {
+      "receipt_sha256": "0f8f626328c679bd5b09f6b8d54ea28cbdb8eeaf1e9ecaef5e98730447343f8b",
+      "old_input_runtime_sha256": "7c7afeaf3c8e58cb459dbf17b4fd1c8567e58c98bd995fe7dbf9b8e186d0de8e",
+      "compile_exit": 0,
+      "no_fault_control_exit": 0,
+      "targeted_runtime_red_cases": 2,
+      "targeted_red_exit": 97,
+      "not_mutation_kills": true,
+      "resource_ownership_balanced": true,
+      "all_source_and_protected11_unchanged": true
+    }
+  },
+  "native_objects": {
+    "result": "PASS",
+    "units": 49,
+    "production_inputs": 119,
+    "staged_project_dependencies": 115,
+    "initial_fresh49_object_receipt_sha256": "5874c32a14ba8c5ce0140ed7d8e6f55c9cedec7178d20206b2f9aa8aa80083f3",
+    "runtime_recompiled": {
+      "new_sha256": "a41aa58961eabfe3577ab77aae487e95f9ac9de29153fd09e2d7ba6e21cd8882",
+      "old_sha256": "81d2130c405be3ad2b609877f22311ef315556e70f8203afa1cef233edc3b580",
+      "path": "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-bt-dm-20261110/obj/rtwn8723be_runtime_owner.o",
+      "source_sha256": "fb679e0b4a02ebcd457192111d5df6dcbd09c9931f0ff5cbef40b05f6fafba1a"
+    },
+    "other48_byteidentical_to_proved_initial_objects": true,
+    "qualification": "Initial fresh49 objects and full GENERIC build independently proved; changed runtime recompiled, other48 verified unchanged, complete dependencies/ld-r/netbsd relink passed."
+  },
+  "full_private_kernel": {
+    "result": "PASS",
+    "runner_status_sha256": "b90dd2eebd4494b38ef7014940d429d81f9023e9c6b3555c257c2961e054fc1a",
+    "runner_script_sha256": "028886d467be3590d4b44171e00d71ae5d8df892c5b6fcbc5915700fe3f536e5",
+    "invocation_id": "R04_FINAL_NATIVE",
+    "saved_commands": [
+      {
+        "label": "runtime_dependency",
+        "exit": 0
+      },
+      {
+        "label": "runtime_recompile",
+        "exit": 0
+      },
+      {
+        "label": "native49_relocatable",
+        "exit": 0
+      },
+      {
+        "label": "full_dependency",
+        "exit": 0
+      },
+      {
+        "label": "full_private_kernel_relink",
+        "exit": 0
+      }
+    ],
+    "kernel": {
+      "bytes": 27295696,
+      "sha256": "da4f6c19ef35c369ca977467426a8194b7d8cdca0bed03bdf9ee5c36a5b5a802",
+      "type": "ET_EXEC",
+      "machine": 62
+    },
+    "map": {
+      "bytes": 12479929,
+      "sha256": "5095dbfa020bc1bc26e95a576923a9f04e6360650534bba44c06a3a4972e74c0"
+    },
+    "relocatable": {
+      "bytes": 6352504,
+      "sha256": "dc118cabbe5880021e4456556996ba77bc2e11a5b0d5906949845119b14be962",
+      "type": "ET_REL"
+    },
+    "output_manifest_sha256": "1bcb4b9302de8990626acce842e4c3a2062ad69645b162ecedbd6dd1e3c9ad2d",
+    "native_units": 49,
+    "native_global_definitions": 336,
+    "final_undefined_symbols": 0,
+    "no_i915": true,
+    "all_1016_source_unchanged": true,
+    "all_9_original_protected_unchanged": true,
+    "private_candidate": "BUILT_NOT_TESTREADY",
+    "installation": "NOT_RUN",
+    "boot": "NOT_RUN"
+  },
+  "completed_gate_protection": {
+    "old_protected_count": 9,
+    "final_pair_included_count": 11,
+    "unchanged": true,
+    "archive1585_unchanged": true,
+    "install": "NOT_RUN",
+    "candidate_boot": "NOT_RUN"
+  },
+  "references": {
+    "linux_semantic_pin": "fd179f8a05be3ccae366b9b96e176b51fbe54aab",
+    "target_headers": "actual installed NetBSD 11.0",
+    "target_upstream_git_reference": "03d918f6d0e81fa05b8f1160eca0628ad39988a6",
+    "target_upstream_git_verification": "UNVERIFIED; installed target tree has no Git metadata",
+    "os_source_and_tool_qualification": "Only explicit pre-build anchors establish historical identity; other OS/tool hashes are endpoint observations, not a complete historical GENERIC SDK map."
+  },
+  "private_receipts_publicly_uploaded": false,
+  "receipt_identities": {
+    "source-baseline.json": "83537f6ee86e6212cc90fd143bb592596bebcf7c28c7468add14f2a132434275",
+    "source-result-A02-R04.json": "58eadafee022e56ab7da5bcda00a05d1156035bc703436ad96599c5806d117cd",
+    "fixtures-final-A02-R04.json": "75e27c0f709d189f98b8a334a7b2fc04a986dca2d1233fdf932b74667a9f3212",
+    "final-source-inputs-A02-R04.json": "6ed170156fc04d868b6457b5da4d920a085f962d94cfa0a6e4a4850000dcc075",
+    "kernel-source-inputs-A02-R04.json": "6ed170156fc04d868b6457b5da4d920a085f962d94cfa0a6e4a4850000dcc075",
+    "native-final-R04-status.json": "b90dd2eebd4494b38ef7014940d429d81f9023e9c6b3555c257c2961e054fc1a",
+    "independent-native-proof-A02-R04.json": "22e32985120612ce6442c83cbd7c0794b05c5b3fa9939db4fa07b676a2aa9f4e",
+    "provider-output-manifest-A02-R04.json": "21ac2d9a70fb9109b78fd5f41e6fdba47ddda20307df04f5ed3415f20493c972",
+    "dm-validation-A01.json": "8fca4b1b3df5916b1a0c532b47981362b0a348eff55207e608c3137b394726c4",
+    "R04-preserved-old/manifest.json": "981ebd01ded3ceecf0570d6b5c57ec6bf0c206e2999271ebbd46d357b7868599",
+    "independent-native-proof-A02-V02.json": "b8b08367a99e150728736b1e36fcb780daf79617ae1bb338dd2612b2b11c6827",
+    "fixture-tmp/release-attribution-red-A01/receipt.json": "0f8f626328c679bd5b09f6b8d54ea28cbdb8eeaf1e9ecaef5e98730447343f8b",
+    "native-provider-full-R04-V2.json": "5d162a5287f15b2d1ce37a40721333a8cb40404ad45656c9f72cbd54e32449df"
+  },
+  "limits": [
+    "Structural 54/54 binding is not genuine external-provider or hardware readiness.",
+    "pthread/CV/workqueue/Giant/MMIO/H2C/action boundaries do not establish NetBSD SMP, firmware or WLAN/PM behavior.",
+    "Physical scan/association/WPA2/PM and candidate install/boot are NOT_RUN.",
+    "MP activation, coherent genuine snapshot/actions/C2H TX-RA/calibration/HW-disable suppliers, partial-start recovery, complete detach and periodic DM/thermal/watchdog integration remain OPEN.",
+    "No candidate self commit/tree is used; source publication and host synchronization are recorded separately in governance.",
+    "The observed release-fault correction is not a global asynchronous-fault mirror guarantee."
+  ],
+  "historical_evidence_preserved": [
+    "docs/NET80211_REGISTER_OWNER_20261110.md",
+    "docs/evidence/NET80211_REGISTER_OWNER_20261110.json",
+    "docs/NET80211_TX_CONSUMER_20261110.md",
+    "docs/evidence/NET80211_TX_CONSUMER_20261110.json",
+    "docs/HP_NATIVE_KERNEL_GATE_20261109.md"
+  ],
+  "next": "Supply genuine state/action/C2H/calibration/hardware-disable owners and MP activation; close complete recovery/detach before separately authorized physical network acceptance.",
+  "independent_verification": {
+    "result": "PASS",
+    "receipt_sha256": "22e32985120612ce6442c83cbd7c0794b05c5b3fa9939db4fa07b676a2aa9f4e",
+    "receipt_bytes": 1482477,
+    "verifier_sha256": "8c2daabdeee3b33d8635550816c83a18e693d1a96a1a8e937ba09ffb2ae358fc",
+    "checks_passed": 4675,
+    "checks_total": 4675,
+    "source_files": 1016,
+    "production_files": 119,
+    "staged_project_dependencies": 115,
+    "native_units": 49,
+    "native_globals": 336,
+    "undefined_symbols": 0,
+    "preserved_old_original_files": 9,
+    "preserved_original_plus_final_pair": 11,
+    "archive_entries": 1585
+  },
+  "preserved_intermediate": {
+    "source_manifest_sha256": "6a4243bff493e44ac78c76037293efcb6a05becb4f752c1421f20b3b640c23ef",
+    "runtime_source_sha256": "7c7afeaf3c8e58cb459dbf17b4fd1c8567e58c98bd995fe7dbf9b8e186d0de8e",
+    "native_kernel": {
+      "bytes": 27295696,
+      "sha256": "8e1454a74368f60b518d92fc32670cb9fa290382bba44a5cdc2702668d856c3c"
+    },
+    "map": {
+      "bytes": 12479929,
+      "sha256": "1375833b05ff1e8af7ba1390338ee22f587903c9b7c5ecaf071fcf7975990fcc"
+    },
+    "relocatable_sha256": "e9f48e3375a4eb2a78b4c6eca7055380dcc078a4b18f76ee997a6cfaf6d40dc9",
+    "independent_old_input_receipt_sha256": "b8b08367a99e150728736b1e36fcb780daf79617ae1bb338dd2612b2b11c6827",
+    "archive_manifest_sha256": "981ebd01ded3ceecf0570d6b5c57ec6bf0c206e2999271ebbd46d357b7868599",
+    "archive_entries": 1585,
+    "all_entries_unchanged": true,
+    "qualification": "Qualified initial fresh full kernel/source build; archived before bounded correction; not the final corrected source/kernel identity."
+  }
+}

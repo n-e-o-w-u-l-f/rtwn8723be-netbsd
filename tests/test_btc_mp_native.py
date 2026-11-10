@@ -158,7 +158,7 @@ try:
         hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs},
         frozen_sha256=hashlib.sha256(reference.encode()).hexdigest(),
         scope='Unmodified native C with explicit pthread mutex/CV/context, H2C and softc models. Real NetBSD object compilation is a separate gate.',
-        limitations=['Activation and C2H consumer binding await a real full BTC/MCU/RX/IRQ owner.',
+        limitations=['Fresh MCU/RX lifetime and MP activation remain OPEN; BTC provider binding does not activate this transport.',
             'No physical firmware, whole driver, kernel link, WLAN, PM or recovery acceptance.',
             'Fixed opcode sequences cannot distinguish duplicate older same-opcode replies; reset generation is not a wire nonce.'],
         acceptance='OPEN: complete both full ports and actual HP WLAN online')

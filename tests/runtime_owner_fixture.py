@@ -4,6 +4,9 @@
 The real Linux lifecycle controller, runtime owner, datapath admission and IRQ
 bodies are compiled. Mutexes, Giant, allocation, interface/RX publication and
 hardware providers are instrumented boundaries, not an OS ABI or SMP emulator.
+The new policy configuration, policy storage and portable DM objects are real.
+BTC execution/board construction remain explicit instrumented boundaries in
+this older registration/IRQ suite; the provider suite covers their real chain.
 Generated files and child working directories stay in TMPDIR; cores are disabled.
 """
 from pathlib import Path
@@ -54,6 +57,9 @@ def inputs():
         "rtwn8723be_calibration_native.h", "rtwn8723be_hw_disable_native.h",
         "rtwn8723be_f16_1.h",
         "rtwn8723be_net80211_state.h", "rtwn8723be_irq_pending.h",
+        "rtwn8723be_btc_native.h", "rtwn8723be_btc_engine.h",
+        "rtwn8723be_btc_context.h", "rtwn8723be_btc_policy.h",
+        "rtwn8723be_dm.h", "rtwn8723be_thermal.h", "rtwn8723be_phy_exec.h",
     )
     return {p: (SRC / p).read_text() for p in paths}
 
@@ -69,6 +75,12 @@ PRELUDE = r'''
 #include "rtwn8723be_linux_state.h"
 #include "rtwn8723be_net80211_state.h"
 #include "rtwn8723be_irq_pending.h"
+#include "rtwn8723be_btc_engine.h"
+#include "rtwn8723be_btc_context.h"
+#include "rtwn8723be_btc_policy.h"
+#include "rtwn8723be_btc_providers_native.h"
+#include "rtwn8723be_dm.h"
+#include "rtwn8723be_phy_exec.h"
 #define CHECK(x) do { if (!(x)) { fprintf(stderr, "FIXTURE_ASSERT:%s:%d:%s\n", __FILE__, __LINE__, #x); exit(97); } } while (0)
 /* Release-style project assertions: conditions are typechecked, not evaluated. */
 #define KASSERT(x) ((void)sizeof(x))
@@ -89,6 +101,10 @@ static struct lwp first_lwp = {1}, second_lwp = {2};
 static _Thread_local struct lwp *curlwp = &first_lwp;
 typedef struct { bool initialized, held; int ipl; struct lwp *holder; } kmutex_t;
 typedef unsigned int pci_intr_handle_t;
+typedef size_t bus_size_t;
+typedef struct { int unused; } kcondvar_t;
+struct work { int unused; };
+struct workqueue { int unused; };
 struct ifnet { unsigned int if_flags; int if_timer; };
 struct mbuf;
 struct ieee80211_node;
@@ -156,6 +172,9 @@ static unsigned int xc_encode_ipl(int ipl) {
 }
 #define XC_HIGHPRI_IPL(ipl) (1U | xc_encode_ipl(ipl))
 static void xc_barrier(unsigned int);
+static void delay(unsigned int);
+uint32_t rtwn8723be_netbsd_get_bbreg(struct rtwn8723be_softc *, bus_size_t, uint32_t);
+int rtwn8723be_btc_mp_native_stop(struct rtwn8723be_softc *);
 static void rtwn8723be_write_4(struct rtwn8723be_softc *, uint32_t, uint32_t);
 static void __attribute__((unused)) rtwn8723be_write_1(struct rtwn8723be_softc *, uint32_t, uint8_t);
 static uint32_t rtwn8723be_read_4(struct rtwn8723be_softc *, uint32_t);
@@ -187,7 +206,7 @@ struct rtwn8723be_softc {
     struct rtwn8723be_rx_binding *sc_rx_binding;
     struct { bool initialized, active, work_queued; void *wq; } sc_rfkill_native;
     struct { bool initialized; struct rtwn8723be_softc *sc; struct { bool firmware_ready; } state; } sc_h2c;
-    struct { bool initialized, scheduled; void *workqueue, *owner, *owner_arg, *worker; unsigned int calls, count; } sc_btc;
+    struct rtwn8723be_btc_native sc_btc;
     struct { bool initialized, active, busy, pending; } sc_btc_mp;
     const struct rtwn8723be_calibration_owner *sc_calibration_owner;
     void *sc_calibration_owner_arg;
@@ -203,6 +222,13 @@ struct rtwn8723be_softc {
     bool sc_rfchange_inprogress, sc_initial_pci_saved, sc_mapped;
     bool sc_core_initialized, sc_rings_allocated, sc_dmat_owned, sc_dma_32bit, sc_hal_started;
     void *sc_dmat;
+    size_t sc_mapsize;
+    struct rtwn8723be_phy_identity sc_phy_identity;
+    bool sc_bb_valid, sc_rf_chnlval_valid, sc_phy_identity_valid;
+    bool sc_rf_path_count_valid, sc_xtal_valid, sc_bt_ant_valid, sc_package_valid;
+    bool sc_btcoexist;
+    uint8_t sc_rf_path_count, sc_xtal_cap, sc_btdm_ant_num;
+    uint8_t sc_single_ant_path, sc_package_type;
     struct { struct ifnet ec_if; } sc_ec;
 };
 extern const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops;
@@ -361,6 +387,31 @@ static int off_acquire(void *a,struct rtwn8723be_softc *s,struct rtwn8723be_hw_d
 static void off_release(void *a,struct rtwn8723be_softc *s,const struct rtwn8723be_hw_disable_state *i,int e) { (void)a;(void)s;(void)i;(void)e;CHECK(false); }
 static const struct rtwn8723be_calibration_owner calibration = {.acquire=cal_acquire,.ready=provider_ready,.scan_active=scan_active,.release=cal_release};
 static const struct rtwn8723be_hw_disable_owner disable_owner = {.acquire=off_acquire,.ready=provider_ready,.release=off_release};
+/* These old lifecycle tests never execute BTC algorithms or MMIO providers.
+ * A call into an unmodelled boundary fails explicitly; no owner success is
+ * fabricated to make the new readiness gate pass. Policy/DM init are linked
+ * from the actual production modules below. */
+static int fixture_snapshot(void *p,struct rtwn8723be_btc_wifi_snapshot *v) { (void)p;(void)v;CHECK(false);return EIO; }
+static int fixture_clock(void *p,uint64_t *v) { (void)p;(void)v;CHECK(false);return EIO; }
+static int fixture_aggregate(void *p,const struct btc_bt_info *v) { (void)p;(void)v;CHECK(false);return EIO; }
+static int fixture_lps(void *p) { (void)p;CHECK(false);return EIO; }
+static int fixture_query(void *p,struct btc_coexist *b,enum rtwn8723be_btc_policy_bt_query q,uint32_t *v) { (void)p;(void)b;(void)q;(void)v;CHECK(false);return EIO; }
+static void fixture_fault(void *p,int e) { (void)p;(void)e;CHECK(false); }
+static const struct rtwn8723be_btc_policy_ops fixture_ports={
+ .snapshot=fixture_snapshot,.clock_msec=fixture_clock,
+ .aggregate_apply=fixture_aggregate,.lps_enter=fixture_lps,.lps_leave=fixture_lps,
+ .bt_query=fixture_query,.fault=fixture_fault
+};
+static void bind_policy_ports(struct rtwn8723be_softc *sc) {
+    CHECK(rtwn8723be_runtime_provider_configure(sc,&fixture_ports,sc)==0);
+}
+int rtwn8723be_btc_native_seed_lowlevel(struct btc_coexist *b,struct rtwn8723be_softc *sc) { (void)b;(void)sc;CHECK(false);return EIO; }
+int rtwn8723be_btc_context_build(struct btc_coexist *b,const struct rtwn8723be_btc_context_identity *i,const struct rtwn8723be_btc_context_binders *v) { (void)b;(void)i;(void)v;CHECK(false);return EIO; }
+int rtwn8723be_btc_native_init(struct rtwn8723be_softc *sc,const struct btc_coexist *b,const struct rtwn8723be_btc_native_owner *o,void *a) { (void)sc;(void)b;(void)o;(void)a;CHECK(false);return EIO; }
+void rtwn8723be_btc_native_provider_error(struct rtwn8723be_softc *sc,int e) { (void)sc;(void)e;CHECK(false); }
+int rtwn8723be_btc_mp_native_stop(struct rtwn8723be_softc *sc) { (void)sc;CHECK(false);return EIO; }
+uint32_t rtwn8723be_netbsd_get_bbreg(struct rtwn8723be_softc *sc,bus_size_t r,uint32_t m) { (void)sc;(void)r;(void)m;CHECK(false);return 0; }
+static void delay(unsigned int n) { (void)n;CHECK(false); }
 static int c2h(void *p,const struct rtwn8723be_c2h_event *event) { (void)p;(void)event;return 0; }
 static void fresh(struct rtwn8723be_softc *sc) {
     memset(sc,0,sizeof(*sc));active_sc=sc;event_count=0;hardware_calls=0;pci_effects=0;
@@ -383,7 +434,7 @@ static void bind_providers(struct rtwn8723be_softc *sc) {
 }
 static void configure(struct rtwn8723be_softc *sc) {
     struct rtwn8723be_c2h_handlers h=handlers(sc);
-    CHECK(rtwn8723be_runtime_owner_configure(sc,&h)==0);bind_providers(sc);
+    CHECK(rtwn8723be_runtime_owner_configure(sc,&h)==0);bind_policy_ports(sc);bind_providers(sc);
 }
 static void __attribute__((unused)) registered(struct rtwn8723be_softc *sc) {
     configure(sc);sc->sc_linux.stage=R23BE_STAGE_IEEE80211_REGISTER;
@@ -424,6 +475,7 @@ def program(data, test, irq=False, owner=None, native=None):
     native = data["rtwn8723be_netbsd.c"] if native is None else native
     pieces = [PRELUDE,
         without_includes(data["rtwn8723be_runtime_owner.h"]),
+        without_includes(data["rtwn8723be_btc_native.h"]),
         structure(data["rtwn8723be_c2h.h"], "rtwn8723be_c2h_handlers"),
         structure(data["rtwn8723be_rx_native.h"], "rtwn8723be_rx_dispatch"),
         structure(data["rtwn8723be_net80211.h"], "rtwn8723be_net80211_methods"),
@@ -461,7 +513,10 @@ def execute(label, source, *, definitions=(), expect_failure=False, target=""):
         tmp=Path(directory)
         c=tmp/"fixture.c";exe=tmp/"fixture";c.write_text(source)
         command=["cc",*FLAGS,*definitions,"-I",str(SRC),str(c),
-                 str(SRC/"rtwn8723be_linux_state.c"),"-o",str(exe)]
+                 str(SRC/"rtwn8723be_linux_state.c"),
+                 str(SRC/"rtwn8723be_btc_policy.c"),str(SRC/"rtwn8723be_dm.c"),
+                 str(SRC/"rtwn8723be_thermal.c"),str(SRC/"rtwn8723be_calibration.c"),
+                 "-o",str(exe)]
         built=subprocess.run(command,cwd=tmp,text=True,capture_output=True)
         if built.returncode:
             raise AssertionError(label+" COMPILE_FAILED\n"+built.stdout+built.stderr)

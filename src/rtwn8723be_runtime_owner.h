@@ -8,6 +8,7 @@
 struct lwp;
 struct rtwn8723be_softc;
 struct rtwn8723be_c2h_handlers;
+struct rtwn8723be_btc_policy_ops;
 struct rtwn8723be_runtime_context;
 
 enum rtwn8723be_runtime_operation {
@@ -22,18 +23,19 @@ enum rtwn8723be_runtime_operation {
 /*
  * lifecycle_lock protects only short admission/operation metadata. Never
  * hold it over allocation, module callbacks, MMIO, sleeping or IRQ drain.
- * io_depth is lifecycle_lock metadata for a future genuine provider lease;
- * io_lock is reserved for that provider's sleepable serialized I/O.
- * Lock order, when both are needed, is lifecycle_lock -> io_lock, with no
- * blocking I/O-lock acquisition while the IPL_NET lock is held.
+ * io_depth pins admitted or waiting real provider I/O; io_lock serializes
+ * the sleepable RF/MMIO lease with Giant dropped for its complete lifetime.
+ * Never block acquiring io_lock while lifecycle_lock is held. Metadata
+ * may be inspected briefly under io_lock; no opposite blocking edge exists.
  *
- * operation_lwp identifies the one accepted orchestration thread. Future
- * real providers must define same-operation nesting and exclude other
- * callers; this binding does not manufacture RF/DM/BTC provider leases.
+ * operation_lwp identifies the one accepted orchestration thread. Real
+ * START/STOP provider calls require that LWP; RUNNING BTC work is pinned
+ * before its publication. Reentrant I/O is rejected. Accepted work and
+ * I/O pins exclude START/STOP/teardown before any destructive effect.
  */
 struct rtwn8723be_runtime_owner {
     kmutex_t lifecycle_lock; /* IPL_NET, short and non-sleeping */
-    kmutex_t io_lock;        /* IPL_NONE, no fabricated provider use */
+    kmutex_t io_lock;        /* IPL_NONE, real provider execution lease */
     unsigned int io_depth;
     bool initialized;
     bool closing;
@@ -52,6 +54,16 @@ int rtwn8723be_runtime_owner_configure(struct rtwn8723be_softc *,
     const struct rtwn8723be_c2h_handlers *);
 /* Structural only: no provider acquire/ready call, PCI or MMIO effect. */
 int rtwn8723be_runtime_probe_ready(struct rtwn8723be_softc *);
+/* Pure immutable real-action configuration after C2H, before probe. */
+int rtwn8723be_runtime_provider_configure(struct rtwn8723be_softc *,
+    const struct rtwn8723be_btc_policy_ops *, void *);
+int rtwn8723be_netbsd_bt_prepare(void *);
+int rtwn8723be_netbsd_dm_init(void *);
+/* Permanent entry interlock; callers retain the external softc lifetime. */
+int rtwn8723be_runtime_btc_admit(struct rtwn8723be_softc *);
+void rtwn8723be_runtime_btc_drop(struct rtwn8723be_softc *);
+int rtwn8723be_runtime_btc_stop_ready(struct rtwn8723be_softc *);
+int rtwn8723be_runtime_btc_retire(struct rtwn8723be_softc *);
 int rtwn8723be_netbsd_register_ieee80211(void *);
 int rtwn8723be_runtime_hw_start(struct rtwn8723be_softc *);
 int rtwn8723be_runtime_hw_stop(struct rtwn8723be_softc *);

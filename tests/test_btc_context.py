@@ -47,13 +47,13 @@ for forbidden in (
         "bt_prepare", "net80211", "ieee80211", "workqueue", "bus_",
         "dma", "pci_", "irq", "interrupt"):
     assert forbidden not in source.lower(), forbidden
-assert ".bt_prepare =" not in NETBSD_C.read_text()
+assert ".bt_prepare = rtwn8723be_netbsd_bt_prepare," in NETBSD_C.read_text()
 
 native_units = re.findall(
     r"^file\s+dev/pci/(rtwn8723be_\w+\.c)\s+rtwn8723be_native$",
     manifest, re.M)
 assert native_units.count("rtwn8723be_btc_context.c") == 1
-assert len(native_units) == 48 and len(set(native_units)) == 48
+assert len(native_units) == 49 and len(set(native_units)) == 49
 
 
 HARNESS = r"""

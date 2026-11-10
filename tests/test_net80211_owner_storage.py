@@ -29,8 +29,8 @@ assert NETBSD_H.count("struct rtwn8723be_net80211 sc_net80211;") == 1
 # The real callback must retain structural admission before PCI effects.
 OPS = NETBSD_C.split("const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops", 1)[1]
 assert ".register_ieee80211 = rtwn8723be_netbsd_register_ieee80211," in OPS
-for missing in ("bt_prepare", "dm_init"):
-    assert "." + missing + " =" not in OPS
+for name in ("bt_prepare", "dm_init"):
+    assert "." + name + " = rtwn8723be_netbsd_" + name + "," in OPS
 ATTACH = NATIVE_C.split("rtwn8723be_native_attach(", 1)[1]
 assert ATTACH.index("rtwn8723be_runtime_probe_ready(sc)") < ATTACH.index(
     "pci_get_powerstate(") < ATTACH.index("rtwn8723be_linux_probe(")

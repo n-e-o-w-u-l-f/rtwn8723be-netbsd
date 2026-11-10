@@ -92,7 +92,7 @@ ordered(netbsd_h, (
 for token in (
     "unsigned int io_depth;", "enum rtwn8723be_runtime_operation operation;",
     "struct lwp *operation_lwp;", "struct rtwn8723be_runtime_context *context;",
-    "lifecycle_lock -> io_lock",
+    "Never block acquiring io_lock while lifecycle_lock is held.",
 ):
     assert token in owner_h, token
 for name in ("configure", "fini"):
@@ -101,7 +101,7 @@ assert manifest.count("rtwn8723be_runtime_owner.c") == 1
 units = re.findall(
     r"^file\s+dev/pci/(rtwn8723be_\w+\.c)\s+rtwn8723be_native$",
     manifest, re.M)
-assert len(units) == 48 and len(set(units)) == 48
+assert len(units) == 49 and len(set(units)) == 49
 ready = function(linux_c, "rtwn8723be_linux_runtime_ops_ready")
 assert "rtwn8723be_start_ops_ready(ops)" in ready
 assert "rtwn8723be_stop_ops_ready(ops)" in ready
@@ -127,5 +127,5 @@ for altered in negative:
     except (AssertionError, ValueError):
         continue
     raise AssertionError("unsafe runtime owner source mutation accepted")
-print("RTL_RUNTIME_OWNER_CONTRACT_OK source_negatives=4 native_units=48 "
+print("RTL_RUNTIME_OWNER_CONTRACT_OK source_negatives=4 native_units=49 "
       "compiled_orchestration=separate physical_runtime=OPEN")

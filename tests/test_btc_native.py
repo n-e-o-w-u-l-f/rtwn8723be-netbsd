@@ -40,7 +40,7 @@ try:
     with tempfile.TemporaryDirectory(prefix='rtl-btc-native-',dir=WORK) as name:
         temp=Path(name);(temp/'sys').mkdir()
         (temp/'rtwn8723be_netbsd.h').write_text(softc)
-        for header in ('param.h','systm.h','cpu.h','intr.h','proc.h','mutex.h','condvar.h','workqueue.h'):
+        for header in ('param.h','systm.h','cpu.h','intr.h','proc.h','pserialize.h','mutex.h','condvar.h','workqueue.h'):
             (temp/'sys'/header).write_text('#include "btc_native_kernel_model.h"\n')
         copied=temp/source.name;copied.write_bytes(source.read_bytes())
         assert copied.read_bytes()==source.read_bytes()
@@ -79,7 +79,7 @@ try:
     proof.update(state='PASSED',source_sha256={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs},
         scope='Actual native C and source dispatch with pthread-backed modeled NetBSD mutex/CV/single-worker workqueue and modeled algorithm bodies. Copied C2H data, asynchronous/synchronous stop race, overflow quarantine, first-error isolation, self-stop, context guards and allocation unwind.',
         limitations=['Algorithm bodies are modeled here and independently compared against the frozen Linux source in test_btc_algorithms.py.',
-            'Real NetBSD primitive execution, 27 OS providers, state producer/MCU/RX/RF/PM owner binding and fault recovery remain OPEN.',
+            'This unit fixture models the permanent runtime admission boundary, kernel primitives and algorithm bodies; it does not prove the real provider/MCU/RX/RF/PM lifecycle or recovery.',
             'No full kernel, live Bluetooth firmware transaction, WLAN or suspend/resume acceptance.'],
         acceptance='OPEN: both complete ports and HP WLAN online')
 except Exception as exc:

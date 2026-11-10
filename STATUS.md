@@ -1,10 +1,74 @@
 # RTL8723BE NetBSD project status
 
 Current checkpoint: 2026-11-10 Europe/Paris. PROJECT_ID: HP-RTL8723BE.
-Parent driver port: **PARTIAL**. Current registration/ownership source/link gate: **PASS**.
-Private kernel: **BUILT_NOT_TESTREADY**. Hardware acceptance: **NOT_RUN / OPEN**.
+Parent driver port: **PARTIAL**. Corrected BTC/DM source/test/native-link and
+independent evidence gates: **PASS**. Private kernel: **BUILT_NOT_TESTREADY**.
+Hardware acceptance: **NOT_RUN / OPEN**.
 
-## Genuine registration and native start/stop ownership
+
+## Genuine BTC preparation, full DM and native provider ownership
+
+The current manifest selects 49 native C units and all 54 lifecycle callback
+slots are bound. Genuine `bt_prepare` builds the parsed-board BTC context,
+binds low-level and policy callbacks, and creates the actual native BTC owner.
+The full DM initializer runs through the real native lease at its Linux-order
+checkpoint. The seven required policy ports are copied once; the source does
+not invent their genuine suppliers. The structural early gate still returns
+ENOSYS before PCI/MMIO when required suppliers are absent.
+
+Accepted synchronous and copied BTC work retain permanent admission tokens.
+STOP returns EBUSY before destructive effects while such work or provider I/O
+is live. Adaptive I/O acquisition reserves its owner before waiting, drops
+Giant, claims the actual RF-change flag, and restores the exact Giant depth
+after release. The first I/O/provider error suppresses later actions and
+keeps its original error; external fault notification occurs once. Release
+snapshots the native child's recorded `last_error`, preserving an observed
+ENOBUFS even when the individual callback returns EINVAL or succeeds. The
+caller's return is unchanged. This does not make the broker context an atomic
+mirror of asynchronous faults arriving after that snapshot. Normal
+STOP/restart preserves policy's 8-second aggregation history and warm DM/
+thermal history; failed owners remain retained for recovery.
+
+On the HP, 56 distinct regression scripts have PASS evidence: 53 were freshly
+executed, while three pure context/policy/DM results were carried only after
+their consumed inputs were verified unchanged. The actual provider integration
+ran 12 logical cases in normal and NDEBUG builds (24 executions) and rejected
+22 compiled, executed behavioral mutants. The pure DM oracle covered 768
+vectors and rejected 12 executed mutants. Preserved owner/IRQ 18+13 and TX/
+crypto 13+11 mutation controls passed again; 17 source controls are separate
+static checks. No compile failure was counted as a behavioral mutation kill.
+
+The tested 1016-file source map and all 33 implementation changes match the
+physical source. Fresh dependency/object targets for all 49 native units passed
+against the actual installed NetBSD 11 headers and tools; 119 selected project
+inputs were captured. Each test batch kept its inputs unchanged; the validated
+production and fixture identities match the corrected native gate inputs.
+
+The final native job recompiled one runtime object and proved the remaining
+48 byte-identical to the independently verified initial fresh 49-unit build.
+It completed the 49-object relocatable link, dependency generation and full
+private kernel relink. Independent verification passed all 4675 checks:
+49 native units, 336 RTL globals, zero final undefined symbols, 115 staged
+project dependencies and all 119 declared production inputs. The old archive
+retains all 1585 files byte-exact; the nine original protected paths and new
+kernel/map pair remained unchanged during verification.
+
+Current corrected private kernel: 27,295,696 bytes; SHA-256
+da4f6c19ef35c369ca977467426a8194b7d8cdca0bed03bdf9ee5c36a5b5a802.
+Map: 12,479,929 bytes; SHA-256
+5095dbfa020bc1bc26e95a576923a9f04e6360650534bba44c06a3a4972e74c0.
+Final source-map SHA-256: 6ed170156fc04d868b6457b5da4d920a085f962d94cfa0a6e4a4850000dcc075.
+Final independent receipt SHA-256:
+22e32985120612ce6442c83cbd7c0794b05c5b3fa9939db4fa07b676a2aa9f4e.
+The candidate is BUILT_NOT_TESTREADY, uninstalled and unbooted. The initial
+49-unit kernel/map and their old-input proof are preserved as qualified
+intermediate evidence; their hashes do not identify this corrected candidate.
+
+[Current implementation and evidence limits](docs/BT_DM_PROVIDER_OWNERSHIP_20261110.md).
+[Current machine-readable receipt](docs/evidence/BT_DM_PROVIDER_OWNERSHIP_20261110.json).
+
+
+## Historical registration and native start/stop checkpoint
 
 The real register_ieee80211 callback is bound. It publishes actual net80211,
 RX binding and datapath ownership in order, with reverse failure compensation.
@@ -14,10 +78,10 @@ Giant across the actual SOFTNET cross-call barrier, then verifies the drain
 before RF/hardware shutdown. IRQ/backing ownership survives for restart;
 checked finalization refuses live or inconsistent owners.
 
-The callback table is 52/54 bound. Genuine bt_prepare/dm_init and C2H TX/RA,
-RF/calibration/runtime provider integration remain OPEN. The structural attach
-gate fails at IDLE before PCI/MMIO when they are absent; no success stub or
-hardware acceptance is substituted.
+At this historical checkpoint the table was 52/54 bound and genuine
+bt_prepare/dm_init remained open. The current 49-unit checkpoint above closes
+those two bindings. Genuine C2H TX/RA and RF/calibration/runtime suppliers
+remain open, and absent suppliers still reject admission before PCI/MMIO.
 
 On HP, 33 distinct regression scripts passed. The new compiled fixtures reject
 18 runtime-owner and 13 IRQ/drain mutants by executed assertions; preserved
@@ -28,7 +92,7 @@ symbol and protected-input checks PASS. Each test batch kept its inputs unchange
 inputs match the final build. Target ABI/link proof and modeled concurrency checks do
 not establish physical NetBSD SMP or WLAN behavior.
 
-Current private kernel: 27,292,816 bytes; SHA-256
+Historical registration private kernel: 27,292,816 bytes; SHA-256
 d7760c619e828ea93701d22a9f20c380cb8206221ee97f128554c3487f614948.
 Map: 12,483,060 bytes; SHA-256
 f76543e91d026f86e2eeb783dc2d40d50683f9bf858e95ce9d3934515245a145.
@@ -41,8 +105,8 @@ pairs retain their exact hashes.
 
 ## Native net80211 TX consumer
 
-The native management/data queue consumer is implemented in the existing
-48-unit source selection. A NULL TX method selects it; genuine hw_start and
+The native management/data queue consumer was introduced in the prior
+48-unit selection and is preserved in the current 49-unit selection. A NULL TX method selects it; genuine hw_start and
 hw_stop methods remain mandatory. No missing Linux probe callback is replaced
 with a successful stub.
 
@@ -120,10 +184,11 @@ SHA-256: 21dccebbbbd92cc1fa185522489a766e515f1e8a062ed6aa99b2645a907ef4ca.
 ## OPEN and NEXT
 
 Source publication and host-ref convergence are recorded separately in project
-governance. NEXT: supply the remaining genuine bt_prepare/dm_init, C2H TX/RA and
-RF/calibration/runtime providers, then close pre-RUNNING recovery and complete
-running-driver detach/lifecycle integration before separately authorized
-physical network acceptance.
+governance. NEXT: supply the genuine coherent snapshot and OS action ports,
+C2H TX/RA, calibration and hardware-disable owners; establish real MP transport
+activation; then close pre-RUNNING recovery and complete running-driver
+detach/lifecycle ownership before separately authorized physical network
+acceptance. Bound BTC/DM callbacks alone do not satisfy these provider gates.
 
 The current TX parser intentionally rejects null-data/control/WDS/fragmented/
 HT-control formats. Physical WLAN/WPA2, watchdog/recovery and PM acceptance
@@ -132,7 +197,8 @@ separately in project governance.
 
 Actual target headers identify NetBSD 11.0. Historical upstream reference
 03d918f6d0e81fa05b8f1160eca0628ad39988a6 remains UNVERIFIED against the installed
-tree, which has no Git metadata. Exact observed source hashes govern evidence.
+tree, which has no Git metadata. Explicit pre-build project/protected anchors
+qualify historical identity; other OS/tool hashes are endpoint observations.
 
 Installation, candidate boot, physical RX/scan, association, WPA2 traffic,
 DMA/IRQ/STOP races and PM acceptance: NOT_RUN / OPEN.

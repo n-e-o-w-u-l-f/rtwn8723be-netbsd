@@ -7,7 +7,7 @@ import sys
 
 EXPECTED_MISSING = {
     "probe": (),
-    "start": ("bt_prepare", "dm_init"),
+    "start": (),
     "stop": (),
 }
 
@@ -194,15 +194,16 @@ def check(root, require_closure=False):
         raise ValueError("actual BTC MP wire unit missing from native manifest")
     if not {"rtwn8723be_btc1.c", "rtwn8723be_btc2.c",
             "rtwn8723be_btc_engine.c", "rtwn8723be_btc_policy.c",
+            "rtwn8723be_dm.c",
             "rtwn8723be_btc_context.c",
             "rtwn8723be_btc_native.c",
             "rtwn8723be_btc_providers_native.c"} <= set(native_units):
         raise ValueError("actual BTC algorithms/native event owner missing from manifest")
-    if len(names) != 54 or len(native_units) != 48:
+    if len(names) != 54 or len(native_units) != 49:
         raise ValueError("source or native build manifest changed; re-inventory required")
     if set(missing) != expected:
         raise ValueError("callback inventory changed: now missing " + repr(missing))
-    if len(bound) != 52:
+    if len(bound) != 54:
         raise ValueError("bound callback count changed; re-inventory required")
     if dict(bound).get("register_ieee80211") != "rtwn8723be_netbsd_register_ieee80211":
         raise ValueError("real persistent native net80211 registration callback missing")
@@ -264,15 +265,87 @@ def check(root, require_closure=False):
             engine_init.index("s->btc = copy;") >
             engine_init.index("s->btc.initialized = false;")):
         raise ValueError("BTC copied context published pre-initialized")
-    if ("rtwn8723be_btc_native_fini(sc)" not in btc_native or
-            "if (!sc->sc_btc.initialized)" not in btc_native):
-        raise ValueError("BTC halt/deinit lifetime incomplete")
-    stop_part = btc_native.split("rtwn8723be_netbsd_bt_halt_deinit(void *arg)", 1)
-    if len(stop_part) != 2 or (
-            "if (!sc->sc_btc.initialized)" not in stop_part[1] or
-            "if (sc->sc_btcoexist && !sc->sc_btc.initialized)" in
-            stop_part[1]):
-        raise ValueError("BTC HALT must follow Linux always-true get_btc_status")
+    # The permanent runtime owner admits STOP before mutable BTC child state
+    # is inspected. Require the delegated initialized/identity/pin checks.
+    halt_match = re.search(
+        r"\nint\nrtwn8723be_netbsd_bt_halt_deinit\(void \*arg\).*?\n\}\n",
+        btc_native, re.S)
+    if halt_match is None:
+        raise ValueError("BTC HALT wrapper missing")
+    halt = halt_match.group(0)
+    ordered_halt = (
+        "R23BE_STAGE_STOPPING",
+        "error = rtwn8723be_runtime_btc_stop_ready(sc);",
+        "if (error != 0)",
+        "return error;",
+        "KERNEL_UNLOCK_ALL(NULL, &giant_count);",
+        "error = rtwn8723be_btc_native_fini(sc);",
+        "if (error == 0)",
+        "error = rtwn8723be_runtime_btc_retire(sc);",
+        "KERNEL_LOCK(giant_count, NULL);",
+    )
+    halt_offsets = [halt.find(token) for token in ordered_halt]
+    if (any(i < 0 for i in halt_offsets) or
+            halt_offsets != sorted(halt_offsets) or
+            halt.rfind("return error;") < halt_offsets[-1] or
+            not re.search(
+                r"runtime_btc_stop_ready\(sc\);\s*if \(error != 0\)\s*return error;",
+                halt) or not re.search(
+                r"if \(error == 0\)\s*error = rtwn8723be_runtime_btc_retire\(sc\);",
+                halt)):
+        raise ValueError("BTC HALT must admit STOP before fini and retire only on success")
+    # Physical Bluetooth presence never controls RTL8723BE BTC HALT.
+    # Scan balanced conditions so nested calls cannot hide that dependency.
+    for condition_match in re.finditer(r"\bif\s*\(", halt):
+        opening = halt.index("(", condition_match.start())
+        depth, closing = 1, opening + 1
+        while closing < len(halt) and depth:
+            depth += (halt[closing] == "(") - (halt[closing] == ")")
+            closing += 1
+        if depth or "sc->sc_btcoexist" in halt[opening:closing]:
+            raise ValueError("BTC HALT must follow Linux always-true get_btc_status")
+    runtime_owner = (src / "rtwn8723be_runtime_owner.c").read_text()
+    ready_match = re.search(
+        r"\nint\nrtwn8723be_runtime_btc_stop_ready\(struct rtwn8723be_softc \*sc\).*?\n\}\n",
+        runtime_owner, re.S)
+    if ready_match is None:
+        raise ValueError("permanent BTC STOP admission missing")
+    ready = ready_match.group(0)
+    ready_parts = ready.split("ready = ", 2)
+    if len(ready_parts) != 3:
+        raise ValueError("permanent BTC STOP readiness scope changed")
+    lifecycle_expr = ready_parts[1].split(";", 1)[0]
+    child_expr = ready_parts[2].split(";", 1)[0]
+    lifecycle_clauses = (
+        "!o->closing", "o->operation == R23BE_RUNTIME_STOP",
+        "o->operation_lwp == curlwp", "o->io_depth == 0",
+        "ctx != NULL", "ctx->btc_prepared", "ctx->pending_btc == 0",
+        "sc->sc_linux.stage == R23BE_STAGE_STOPPING", "sc->sc_linux.started",
+    )
+    child_clauses = (
+        "sc->sc_btc.initialized",
+        "sc->sc_btc.owner == &runtime_btc_owner",
+        "sc->sc_btc.owner_arg == sc",
+        "!mutex_owned(&sc->sc_btc.engine_lock)",
+    )
+    scope_tokens = (
+        "mutex_enter(&o->lifecycle_lock);",
+        "ctx = o->context;",
+        "ready = !o->closing",
+        "if (ready)",
+        "ready = sc->sc_btc.initialized",
+        "mutex_exit(&o->lifecycle_lock);",
+        "return ready ? 0 : EBUSY;",
+    )
+    scope_offsets = [ready.find(token) for token in scope_tokens]
+    if (any(token not in lifecycle_expr for token in lifecycle_clauses) or
+            any(token not in child_expr for token in child_clauses) or
+            "||" in lifecycle_expr or "||" in child_expr or
+            any(i < 0 for i in scope_offsets) or
+            scope_offsets != sorted(scope_offsets) or
+            "!runtime_thread_ok()" not in ready or
+            "runtime_caller_locks_held(sc)" not in ready):
+        raise ValueError("BTC STOP admission must retain short-lock lifecycle and child ownership checks")
     # Failed full-callback preflight occurs with state IDLE and zero
     # hardware writes.  The PCI snapshot must be retired, otherwise native
     # detach incorrectly returns EBUSY forever.  Any partially registered
@@ -599,18 +672,41 @@ def check(root, require_closure=False):
     if (any(i < 0 for i in offsets) or offsets != sorted(offsets) or
             afh.count("goto fail;") != 3):
         raise ValueError("AFH per-segment publication/partial-error parity changed")
-    guarded = ("rf_calibration", "hw_disable")
+    guarded = ("rf_calibration", "hw_disable", "btc_mp_activation")
+    owner = (src / "rtwn8723be_runtime_owner.c").read_text()
+    for slot in ("bt_prepare", "dm_init"):
+        if dict(bound).get(slot) != "rtwn8723be_netbsd_" + slot:
+            raise ValueError("genuine native BTC/DM callback binding missing")
+    # Only this reviewed persistent broker may construct native BTC children.
+    # The pure builder and all other units retain their inert-layer boundary.
     if re.search(r"\brtwn8723be_btc_native_init\s*\(",
         "\n".join(p.read_text() for p in src.glob("*.c")
-                    if p.name != "rtwn8723be_btc_native.c")):
-        raise ValueError("BTC owner bound; audit all 27 providers and real state/MCU/RX lifetime first")
+                    if p.name not in ("rtwn8723be_btc_native.c",
+                                      "rtwn8723be_runtime_owner.c"))):
+        raise ValueError("BTC construction outside the genuine persistent runtime owner")
+    for token in (
+            "rtwn8723be_btc_context_build(&btc, &identity, &binders)",
+            "rtwn8723be_btc_native_init(sc, &btc, &runtime_btc_owner, sc)",
+            "ctx->ports = *ports;", "ctx->providers_configured = true;",
+            "ctx->pending_btc++;", "ctx->pending_btc--;",
+            "rtwn8723be_btc_policy_init(&policy, &runtime_policy_ops, sc)",
+            "rtwn8723be_dm_construct(&dm)",
+            "R23BE_STAGE_BT_PREPARE", "R23BE_STAGE_DM_INIT",
+            "runtime_io_acquire(sc, R23BE_IO_DM)",
+            "rtwn8723be_dm_init(&ctx->dm, &io, sc, sc->sc_xtal_cap)"):
+        if token not in owner:
+            raise ValueError("native BTC/DM configured-owner contract missing: " + token)
+    for port in ("snapshot", "clock_msec", "aggregate_apply", "lps_enter",
+                 "lps_leave", "bt_query", "fault"):
+        if "p->" + port + " != NULL" not in owner:
+            raise ValueError("incomplete immutable BTC policy provider gate")
     print(f"DECLARED={len(names)} BOUND={len(bound)} MISSING={len(missing)}")
     for phase, items in EXPECTED_MISSING.items():
         print(phase.upper() + "=" + ",".join(items))
     print("NATIVE_C_OBJECTS=" + str(len(native_units)))
     print("TX_POWER_PG_IN_NATIVE_BUILD=" + str(pg_in_build).lower())
     print("GUARDED_CALLBACKS_WITH_OPEN_OWNER=" + ",".join(guarded))
-    print("BTC_ALGORITHMS_BUILT=1ant,2ant; BTC_FULL_PROVIDER_LIFETIME=OPEN")
+    print("BTC_ALGORITHMS_BUILT=1ant,2ant; BTC_PROVIDER_BINDING=CONFIGURED; MP_ACTIVATION=OPEN")
     # This gate is deliberately stricter than a successful kernel link.
     complete = not missing and pg_in_build and not guarded
     print("CALLBACK_AND_PG_CLOSURE=" + ("CLOSED" if complete else "OPEN"))

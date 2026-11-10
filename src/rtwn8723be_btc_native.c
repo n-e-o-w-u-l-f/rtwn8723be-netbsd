@@ -8,13 +8,16 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <sys/cpu.h>
 #include <sys/intr.h>
 #include <sys/proc.h>
+#include <sys/pserialize.h>
 #include "rtwn8723be_netbsd.h"
 #include "rtwn8723be_btc_native.h"
+#include "rtwn8723be_runtime_owner.h"
 
 static bool
 btc_thread(void)
 {
-    return !cpu_intr_p() && !cpu_softintr_p();
+    return !cpu_intr_p() && !cpu_softintr_p() &&
+        pserialize_not_in_read_section();
 }
 
 static void
@@ -63,6 +66,8 @@ btc_run(struct rtwn8723be_softc *sc, const struct rtwn8723be_btc_event *event)
         error = rtwn8723be_btc_engine_execute(&n->engine, event);
         if (n->first_error != 0)
             error = n->first_error;
+        if (error == 0 && !n->owner->ready(n->owner_arg, sc))
+            error = ENXIO;
         /*
          * Frozen exhalbtc_init_coex_dm() publishes initialized only after
          * the antenna-specific initialization.  Native providers can fail,
@@ -106,6 +111,7 @@ btc_worker(struct work *work, void *arg)
         mutex_exit(&n->queue_lock);
         /* Once failed, discard copied notifications without more IO. */
         if (!faulted) (void)btc_run(sc, &event);
+        rtwn8723be_runtime_btc_drop(sc); /* copied event lifetime ends here */
     }
 }
 
@@ -155,17 +161,20 @@ rtwn8723be_btc_native_execute(struct rtwn8723be_softc *sc,
     int error;
     if (sc == NULL) return EINVAL;
     if (!btc_thread()) return EWOULDBLOCK;
+    error = rtwn8723be_runtime_btc_admit(sc);
+    if (error != 0) return error;
     n = &sc->sc_btc;
-    if (!n->initialized) return ENXIO;
+    if (!n->initialized) { error = ENXIO; goto drop; }
     mutex_enter(&n->queue_lock);
     if (n->closing || n->faulted) {
         error = n->faulted ? n->last_error : ECANCELED;
         mutex_exit(&n->queue_lock);
-        return error;
+        goto drop;
     }
     if (n->calls == (unsigned int)-1) {
+        error = EOVERFLOW;
         mutex_exit(&n->queue_lock);
-        return EOVERFLOW;
+        goto drop;
     }
     n->calls++;
     mutex_exit(&n->queue_lock);
@@ -174,6 +183,8 @@ rtwn8723be_btc_native_execute(struct rtwn8723be_softc *sc,
     n->calls--;
     if (n->calls == 0) cv_broadcast(&n->calls_cv);
     mutex_exit(&n->queue_lock);
+drop:
+    rtwn8723be_runtime_btc_drop(sc);
     return error;
 }
 
@@ -184,16 +195,22 @@ rtwn8723be_btc_native_enable_events(struct rtwn8723be_softc *sc)
     int error = 0;
     if (sc == NULL) return EINVAL;
     if (!btc_thread()) return EWOULDBLOCK;
+    error = rtwn8723be_runtime_btc_admit(sc);
+    if (error != 0) return error;
     n = &sc->sc_btc;
-    if (!n->initialized) return ENXIO;
+    if (!n->initialized) { error = ENXIO; goto drop; }
     /* An explicit real MCU-ready/old-RX-drain lifetime is still required. */
     if (!sc->sc_linux.started || !sc->sc_linux.fw_ready ||
-        sc->sc_linux.stage != R23BE_STAGE_RUNNING || !sc->sc_irq_enabled)
-        return EAGAIN;
+        sc->sc_linux.stage != R23BE_STAGE_RUNNING || !sc->sc_irq_enabled) {
+        error = EAGAIN;
+        goto drop;
+    }
     mutex_enter(&n->queue_lock);
     if (n->closing || n->faulted) error = EAGAIN;
     else n->events_enabled = true;
     mutex_exit(&n->queue_lock);
+drop:
+    rtwn8723be_runtime_btc_drop(sc);
     return error;
 }
 
@@ -203,45 +220,53 @@ rtwn8723be_btc_native_enqueue(struct rtwn8723be_softc *sc,
 {
     struct rtwn8723be_btc_native *n;
     unsigned int tail;
+    int error;
     if (sc == NULL || event == NULL) return EINVAL;
     if (cpu_intr_p()) return EWOULDBLOCK;
+    /* Permanent broker admission precedes EVERY mutable child access. */
+    error = rtwn8723be_runtime_btc_admit(sc);
+    if (error != 0) return error;
     n = &sc->sc_btc;
-    if (!n->initialized) return ENXIO;
-    /* Async payload is scalar/copy-only, never a borrowed diagnostic sink.
-     * Initialization, firmware preload and terminal HALT are owner calls.
-     */
+    if (!n->initialized) { error = ENXIO; goto drop; }
     if ((unsigned int)event->kind >= R23BE_BTC_EVENT_COUNT ||
         event->kind < R23BE_BTC_IPS || event->kind == R23BE_BTC_HALT ||
         event->kind == R23BE_BTC_DISPLAY || event->diagnostic != NULL ||
         (event->kind == R23BE_BTC_INFO &&
-         (event->length == 0 || event->length > R23BE_BTC_INFO_MAX)))
-        return EINVAL;
+         (event->length == 0 || event->length > R23BE_BTC_INFO_MAX))) {
+        error = EINVAL;
+        goto drop;
+    }
     if (event->kind == R23BE_BTC_RF_STATUS &&
-        n->engine.btc.board_info.btdm_ant_num == 2)
-        return ENOTSUP;
+        n->engine.btc.board_info.btdm_ant_num == 2) {
+        error = ENOTSUP;
+        goto drop;
+    }
     mutex_enter(&n->queue_lock);
     if (n->closing || n->faulted || !n->events_enabled) {
+        error = EAGAIN;
         mutex_exit(&n->queue_lock);
-        return EAGAIN;
+        goto drop;
     }
     if (n->count == R23BE_BTC_QUEUE_SIZE) {
-        /* Lost notifications invalidate algorithm history: quarantine. */
         n->faulted = true;
         n->last_error = ENOBUFS;
         n->events_enabled = false;
+        error = ENOBUFS;
         mutex_exit(&n->queue_lock);
-        return ENOBUFS;
+        goto drop;
     }
     tail = (n->head + n->count) % R23BE_BTC_QUEUE_SIZE;
     n->events[tail] = *event;
     n->count++;
     if (!n->scheduled) {
         n->scheduled = true;
-        /* Enqueue under admission lock: stop cannot overtake submission. */
         workqueue_enqueue(n->workqueue, &n->work, NULL);
     }
     mutex_exit(&n->queue_lock);
-    return 0;
+    return 0; /* token ownership transfers to this copied queue entry */
+drop:
+    rtwn8723be_runtime_btc_drop(sc); /* never under queue_lock */
+    return error;
 }
 
 int
@@ -391,6 +416,7 @@ int
 rtwn8723be_netbsd_bt_halt_deinit(void *arg)
 {
     struct rtwn8723be_softc *sc = arg;
+    int error, giant_count = 0;
 
     if (sc == NULL)
         return EINVAL;
@@ -404,8 +430,14 @@ rtwn8723be_netbsd_bt_halt_deinit(void *arg)
      * always performs BTC HALT and deinit after a successful start.
      * Keep a missing bt_prepare/algorithm owner visible as an error.
      */
-    if (!sc->sc_btc.initialized)
-        return ENXIO;
-
-    return rtwn8723be_btc_native_fini(sc);
+    error = rtwn8723be_runtime_btc_stop_ready(sc);
+    if (error != 0)
+        return error;
+    if (KERNEL_LOCKED_P())
+        KERNEL_UNLOCK_ALL(NULL, &giant_count);
+    error = rtwn8723be_btc_native_fini(sc);
+    if (error == 0)
+        error = rtwn8723be_runtime_btc_retire(sc);
+    KERNEL_LOCK(giant_count, NULL);
+    return error;
 }

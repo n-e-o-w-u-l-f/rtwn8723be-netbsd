@@ -40,7 +40,7 @@ def contract(a: str, b: str, c: str) -> None:
     assert ".init_rfkill = rtwn8723be_netbsd_init_rfkill," in NET
     assert ".register_ieee80211 = rtwn8723be_netbsd_register_ieee80211," in NET
     for name in ("bt_prepare", "dm_init"):
-        assert "." + name + " =" not in NET.split(
+        assert "." + name + " = rtwn8723be_netbsd_" + name + "," in NET.split(
             "const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops", 1)[1]
     assert "ops->init_rfkill == NULL" in LINUX
     assert LINUX.index("R23BE_STAGE_IEEE80211_REGISTER,") < LINUX.index(

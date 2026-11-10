@@ -24,6 +24,13 @@ struct work {void *wk_dummy;};
 struct workqueue;
 bool cpu_intr_p(void);
 bool cpu_softintr_p(void);
+bool pserialize_not_in_read_section(void);
+bool btc_test_kernel_locked(void);
+void btc_test_kernel_unlock_all(int *);
+void btc_test_kernel_lock(int);
+#define KERNEL_LOCKED_P() btc_test_kernel_locked()
+#define KERNEL_UNLOCK_ALL(l,p) do { (void)(l);btc_test_kernel_unlock_all(p); } while(0)
+#define KERNEL_LOCK(n,l) do { (void)(l);btc_test_kernel_lock(n); } while(0)
 bool mutex_owned(kmutex_t *);
 void mutex_init(kmutex_t *,int,int);
 void mutex_destroy(kmutex_t *);

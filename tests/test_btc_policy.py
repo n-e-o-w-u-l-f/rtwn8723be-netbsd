@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Behavior contract for the unbound Linux BTC get/set policy port.
+"""Behavior contract for the portable Linux BTC get/set policy port.
 
 The policy deliberately has no NetBSD PCI, DMA, IRQ or net80211 dependency.
-It translates only the portable decisions made by halbtcoutsrc.c.  A future
-whole-driver owner supplies coherent Wi-Fi snapshots and performs the two
-real OS actions (aggregation and LPS) before this policy may be bound.
+It translates only the portable decisions made by halbtcoutsrc.c.  The
+native owner must supply coherent Wi-Fi snapshots and real aggregation/LPS
+actions.  This fixture models those boundaries and does not prove hardware.
 """
 from pathlib import Path
 import re
@@ -34,8 +34,7 @@ for needle in (
         "struct rtwn8723be_btc_policy_ops"):
     assert needle in header, needle
 
-# This translation layer must stay independent of the as-yet-unfinished
-# whole-driver owner.  Hardware activation belongs in that owner, not here.
+# This translation layer must stay independent of the whole-driver owner.  Hardware activation belongs in that owner, not here.
 for forbidden in (
         "net80211", "ieee80211", "pci_", "bus_", "dma", "workqueue",
         "rtwn8723be_btc_native", "rtwn8723be_linux_adapter"):
@@ -46,7 +45,7 @@ assert manifest.count("rtwn8723be_btc_policy.c") == 1
 native_units = re.findall(
     r"^file\s+dev/pci/(rtwn8723be_\w+\.c)\s+rtwn8723be_native$",
     manifest, re.M)
-assert len(native_units) == 48 and len(set(native_units)) == 48
+assert len(native_units) == 49 and len(set(native_units)) == 49
 
 
 HARNESS = r"""

@@ -36,8 +36,8 @@ REG = extract(NET, "rtwn8723be_net80211_register")
 OPS_TABLE = OPS.split(
     "const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops", 1)[1]
 assert ".register_ieee80211 = rtwn8723be_netbsd_register_ieee80211," in OPS_TABLE
-for missing in ("bt_prepare", "dm_init"):
-    assert "." + missing + " =" not in OPS_TABLE
+for name in ("bt_prepare", "dm_init"):
+    assert "." + name + " = rtwn8723be_netbsd_" + name + "," in OPS_TABLE
 ATTACH = extract(NATIVE, "rtwn8723be_native_attach")
 EARLY = ATTACH.index("error = rtwn8723be_runtime_probe_ready(sc);")
 PCI = ATTACH.index("pci_get_powerstate(")

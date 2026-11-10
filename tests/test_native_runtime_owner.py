@@ -70,7 +70,8 @@ static void test_configuration(void) {
     h=handlers(&sc);CHECK(rtwn8723be_runtime_owner_configure(&sc,&h)==EALREADY);
     CHECK(sc.sc_runtime_owner.context==ctx);
     CHECK(rtwn8723be_runtime_probe_ready(&sc)==ENOSYS);
-    bind_providers(&sc);CHECK(rtwn8723be_runtime_probe_ready(&sc)==0);
+    bind_providers(&sc);CHECK(rtwn8723be_runtime_probe_ready(&sc)==ENOSYS);
+    bind_policy_ports(&sc);CHECK(rtwn8723be_runtime_probe_ready(&sc)==0);
     CHECK(hardware_calls==0 && pci_effects==0 && event_count==0);
     struct rtwn8723be_calibration_owner cal=calibration;
     struct rtwn8723be_hw_disable_owner off=disable_owner;
@@ -135,9 +136,9 @@ static void test_publication_retention(void) {
     LIVE(sc_rfkill_native.wq,&sc,NULL);LIVE(sc_rfkill_native.work_queued,true,false);
     LIVE(sc_h2c.initialized,true,false);LIVE(sc_h2c.sc,&sc,NULL);
     LIVE(sc_h2c.state.firmware_ready,true,false);
-    LIVE(sc_btc.initialized,true,false);LIVE(sc_btc.workqueue,&sc,NULL);
-    LIVE(sc_btc.owner,&sc,NULL);LIVE(sc_btc.owner_arg,&sc,NULL);
-    LIVE(sc_btc.worker,&sc,NULL);LIVE(sc_btc.calls,1,0);LIVE(sc_btc.count,1,0);LIVE(sc_btc.scheduled,true,false);
+    LIVE(sc_btc.initialized,true,false);LIVE(sc_btc.workqueue,(struct workqueue *)&sc,NULL);
+    LIVE(sc_btc.owner,(const struct rtwn8723be_btc_native_owner *)&sc,NULL);LIVE(sc_btc.owner_arg,&sc,NULL);
+    LIVE(sc_btc.worker,(struct lwp *)&sc,NULL);LIVE(sc_btc.calls,1,0);LIVE(sc_btc.count,1,0);LIVE(sc_btc.scheduled,true,false);
     LIVE(sc_btc_mp.initialized,true,false);LIVE(sc_btc_mp.active,true,false);
     LIVE(sc_btc_mp.busy,true,false);LIVE(sc_btc_mp.pending,true,false);
     LIVE(sc_rfchange_inprogress,true,false);LIVE(sc_initial_pci_saved,true,false);
