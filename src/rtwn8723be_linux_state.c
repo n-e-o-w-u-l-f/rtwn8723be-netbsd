@@ -87,6 +87,17 @@ rtwn8723be_start_ops_ready(const struct rtwn8723be_linux_ops *ops)
     return rtwn8723be_hw_ops_ready(ops);
 }
 
+int
+rtwn8723be_linux_runtime_ops_ready(const struct rtwn8723be_linux_ops *ops)
+{
+    int error;
+
+    if (ops == NULL)
+        return EINVAL;
+    error = rtwn8723be_start_ops_ready(ops);
+    return error != 0 ? error : rtwn8723be_stop_ops_ready(ops);
+}
+
 #define R23BE_CALL(stage_id, op, ...) do { \
     R23BE_REQUIRE(op); \
     state->stage = (stage_id); \

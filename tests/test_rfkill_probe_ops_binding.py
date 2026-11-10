@@ -38,7 +38,8 @@ fini = extract(RF, "rtwn8723be_rfkill_native_fini", "int")
 
 def contract(a: str, b: str, c: str) -> None:
     assert ".init_rfkill = rtwn8723be_netbsd_init_rfkill," in NET
-    for name in ("register_ieee80211", "bt_prepare", "dm_init"):
+    assert ".register_ieee80211 = rtwn8723be_netbsd_register_ieee80211," in NET
+    for name in ("bt_prepare", "dm_init"):
         assert "." + name + " =" not in NET.split(
             "const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops", 1)[1]
     assert "ops->init_rfkill == NULL" in LINUX

@@ -1,0 +1,256 @@
+{
+  "acceptance": {
+    "booted": false,
+    "callback_counts": {
+      "bound": 52,
+      "declared": 54
+    },
+    "installed": false,
+    "missing_real_provider_integration": "C2H TX/RA, RF/calibration/runtime and remaining BT/DM owners",
+    "native_upstream_pin": "UNVERIFIED; actual target hashes govern",
+    "parent_driver": "PARTIAL",
+    "physical_wlan": "NOT_RUN",
+    "private_kernel": "BUILT_NOT_TESTREADY",
+    "publication_and_host_sync": "Recorded separately in project governance",
+    "source_and_private_native_link": "PASS",
+    "unbound_callbacks": [
+      "bt_prepare",
+      "dm_init"
+    ],
+    "wpa2_pm_recovery": "OPEN"
+  },
+  "baseline_commit": "369ca61e5a0a7d4bc783e81e2704da2fc1aa1efd",
+  "baseline_tree": "964c94500d354f8f9c9280409fd81d874040c7d2",
+  "changes": [
+    {
+      "baseline_sha256": "3530fcdee80945b8783da6920da574167b2f44e18e63e9e9065fde710a6543e6",
+      "bytes": 11432,
+      "git_blob": "a7fab6d91d3e8862a2944173c92d1b3962dd66e8",
+      "path": "src/rtwn8723be_linux_state.c",
+      "sha256": "974881bd1dd3d70e3569bcf610f2880d89dd035d1169d42fcf045347e003c680"
+    },
+    {
+      "baseline_sha256": "04aa8c796422b9034cd23997a5ce587788dfe9839290b13bfc0721ccbd2d4335",
+      "bytes": 4400,
+      "git_blob": "f6ff0d56a6f57079abb9cd5718c403bade900429",
+      "path": "src/rtwn8723be_linux_state.h",
+      "sha256": "182e8a3a0aee9a9c78e5d2bfe5cc7132184ba8988428b4262aa15b6931be2a5b"
+    },
+    {
+      "baseline_sha256": "7729eee022ac3759d43c7f3718d25f57682e605e343841d1a820f2af2e2548c1",
+      "bytes": 18017,
+      "git_blob": "4baf35dc86ae65c444686e4bfb29de0b12dbbe48",
+      "path": "src/rtwn8723be_native.c",
+      "sha256": "b7cb3d8166e63ea340627b906f87f61e7e3cba573a7f7fec6a6905a5be13b1f1"
+    },
+    {
+      "baseline_sha256": "fb81797369d370456b9be80a4c426912e25eff081d35dcf197549b1c06d5ecff",
+      "bytes": 78253,
+      "git_blob": "0dd28c078dd8ce8f6a3f81196e6a716368dc91d5",
+      "path": "src/rtwn8723be_netbsd.c",
+      "sha256": "e6d702dae90d7b4c7b39c84d704cec42177197d55a14d70bf939b83645737edc"
+    },
+    {
+      "baseline_sha256": "3da32b2cfe840c68ed6b65942ef13f5189af3eb560e9af4f197c834e8d0737f0",
+      "bytes": 10630,
+      "git_blob": "0e553a3bee2172c37fc6f8cea081dbda88d9e50b",
+      "path": "src/rtwn8723be_netbsd.h",
+      "sha256": "f63372600916c37b8ef7be39b481cb78fa5cd05495cfe24de3e7bb1d646c3c10"
+    },
+    {
+      "baseline_sha256": "62a0cd8847342885b14857a75817714fe9ddf680b230b36d7816d7a30c22a53c",
+      "bytes": 24960,
+      "git_blob": "ffc8d77356c846f2060261d13be738c60237fcd5",
+      "path": "src/rtwn8723be_runtime_owner.c",
+      "sha256": "62a75dac9ebfe857048fb1d892788425a3fe4cfa336e655b03480226a5688892"
+    },
+    {
+      "baseline_sha256": "1e09b1be198b68bc63414f8affafc9b928acd3da863d059c68e3b3b2c405d6c7",
+      "bytes": 2434,
+      "git_blob": "6602631ab36e44f988cad1e13dbb3c6cdda1d248",
+      "path": "src/rtwn8723be_runtime_owner.h",
+      "sha256": "4cf0d5cbf85a10d61d737b655495fa50ec7abe1f2f0bf84bf7ce45decd93ce9b"
+    },
+    {
+      "baseline_sha256": null,
+      "bytes": 28550,
+      "git_blob": "2789de2857cb3fb92a76fb4995f14b9a4f262f8b",
+      "path": "tests/runtime_owner_fixture.py",
+      "sha256": "df5314018f21b186a37628b732112e2498b629b67e7e54b1cf77a01760deaa4c"
+    },
+    {
+      "baseline_sha256": null,
+      "bytes": 11398,
+      "git_blob": "7d8e934197a850c8c55e3e41ad06f32ffe27d2c8",
+      "path": "tests/test_irq_native_stop_drain.py",
+      "sha256": "1aabf9899b8ee8c5a23d2ba3265b04609aad28a3f04066cced6c7f9f1a52a0d8"
+    },
+    {
+      "baseline_sha256": "2509bcffef67177a704d1977b515f7f29cacbcdf131817aa7d5ecb15a5803f85",
+      "bytes": 5688,
+      "git_blob": "416a8fb3aca8662d274aaae2069cdcd609d73d3b",
+      "path": "tests/test_native_probe_admission.py",
+      "sha256": "3e1d9beedca13b33e7d1630285c5b171b3aef365dd9240a77180997b7ccff8cf"
+    },
+    {
+      "baseline_sha256": null,
+      "bytes": 24810,
+      "git_blob": "13d45c916901687b32b0303aa20a8395b6351388",
+      "path": "tests/test_native_runtime_owner.py",
+      "sha256": "77d56c8dc45075d5b1524797ba64543a67a71e99a7c654cf089a4abca624c69c"
+    },
+    {
+      "baseline_sha256": "1c7f9270c210a835acccbecc71190e7cdbdd6287475ad4973654974f13a6f705",
+      "bytes": 3347,
+      "git_blob": "e8312b292684943391844af1d3f74aff10ed7383",
+      "path": "tests/test_net80211_owner_storage.py",
+      "sha256": "39fc1877675cddde7c2716c221ba0aa07a634b23f701bcc89aba62f3d799345e"
+    },
+    {
+      "baseline_sha256": "a1bf3d2cdbb662890a3d229b9989324d8113a6bc85fdddd1c9a15967bebec90a",
+      "bytes": 8270,
+      "git_blob": "c3845941f326ca054085d51bed0667efbd1e4d7a",
+      "path": "tests/test_net80211_registration_owner_admission.py",
+      "sha256": "e1d5b849263ac548e5af6e700eb1c9b756bf78768a6ddc2251eb2680ab675776"
+    },
+    {
+      "baseline_sha256": "71e42d2dd6e95ef447dbd72d675735a1b724259fa6506f9a08b3f2c8445951f1",
+      "bytes": 34443,
+      "git_blob": "122d4a020d6f2c5fa7cf9359d84925d8ae65a7c2",
+      "path": "tests/test_port_closure_inventory.py",
+      "sha256": "9dcad6e42e9be0775911bc6a4ad083fe2651f924b83f0409d3c12c86e1e3ff5b"
+    },
+    {
+      "baseline_sha256": "b40049b372ffade7de0509f7e658a738b3e9a99daed764ce1d8165a94a75cf9d",
+      "bytes": 13691,
+      "git_blob": "5f2df52ac923a1832ec3c454d82deb104329ea5a",
+      "path": "tests/test_post_registration_probe_unwind.py",
+      "sha256": "72a77dc64745afd053279c294a129cf689ded133df26e8d690096345f73a7849"
+    },
+    {
+      "baseline_sha256": "fd49650b99ccec34b2cd98da3852929e169b40dac0414a736a83cac829970c58",
+      "bytes": 12307,
+      "git_blob": "81b244dedf4cdb476d62425d6e3c3253546dd6b3",
+      "path": "tests/test_rfkill_probe_ops_binding.py",
+      "sha256": "1517dcef08b3f138723a5a8c2f7f0d96ed8141a03a7a23bd78f64249b7344274"
+    },
+    {
+      "baseline_sha256": "4fa5ecf3fbec2f8ca4a53583209730bf156549249c74ad4082df4653b458ce85",
+      "bytes": 5466,
+      "git_blob": "1a168ea93b2d12b58cc7b090c49f63cbe924790d",
+      "path": "tests/test_runtime_owner.py",
+      "sha256": "fcacf60dd69bbf1e587f2b51bbfff4662cfa9f070c8f57c1e5b6325c357be67c"
+    },
+    {
+      "baseline_sha256": "96861289c97e3eb9189d0a7ea3d6491ddb0db6fff4b152324e6333bf6acf29f6",
+      "bytes": 8267,
+      "git_blob": "14021ccb9c74d8d0680ed78031fe7eb1ef445edb",
+      "path": "tests/test_source_negative_guards.py",
+      "sha256": "4c7f72fb555f8f9e4e06b45880aa4912ae0fa1b7da25724fa76213e3c8d5371b"
+    }
+  ],
+  "independent_verification_attempt": "A04",
+  "kernel": {
+    "attachment": "rtwn8723be_native_ca",
+    "bytes": 27292816,
+    "elf_class": 64,
+    "elf_machine": 62,
+    "elf_type": "ET_EXEC",
+    "native_global_symbols": 327,
+    "native_symbols_present": true,
+    "native_units": 48,
+    "path": "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-register-owner-20261110/obj/netbsd",
+    "sha256": "d7760c619e828ea93701d22a9f20c380cb8206221ee97f128554c3487f614948",
+    "undefined_symbols": 0
+  },
+  "map": {
+    "bytes": 12483060,
+    "path": "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-register-owner-20261110/obj/netbsd.map",
+    "sha256": "f76543e91d026f86e2eeb783dc2d40d50683f9bf858e95ce9d3934515245a145"
+  },
+  "native_build_attempt": "A03",
+  "native_units": 48,
+  "observed_at": "2026-11-10T08:55:29.118476+00:00",
+  "private_receipts": {
+    "artifact-manifest.json": {
+      "bytes": 13750,
+      "sha256": "a824ec1022a08da92647d10f5263b7af33db82bb0a6776e3f5334c03622cfbf5"
+    },
+    "auxiliary-fixture-update-A01.json": {
+      "bytes": 1869,
+      "sha256": "f9907c8cce745c43f44c57d4e079b50b67b75818a7b30e10815df0dde690f430"
+    },
+    "final-fixture-validation-A01.json": {
+      "bytes": 28038,
+      "sha256": "96f9fe7f339d217c2ad08fd38aa46c490fd61007b54bcc527eb7c9fbb05d0e1c"
+    },
+    "final-source-inputs-A03.json": {
+      "bytes": 148061,
+      "sha256": "e0e79a0e9469c4ac0f9044c4186d663869cdfa22776714f209f219dc94fb6bd8"
+    },
+    "header-correction-A02.json": {
+      "bytes": 1177,
+      "sha256": "54cd4b2190465f65cf7950fa59802ea425f07c449b2991a983a40fb277c5848c"
+    },
+    "independent-kernel-proof-A03.json": {
+      "bytes": 6718,
+      "sha256": "7beb7e3f0f7d6b5214230d673c1e62c63ecba63f51999e0a55a3ad95b214d9bc"
+    },
+    "independent-kernel-proof-A04.json": {
+      "bytes": 607366,
+      "sha256": "53fc332b45adccb17e4a50afbcb4c6ee25818bd51ebfc85a29d7a5781b0c12e0"
+    },
+    "kernel-output-manifest-A03.json": {
+      "bytes": 1484857,
+      "sha256": "909512657aced8ee223d7912b8d7daa88d7f124035cf73e3ed99fda479f6f000"
+    },
+    "preserved-regressions-A03.json": {
+      "bytes": 9371,
+      "sha256": "dd8f6f5109ea59251dd71c2439cf7962385a3cef886af24099727febd6fa4905"
+    },
+    "source-result.json": {
+      "bytes": 8200,
+      "sha256": "b22040a25981982a9072e2fe69d1cc58329e30a90e01a49421691b7089c1ca2f"
+    }
+  },
+  "project_id": "HP-RTL8723BE",
+  "protected": {
+    "/boot.cfg": "f7e0ccc00308172d5787f47c2c66b33921c53341f896e2339079a66980b6a4df",
+    "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/netbsd": "21dccebbbbd92cc1fa185522489a766e515f1e8a062ed6aa99b2645a907ef4ca",
+    "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-20261109/obj/netbsd.map": "0035dc2faf53311e8f278b2d609978499c392e5d71a4ec1c41515f41f9bd7ff8",
+    "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-net80211-tx-20261110/obj/netbsd": "fc31520e392e615e0c546e4605f07548d42c4c628d3daccebf4da4d19912c5d7",
+    "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-net80211-tx-20261110/obj/netbsd.map": "a7fe973fd9540d3b23fa6cbbbede7426f7bc77943eb1be1ec47051d34b05a9fb",
+    "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-register-owner-20261110/obj/netbsd": "d7760c619e828ea93701d22a9f20c380cb8206221ee97f128554c3487f614948",
+    "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-register-owner-20261110/obj/netbsd.map": "f76543e91d026f86e2eeb783dc2d40d50683f9bf858e95ce9d3934515245a145",
+    "/netbsd": "9b65629c0527bbd40f7ffa0d4ef0c59a32b5edceb597a5df8c86d1e7be1c8fde",
+    "/usr/src/sys/dev/pci/files.pci": "584bf78070c5868e2e48d0e563949cbf70a958b08166150f5363cfcbf5d7b707"
+  },
+  "protected_unchanged": true,
+  "publication_changed_paths": 22,
+  "publication_source_files": 1012,
+  "relocatable": {
+    "path": "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-register-owner-20261110/obj/rtwn8723be-native48.o",
+    "sha256": "efcb06936b6f76295e34997dd81db8ad43d1e682c02444dccbe7256a3c82ed38"
+  },
+  "retained_history": [
+    "A03 independent verifier raw Make OBJS query failed; A04 expanded-query correction, no source or kernel rebuild",
+    "A01 missing explicit target cpu header compile failure",
+    "A02 two obsolete unbound-registration assertions; separate AUX migration verified23",
+    "Initial survived I/O-lease mutant corrected by valid-bridge guard-isolation cases",
+    "Generic tool rejection trigger UNKNOWN, original non-executable evidence and premature alternate-edit incident retained; no rejected command replay/filter changes"
+  ],
+  "schema": 1,
+  "source_files": 1010,
+  "source_manifest_sha256": "e0e79a0e9469c4ac0f9044c4186d663869cdfa22776714f209f219dc94fb6bd8",
+  "staged_dependencies": 113,
+  "validation": {
+    "all_script_exits_zero": true,
+    "boundary": "Instrumented OS/hardware providers and POSIX softint worker; actual NetBSD headers/compiler/full-kernel link. Physical SMP/firmware/radio NOT_RUN.",
+    "compiler_failure_counted_as_kill": false,
+    "distinct_scripts": 33,
+    "irq_mutants_executed_rejected": 13,
+    "preserved_consumer_mutants": 13,
+    "preserved_crypto_mutants": 11,
+    "runtime_mutants_executed_rejected": 18
+  }
+}

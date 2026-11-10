@@ -131,6 +131,8 @@ struct rtwn8723be_linux_ops {
 
 int rtwn8723be_linux_probe(void *, struct rtwn8723be_linux_state *,
     const struct rtwn8723be_linux_ops *);
+/* Pure shared native admission: complete real START and STOP callback sets. */
+int rtwn8723be_linux_runtime_ops_ready(const struct rtwn8723be_linux_ops *);
 int rtwn8723be_linux_hw_init(void *, struct rtwn8723be_linux_state *,
     const struct rtwn8723be_linux_ops *);
 int rtwn8723be_linux_adapter_start(void *, struct rtwn8723be_linux_state *,

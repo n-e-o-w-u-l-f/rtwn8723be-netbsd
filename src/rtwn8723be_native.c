@@ -24,6 +24,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "rtwn8723be_probe_unwind.h"
 #include "rtwn8723be_datapath.h"
 #include "rtwn8723be_rx_binding.h"
+#include "rtwn8723be_runtime_owner.h"
 
 static int
 rtwn8723be_native_match(device_t parent, cfdata_t cf, void *aux)
@@ -255,8 +256,8 @@ rtwn8723be_native_post_registration_unwind(struct rtwn8723be_softc *sc)
  * post-registration probe only AFTER IRQ/RFKill/net80211 owners drain.
  * The full running-driver shutdown remains deliberately unavailable.
  *
- * The present incomplete ops table still fails preflight at IDLE and
- * produces no PCI/MMIO effects.
+ * The native owner gate still refuses incomplete providers before the
+ * Linux probe, at IDLE and without PCI/MMIO effects.
  */
 static void
 rtwn8723be_native_probe_cleanup(struct rtwn8723be_softc *sc)
@@ -375,8 +376,7 @@ rtwn8723be_native_detach(device_t self, int flags)
     if (sc->sc_linux.stage != R23BE_STAGE_IDLE ||
         sc->sc_initial_pci_saved)
         return EBUSY;
-    rtwn8723be_netbsd_context_fini(sc);
-    return 0;
+    return rtwn8723be_netbsd_context_fini(sc);
 }
 
 static void
@@ -385,10 +385,24 @@ rtwn8723be_native_attach(device_t parent, device_t self, void *aux)
     struct rtwn8723be_softc *sc = device_private(self);
     const struct pci_attach_args *pa = aux;
     enum rtwn8723be_linux_stage failed_stage;
-    int error;
+    int error, fini_error;
 
     (void)parent;
     rtwn8723be_netbsd_context_init(sc, self, pa);
+    /* Binding the last probe callback must not bypass missing live owners.
+     * This structural gate invokes no provider and precedes PCI effects.
+     */
+    error = rtwn8723be_runtime_probe_ready(sc);
+    if (error != 0) {
+        aprint_error_dev(self,
+            "native owner preflight failed: %d; no PCI resources enabled\n",
+            error);
+        fini_error = rtwn8723be_netbsd_context_fini(sc);
+        if (fini_error != 0)
+            aprint_error_dev(self, "retaining native context: %d\n",
+                fini_error);
+        return;
+    }
     pci_aprint_devinfo(pa, NULL);
 
     /*
@@ -399,7 +413,10 @@ rtwn8723be_native_attach(device_t parent, device_t self, void *aux)
         &sc->sc_pci_powerstate_initial) != 0) {
         aprint_error_dev(self,
             "cannot snapshot original PCI power state; probe aborted\n");
-        rtwn8723be_netbsd_context_fini(sc);
+        fini_error = rtwn8723be_netbsd_context_fini(sc);
+        if (fini_error != 0)
+            aprint_error_dev(self, "retaining native context: %d\n",
+                fini_error);
         return;
     }
     sc->sc_pci_command_initial =
@@ -412,11 +429,11 @@ rtwn8723be_native_attach(device_t parent, device_t self, void *aux)
 
     /*
      * rtwn8723be_linux_probe() checks ALL probe callbacks before the first
-     * hardware-visible operation. Today it must return ENOSYS because the
-     * net80211 registration and rfkill adapters are not yet implemented.
-     * There is deliberately no hardware fallback or fake WLAN interface.
+     * hardware-visible operation. The earlier native gate additionally
+     * requires the genuine immutable provider configuration and complete
+     * start/stop callbacks. No missing provider has a successful fallback.
      *
-     * Before completing the final missing probe callback, implement and
+     * Before admitting any genuine provider configuration, complete and
      * verify comprehensive reverse-order rollback of PCI command, BAR,
      * bus_dma, rings, interrupts, net80211 and RF resources plus detach.
      * A partially successful probe may NOT be treated as attach success.
@@ -433,8 +450,12 @@ rtwn8723be_native_attach(device_t parent, device_t self, void *aux)
          * post-registration resources, retain the context as well.
          */
         if (sc->sc_linux.stage == R23BE_STAGE_IDLE &&
-            !sc->sc_initial_pci_saved)
-            rtwn8723be_netbsd_context_fini(sc);
+            !sc->sc_initial_pci_saved) {
+            fini_error = rtwn8723be_netbsd_context_fini(sc);
+            if (fini_error != 0)
+                aprint_error_dev(self, "retaining native context: %d\n",
+                    fini_error);
+        }
         aprint_error_dev(self,
             "native RTL8723BE probe failed: %d (stage %d); "
             "WLAN not registered\n", error, (int)failed_stage);
@@ -442,9 +463,9 @@ rtwn8723be_native_attach(device_t parent, device_t self, void *aux)
     }
 
     /*
-     * The last probe callback must not become available before detach and
-     * rollback are implemented. This entry cannot be enabled for runtime
-     * testing until the parent full-scope contract authorizes it.
+     * Registration ownership alone does not authorize a hardware test.
+     * Actual provider integration, recovery, detach and physical acceptance
+     * remain required by the parent full-scope contract.
      */
     if (!rtwn8723be_native_probe_resources_ready(sc)) {
         aprint_error_dev(self,

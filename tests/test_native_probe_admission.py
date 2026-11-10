@@ -31,6 +31,8 @@ def source_contract(source: str) -> None:
         assert ".%s =" % field in body, field
     assert "return rtwn8723be_probe_admission_ok(&a);" in body
     attach = source[source.index("rtwn8723be_native_attach("):]
+    assert attach.index("error = rtwn8723be_runtime_probe_ready(sc);") < attach.index(
+        "pci_get_powerstate(") < attach.index("error = rtwn8723be_linux_probe(")
     assert attach.index("error = rtwn8723be_linux_probe(") < attach.index(
         "if (!rtwn8723be_native_probe_resources_ready(sc))")
     assert attach.index("if (!rtwn8723be_native_probe_resources_ready(sc))") < (
@@ -45,7 +47,8 @@ def source_contract(source: str) -> None:
     assert "rtwn8723be_native_probe_cleanup(sc)" not in refusal
     # The missing real owner gates must not be hidden by a success-only check.
     ops = NETBSD.split("const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops", 1)[1]
-    for name in ("register_ieee80211", "bt_prepare", "dm_init"):
+    assert ".register_ieee80211 = rtwn8723be_netbsd_register_ieee80211," in ops
+    for name in ("bt_prepare", "dm_init"):
         assert "." + name + " =" not in ops
     assert ".init_rfkill = rtwn8723be_netbsd_init_rfkill," in ops
     assert "rtwn8723be_rfkill_native_init(sc);" in NETBSD

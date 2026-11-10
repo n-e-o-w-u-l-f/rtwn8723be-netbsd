@@ -1,8 +1,43 @@
 # RTL8723BE NetBSD project status
 
 Current checkpoint: 2026-11-10 Europe/Paris. PROJECT_ID: HP-RTL8723BE.
-Parent driver port: **PARTIAL**. Current TX source/link gate: **PASS**.
+Parent driver port: **PARTIAL**. Current registration/ownership source/link gate: **PASS**.
 Private kernel: **BUILT_NOT_TESTREADY**. Hardware acceptance: **NOT_RUN / OPEN**.
+
+## Genuine registration and native start/stop ownership
+
+The real register_ieee80211 callback is bound. It publishes actual net80211,
+RX binding and datapath ownership in order, with reverse failure compensation.
+Native START/STOP use the real Linux lifecycle controller, short operation
+claims and checked provider admission. STOP masks and retires IRQ work, drops
+Giant across the actual SOFTNET cross-call barrier, then verifies the drain
+before RF/hardware shutdown. IRQ/backing ownership survives for restart;
+checked finalization refuses live or inconsistent owners.
+
+The callback table is 52/54 bound. Genuine bt_prepare/dm_init and C2H TX/RA,
+RF/calibration/runtime provider integration remain OPEN. The structural attach
+gate fails at IDLE before PCI/MMIO when they are absent; no success stub or
+hardware acceptance is substituted.
+
+On HP, 33 distinct regression scripts passed. The new compiled fixtures reject
+18 runtime-owner and 13 IRQ/drain mutants by executed assertions; preserved
+TX-consumer13/crypto11 mutant regressions also pass. All 48 native units compile,
+and the full private kernel retains all 327 selected RTL global definitions
+with zero final undefined symbols. Independent ELF, selected-source, dependency,
+symbol and protected-input checks PASS. Each test batch kept its inputs unchanged; validated production and fixture
+inputs match the final build. Target ABI/link proof and modeled concurrency checks do
+not establish physical NetBSD SMP or WLAN behavior.
+
+Current private kernel: 27,292,816 bytes; SHA-256
+d7760c619e828ea93701d22a9f20c380cb8206221ee97f128554c3487f614948.
+Map: 12,483,060 bytes; SHA-256
+f76543e91d026f86e2eeb783dc2d40d50683f9bf858e95ce9d3934515245a145.
+This candidate remains BUILT_NOT_TESTREADY, uninstalled and unbooted.
+F77 /netbsd, /boot.cfg, installed files.pci and both prior private kernel/map
+pairs retain their exact hashes.
+
+[Implementation and evidence limits](docs/NET80211_REGISTER_OWNER_20261110.md).
+[Machine-readable receipt](docs/evidence/NET80211_REGISTER_OWNER_20261110.json).
 
 ## Native net80211 TX consumer
 
@@ -28,9 +63,9 @@ with a successful stub.
 
 [Implementation, evidence boundaries and exact production hashes](docs/NET80211_TX_CONSUMER_20261110.md).
 
-## Current evidence
+## Previous TX consumer evidence
 
-Source base: 54450113dc39567e2d81ba9e766edbed338620a9 plus the bounded TX patch.
+Previous TX source base: 54450113dc39567e2d81ba9e766edbed338620a9 plus the bounded TX patch.
 The publication contains the identical production file hashes recorded in the
 [TX receipt](docs/evidence/NET80211_TX_CONSUMER_20261110.json); no circular
 self-commit identifier substitutes for that tested-source identity.
@@ -53,7 +88,7 @@ On hp-tpnw121.lan / actual NetBSD 11 headers and tools:
 - F77 /netbsd, /boot.cfg and all five protected input/artifact hashes remain
   unchanged in the independent terminal kernel receipt.
 
-Current private kernel: 27,291,824 bytes; SHA-256
+Previous TX private kernel: 27,291,824 bytes; SHA-256
 fc31520e392e615e0c546e4605f07548d42c4c628d3daccebf4da4d19912c5d7.
 Map: 12,476,831 bytes; SHA-256
 a7fe973fd9540d3b23fa6cbbbede7426f7bc77943eb1be1ec47051d34b05a9fb.
@@ -85,15 +120,15 @@ SHA-256: 21dccebbbbd92cc1fa185522489a766e515f1e8a062ed6aa99b2645a907ef4ca.
 ## OPEN and NEXT
 
 Source publication and host-ref convergence are recorded separately in project
-governance. NEXT: close the remaining genuine register_ieee80211, bt_prepare and
-dm_init callbacks and their native lifecycle owners without enabling an
-unverified hardware path.
+governance. NEXT: supply the remaining genuine bt_prepare/dm_init, C2H TX/RA and
+RF/calibration/runtime providers, then close pre-RUNNING recovery and complete
+running-driver detach/lifecycle integration before separately authorized
+physical network acceptance.
 
-register_ieee80211, bt_prepare and dm_init remain open. Native hardware
-start/stop ownership, watchdog/recovery and physical network acceptance remain
-separate whole-driver obligations. The current TX parser intentionally rejects
-null-data/control/WDS/fragmented/HT-control formats; this checkpoint does not
-claim those transmit formats or a functional WLAN release.
+The current TX parser intentionally rejects null-data/control/WDS/fragmented/
+HT-control formats. Physical WLAN/WPA2, watchdog/recovery and PM acceptance
+remain OPEN. Source publication and both canonical host receipts are maintained
+separately in project governance.
 
 Actual target headers identify NetBSD 11.0. Historical upstream reference
 03d918f6d0e81fa05b8f1160eca0628ad39988a6 remains UNVERIFIED against the installed

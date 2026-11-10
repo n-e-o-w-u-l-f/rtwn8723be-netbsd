@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Proof of native PCI/net80211 preregistration *admission*, not interface attach.
+"""Proof of preregistration admission and the genuine native callback binding.
 
-Compiles the source-shared Linux-stage admission predicate under strict
-portable C11 and UBSan. Checks production rtwn8723be_net80211_register C
-source preflight order and disallows a real callback-table binding while
-hardware start/stop and 802.11 TX framing are still unimplemented.
-No NetBSD kernel net80211 API or HP WLAN hardware is exercised.
+The unchanged stage predicate runs under strict portable C11/UBSan. Source
+contracts retain every registration-before-effects check and require the
+real owner callback plus its early structural gate before PCI effects.
+Missing BT/DM suppliers still prevent native hardware admission. This test
+does not execute the NetBSD framework or physical HP WLAN hardware.
 """
 from pathlib import Path
 import subprocess
@@ -33,8 +33,25 @@ def extract(source: str, name: str) -> str:
 
 PRED = extract(STATE, "rtwn8723be_net80211_registration_checkpoint_ok")
 REG = extract(NET, "rtwn8723be_net80211_register")
-assert ".register_ieee80211 =" not in OPS.split(
+OPS_TABLE = OPS.split(
     "const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops", 1)[1]
+assert ".register_ieee80211 = rtwn8723be_netbsd_register_ieee80211," in OPS_TABLE
+for missing in ("bt_prepare", "dm_init"):
+    assert "." + missing + " =" not in OPS_TABLE
+ATTACH = extract(NATIVE, "rtwn8723be_native_attach")
+EARLY = ATTACH.index("error = rtwn8723be_runtime_probe_ready(sc);")
+PCI = ATTACH.index("pci_get_powerstate(")
+assert EARLY < PCI < ATTACH.index("error = rtwn8723be_linux_probe(")
+REFUSAL = ATTACH[EARLY:ATTACH.index("pci_aprint_devinfo(")]
+assert "if (error != 0)" in REFUSAL and "return;" in REFUSAL
+assert "rtwn8723be_netbsd_context_fini(sc)" in REFUSAL
+OWNER = (ROOT / "src/rtwn8723be_runtime_owner.c").read_text()
+CALLBACK = extract(OWNER, "rtwn8723be_netbsd_register_ieee80211")
+assert CALLBACK.index("rtwn8723be_net80211_register(") < CALLBACK.index(
+    "rtwn8723be_rx_binding_init(") < CALLBACK.index("rtwn8723be_datapath_prepare(")
+assert ".hw_start = rtwn8723be_runtime_hw_start," in CALLBACK
+assert ".hw_stop = rtwn8723be_runtime_hw_stop," in CALLBACK
+assert ".tx_start = rtwn8723be_net80211_tx_start," in CALLBACK
 assert "rtwn8723be_net80211_register(" not in NATIVE
 
 def contract(p: str, r: str) -> None:

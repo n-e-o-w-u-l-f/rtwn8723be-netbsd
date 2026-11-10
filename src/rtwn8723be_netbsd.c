@@ -79,11 +79,17 @@ rtwn8723be_netbsd_context_init(struct rtwn8723be_softc *sc,
         R23BE_HSIMR_RON_INT_EN;
 }
 
-void
+int
 rtwn8723be_netbsd_context_fini(struct rtwn8723be_softc *sc)
 {
+    int error;
+
     if (sc == NULL)
-        return;
+        return EINVAL;
+    /* Release-build refusal BEFORE any mutex or backing storage is retired. */
+    error = rtwn8723be_runtime_owner_fini(sc);
+    if (error != 0)
+        return error;
     /*
      * The prepared bridge owns an IPL_NET TX mutex and IRQ callbacks.
      * Never retire the softc while that external owner is still bound.
@@ -113,7 +119,7 @@ rtwn8723be_netbsd_context_fini(struct rtwn8723be_softc *sc)
         mutex_destroy(&sc->sc_rf_ps_lock);
         sc->sc_rf_ps_lock_initialized = false;
     }
-    rtwn8723be_runtime_owner_fini(sc);
+    return 0;
 }
 
 bool
@@ -2409,8 +2415,8 @@ rtwn8723be_netbsd_begin_stop(void *arg,
  * poller against a foreign, incomplete or already detached ifnet.
  *
  * linux_probe sets stage=RFKILL before invoking this callback. Its
- * mandatory probe preflight still refuses absent ieee80211, BT and DM
- * callbacks before performing any PCI/MMIO writes.
+ * separate native owner preflight refuses incomplete C2H, BT/DM and RF
+ * providers before linux_probe can perform any PCI/MMIO writes.
  */
 static int
 rtwn8723be_netbsd_init_rfkill(void *arg)
@@ -2446,6 +2452,7 @@ const struct rtwn8723be_linux_ops rtwn8723be_netbsd_ops = {
     .init_aspm = rtwn8723be_netbsd_init_aspm,
     .init_core = rtwn8723be_netbsd_init_core,
     .init_pci_rings = rtwn8723be_netbsd_init_pci_rings,
+    .register_ieee80211 = rtwn8723be_netbsd_register_ieee80211,
     .init_rfkill = rtwn8723be_netbsd_init_rfkill,
     .reset_trx_ring = rtwn8723be_netbsd_reset_trx_ring,
     .disable_aspm = rtwn8723be_netbsd_disable_aspm,

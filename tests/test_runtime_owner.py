@@ -1,118 +1,131 @@
 #!/usr/bin/env python3
-"""Keep the RTL runtime-owner foundation inert and lifecycle-only.
+"""Guard the admitted runtime-owner structure and release-build teardown.
 
-This is deliberately a source-contract test: it protects the initial owner
-from absorbing the stale frozen runtime's DMA, IRQ, net80211, workqueue and
-coexistence responsibilities before their real NetBSD lifetime exists.
+Executable orchestration and IRQ ordering are covered by the separate compiled
+production-C fixtures. This source contract retains the ban on obsolete runtime
+imports and direct unowned hardware/worker operations; it is not runtime proof.
 """
 from pathlib import Path
 import re
-
+from runtime_owner_fixture import function
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
-OWNER_H = SRC / "rtwn8723be_runtime_owner.h"
-OWNER_C = SRC / "rtwn8723be_runtime_owner.c"
-NETBSD_H = SRC / "rtwn8723be_netbsd.h"
-NETBSD_C = SRC / "rtwn8723be_netbsd.c"
-MANIFEST = ROOT / "config" / "files.rtwn8723be_native"
+owner_h = (SRC / "rtwn8723be_runtime_owner.h").read_text()
+owner_c = (SRC / "rtwn8723be_runtime_owner.c").read_text()
+netbsd_h = (SRC / "rtwn8723be_netbsd.h").read_text()
+netbsd_c = (SRC / "rtwn8723be_netbsd.c").read_text()
+native_c = (SRC / "rtwn8723be_native.c").read_text()
+linux_c = (SRC / "rtwn8723be_linux_state.c").read_text()
+manifest = (ROOT / "config/files.rtwn8723be_native").read_text()
 
+def ordered(source, tokens):
+    positions = [source.index(token) for token in tokens]
+    assert positions == sorted(positions), tokens
 
-def ordered(text: str, tokens: tuple[str, ...], label: str) -> None:
-    positions = [text.find(token) for token in tokens]
-    assert all(pos >= 0 for pos in positions), f"{label}: missing {tokens!r}"
-    assert positions == sorted(positions), f"{label}: wrong order {tokens!r}"
-
-
-def owner_body(text: str, name: str, following: str) -> str:
-    prefix = f"void\n{name}("
-    assert prefix in text, f"missing {name} definition"
-    body = text.split(prefix, 1)[1]
-    assert following in body, f"missing {name} boundary"
-    return body.split(following, 1)[0]
-
-
-def check_owner_body(text: str) -> None:
-    init = owner_body(text, "rtwn8723be_runtime_owner_init",
-                      "\n}\n\nvoid\nrtwn8723be_runtime_owner_fini")
-    fini = owner_body(text, "rtwn8723be_runtime_owner_fini", "\n}\n")
-    assert init.count("MUTEX_DEFAULT, IPL_NONE") == 2
+def contract(owner, native, context):
+    init = function(owner, "rtwn8723be_runtime_owner_init")
+    fini = function(owner, "rtwn8723be_runtime_owner_fini")
+    claim = function(owner, "runtime_claim")
+    assert '#include <sys/cpu.h>' in owner
     ordered(init, (
-        "mutex_init(&owner->lifecycle_lock, MUTEX_DEFAULT, IPL_NONE);",
+        "mutex_init(&owner->lifecycle_lock, MUTEX_DEFAULT, IPL_NET);",
         "mutex_init(&owner->io_lock, MUTEX_DEFAULT, IPL_NONE);",
         "owner->io_depth = 0;",
-        "owner->closing = false;",
+        "owner->operation = R23BE_RUNTIME_NONE;",
+        "owner->operation_lwp = NULL;",
+        "owner->context = NULL;",
         "owner->initialized = true;",
-    ), "runtime-owner init")
-    ordered(fini, (
+    ))
+    assert "runtime_caller_locks_held(sc)" in claim
+    assert "owner->operation != R23BE_RUNTIME_NONE" in claim
+    assert "owner->operation_lwp != NULL || owner->io_depth != 0" in claim
+    assert "owner->closing || owner->io_depth != 0" in fini
+    assert "runtime_publication_present(sc)" in fini
+    assert "runtime_private_publication_present(owner->context)" in fini
+    assert "return EBUSY;" in fini and "return EWOULDBLOCK;" in fini
+    ordered(fini[fini.index("owner->closing = true;"):], (
         "owner->closing = true;",
-        "KASSERT(owner->io_depth == 0);",
+        "owner->operation = R23BE_RUNTIME_RETIRE;",
+        "owner->context = NULL;",
+        "mutex_exit(&owner->lifecycle_lock);",
+        "kmem_free(ctx, sizeof(*ctx));",
         "mutex_destroy(&owner->io_lock);",
         "mutex_destroy(&owner->lifecycle_lock);",
         "owner->initialized = false;",
-    ), "runtime-owner fini")
+    ))
+    outer = function(context, "rtwn8723be_netbsd_context_fini")
+    assert outer.startswith("int\n")
+    ordered(outer, (
+        "error = rtwn8723be_runtime_owner_fini(sc);",
+        "if (error != 0)",
+        "return error;",
+        "mutex_destroy(&sc->sc_irq_lock);",
+        "mutex_destroy(&sc->sc_rf_ps_lock);",
+    ))
+    attach = function(native, "rtwn8723be_native_attach")
+    ordered(attach, (
+        "rtwn8723be_netbsd_context_init(sc, self, pa);",
+        "error = rtwn8723be_runtime_probe_ready(sc);",
+        "if (error != 0)",
+        "return;",
+        "pci_get_powerstate(",
+        "error = rtwn8723be_linux_probe(",
+    ))
+    assert "return rtwn8723be_netbsd_context_fini(sc);" in function(
+        native, "rtwn8723be_native_detach")
+    for obsolete in (
+        '#include "rtwn8723be_runtime.h"',
+        "struct rtwn8723be_runtime ",
+        "rtwn8723be_read_", "rtwn8723be_write_",
+        "pci_conf_write(", "bus_dmamap_", "workqueue_create(",
+        "callout_schedule(",
+    ):
+        assert obsolete not in owner, obsolete
 
-
-assert OWNER_H.is_file(), "runtime-owner header missing"
-assert OWNER_C.is_file(), "runtime-owner implementation missing"
-owner_h = OWNER_H.read_text()
-owner_c = OWNER_C.read_text()
-netbsd_h = NETBSD_H.read_text()
-netbsd_c = NETBSD_C.read_text()
-manifest = MANIFEST.read_text()
-
-ordered(owner_h, (
-    "kmutex_t lifecycle_lock;",
-    "kmutex_t io_lock;",
-    "unsigned int io_depth;",
-    "bool initialized;",
-    "bool closing;",
-), "runtime-owner layout")
-assert "lifecycle_lock -> io_lock" in owner_h
 assert "struct rtwn8723be_runtime_owner sc_runtime_owner;" in netbsd_h
 ordered(netbsd_h, (
     "struct rtwn8723be_linux_state sc_linux;",
     "struct rtwn8723be_runtime_owner sc_runtime_owner;",
     "struct rtwn8723be_h2c_native sc_h2c;",
-), "softc runtime-owner placement")
-
+))
+for token in (
+    "unsigned int io_depth;", "enum rtwn8723be_runtime_operation operation;",
+    "struct lwp *operation_lwp;", "struct rtwn8723be_runtime_context *context;",
+    "lifecycle_lock -> io_lock",
+):
+    assert token in owner_h, token
+for name in ("configure", "fini"):
+    assert "int rtwn8723be_runtime_owner_" + name + "(" in owner_h
 assert manifest.count("rtwn8723be_runtime_owner.c") == 1
-native_units = re.findall(
+units = re.findall(
     r"^file\s+dev/pci/(rtwn8723be_\w+\.c)\s+rtwn8723be_native$",
     manifest, re.M)
-assert len(native_units) == 48 and len(set(native_units)) == 48
+assert len(units) == 48 and len(set(units)) == 48
+ready = function(linux_c, "rtwn8723be_linux_runtime_ops_ready")
+assert "rtwn8723be_start_ops_ready(ops)" in ready
+assert "rtwn8723be_stop_ops_ready(ops)" in ready
+contract(owner_c, native_c, netbsd_c)
 
-check_owner_body(owner_c)
-for forbidden in (
-        "pci_", "bus_", "dma", "ieee80211", "workqueue", "callout",
-        "btc", "rtwn8723be_linux_adapter", "rtwn8723be_write_",
-        "rtwn8723be_read_"):
-    assert forbidden not in owner_c.lower(), f"runtime owner is not inert: {forbidden}"
-
-init_context = owner_body(netbsd_c, "rtwn8723be_netbsd_context_init",
-                          "\n}\n\nvoid\nrtwn8723be_netbsd_context_fini")
-fini_context = owner_body(netbsd_c, "rtwn8723be_netbsd_context_fini",
-                          "\n}\n\nbool\nrtwn8723be_netbsd_rf_change_owned")
-ordered(init_context, (
-    "memset(sc, 0, sizeof(*sc));",
-    "rtwn8723be_runtime_owner_init(sc);",
-), "context runtime-owner init")
-ordered(fini_context, (
-    "mutex_destroy(&sc->sc_irq_lock);",
-    "mutex_destroy(&sc->sc_rf_ps_lock);",
-    "rtwn8723be_runtime_owner_fini(sc);",
-), "context runtime-owner fini")
-
-# Negative controls prove the assertions reject the two most dangerous
-# accidental changes: an interrupt-level mutex and destruction with I/O live.
-for bad in (
-        owner_c.replace("MUTEX_DEFAULT, IPL_NONE", "MUTEX_DEFAULT, IPL_NET", 1),
-        owner_c.replace("KASSERT(owner->io_depth == 0);", "", 1)):
+negative = (
+    (owner_c.replace("lifecycle_lock, MUTEX_DEFAULT, IPL_NET",
+                     "lifecycle_lock, MUTEX_DEFAULT, IPL_NONE", 1),
+     native_c, netbsd_c),
+    (owner_c.replace("owner->closing || owner->io_depth != 0",
+                     "owner->closing", 1), native_c, netbsd_c),
+    (owner_c, native_c,
+     netbsd_c.replace("error = rtwn8723be_runtime_owner_fini(sc);",
+                      "error = 0;", 1)),
+    (owner_c, native_c.replace(
+        "error = rtwn8723be_runtime_probe_ready(sc);", "error = 0;", 1),
+     netbsd_c),
+)
+for altered in negative:
+    assert altered != (owner_c, native_c, netbsd_c)
     try:
-        check_owner_body(bad)
-    except AssertionError:
-        pass
-    else:
-        raise AssertionError("runtime-owner negative control was accepted")
-
-print("RTL_RUNTIME_OWNER_CONTRACT_OK")
+        contract(*altered)
+    except (AssertionError, ValueError):
+        continue
+    raise AssertionError("unsafe runtime owner source mutation accepted")
+print("RTL_RUNTIME_OWNER_CONTRACT_OK source_negatives=4 native_units=48 "
+      "compiled_orchestration=separate physical_runtime=OPEN")

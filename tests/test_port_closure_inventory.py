@@ -6,7 +6,7 @@ import re
 import sys
 
 EXPECTED_MISSING = {
-    "probe": ("register_ieee80211",),
+    "probe": (),
     "start": ("bt_prepare", "dm_init"),
     "stop": (),
 }
@@ -202,8 +202,10 @@ def check(root, require_closure=False):
         raise ValueError("source or native build manifest changed; re-inventory required")
     if set(missing) != expected:
         raise ValueError("callback inventory changed: now missing " + repr(missing))
-    if len(bound) != 51:
+    if len(bound) != 52:
         raise ValueError("bound callback count changed; re-inventory required")
+    if dict(bound).get("register_ieee80211") != "rtwn8723be_netbsd_register_ieee80211":
+        raise ValueError("real persistent native net80211 registration callback missing")
     if dict(bound).get("init_rfkill") != "rtwn8723be_netbsd_init_rfkill":
         raise ValueError("real RFKill probe callback is no longer bound")
     if "sc->sc_net80211.sc != sc" not in body:

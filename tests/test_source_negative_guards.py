@@ -155,11 +155,15 @@ CONTROLS = (
     ),
     (
         "src/rtwn8723be_native.c",
-        "        rtwn8723be_netbsd_context_fini(sc);\n"
+        "        fini_error = rtwn8723be_netbsd_context_fini(sc);\n"
+        "        if (fini_error != 0)\n"
+        "            aprint_error_dev(self, \"retaining native context: %d\\n\",\n"
+        "                fini_error);\n"
         "        return;\n"
         "    }\n"
         "    sc->sc_pci_command_initial",
-        "        return; /* intentionally leaks attach RF-PS lock */\n"
+        "        fini_error = 0; /* intentionally leaks attach RF-PS lock */\n"
+        "        return;\n"
         "    }\n"
         "    sc->sc_pci_command_initial",
         "PCI snapshot failure leaks RF-PS lock",
