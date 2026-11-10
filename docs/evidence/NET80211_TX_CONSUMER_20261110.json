@@ -1,0 +1,156 @@
+{
+  "all_five_protected_unchanged": true,
+  "attempt_id": "A01",
+  "base_commit": "54450113dc39567e2d81ba9e766edbed338620a9",
+  "candidate_boot": "NOT_RUN",
+  "ci": {
+    "hosted_runs": "NOT_RUN",
+    "target_source_required": true,
+    "workflow_changed": false
+  },
+  "fixtures": {
+    "consumer_executed_mutants_rejected": 13,
+    "crypto_executed_mutants_rejected": 11,
+    "passed": 24,
+    "receipt_sha256": "b9eeb99ec208013360908f18703932a553812797948fd595f90d549d23064c5f",
+    "total": 24
+  },
+  "immutable_local_receipts": {
+    "artifact-manifest.json": {
+      "bytes": 5781,
+      "path": "audit/net80211-tx-20261110/artifact-manifest.json",
+      "retention": "IMMUTABLE_PRIVATE_A01",
+      "sha256": "c8658d9e363bc0df9c14d1c7ea5fe25fc99f52553e8e140bf5df744bf72e5bbf"
+    },
+    "core-artifact-preservation.json": {
+      "bytes": 6115,
+      "path": "audit/net80211-tx-20261110/core-artifact-preservation.json",
+      "retention": "IMMUTABLE_PRIVATE_A01",
+      "sha256": "dc4f17d6501d55ce1b68d890e8229c4207c94a66682a19e6ef1753d26a0e4d0d"
+    },
+    "final-validation-A01.json": {
+      "bytes": 24582,
+      "path": "audit/net80211-tx-20261110/final-validation-A01.json",
+      "retention": "IMMUTABLE_PRIVATE_A01",
+      "sha256": "b9eeb99ec208013360908f18703932a553812797948fd595f90d549d23064c5f"
+    },
+    "independent-kernel-acceptance-A01.json": {
+      "bytes": 34896,
+      "path": "audit/net80211-tx-20261110/independent-kernel-acceptance-A01.json",
+      "retention": "IMMUTABLE_PRIVATE_A01",
+      "sha256": "2578b28c99826b8ef5bfc6dc03a7e36a140392fbcd2fe3d224259004ef6182d7"
+    },
+    "independent-kernel-owner-terminal-A01.json": {
+      "bytes": 828,
+      "path": "audit/net80211-tx-20261110/independent-kernel-owner-terminal-A01.json",
+      "retention": "IMMUTABLE_PRIVATE_A01",
+      "sha256": "4830cd60d0af4073e2cc199958b95cb5ac204b7f554b977848b3d87f10a576ea"
+    },
+    "independent-source-acceptance-A01.json": {
+      "bytes": 6691,
+      "path": "audit/net80211-tx-20261110/independent-source-acceptance-A01.json",
+      "retention": "IMMUTABLE_PRIVATE_A01",
+      "sha256": "9c175dda1628272ed2f77b630c7a91225e4ddad41312e83c0db1d2486bd3e260"
+    },
+    "kernel-output-manifest-A01.json": {
+      "bytes": 1484762,
+      "path": "audit/net80211-tx-20261110/kernel-output-manifest-A01.json",
+      "retention": "IMMUTABLE_PRIVATE_A01",
+      "sha256": "07c61bf4b14733e3cf989ebb6d6ebaebe2e5b0ce55c46a96e1c1b763c6198233"
+    },
+    "kernel-source-inputs-A01.json": {
+      "bytes": 147507,
+      "path": "audit/net80211-tx-20261110/kernel-source-inputs-A01.json",
+      "retention": "IMMUTABLE_PRIVATE_A01",
+      "sha256": "672f5138976ff893c1ad8961563ce2844fb03ae345c66648bb010075523fd048"
+    },
+    "source-result.json": {
+      "bytes": 7229,
+      "path": "audit/net80211-tx-20261110/source-result.json",
+      "retention": "IMMUTABLE_PRIVATE_A01",
+      "sha256": "4d55dcedbe009addc2e818a338a350b511e412091f120aea3c83cd84cf76d393"
+    },
+    "status-kernel-A01.json": {
+      "bytes": 23616,
+      "path": "audit/net80211-tx-20261110/status-kernel-A01.json",
+      "retention": "IMMUTABLE_PRIVATE_A01",
+      "sha256": "67cd7e1d11dcda90d28cb6e4d86c7fd136d92bc67d39fa04c345c5f067738dbb"
+    },
+    "status-objects-A01.json": {
+      "bytes": 17353,
+      "path": "audit/net80211-tx-20261110/status-objects-A01.json",
+      "retention": "IMMUTABLE_PRIVATE_A01",
+      "sha256": "0fba2d55f31ce9a5144da766c0eafdc62319bf3a5008f93b5f1056e285b56fd6"
+    },
+    "status.json": {
+      "bytes": 23978,
+      "path": "audit/net80211-tx-20261110/status.json",
+      "retention": "IMMUTABLE_PRIVATE_A01",
+      "sha256": "3981dc701824b4f06f22a94b5b2a97320db5d23a2fc40bfd8899ad4eee93ba31"
+    }
+  },
+  "installation": "NOT_RUN",
+  "kernel": {
+    "byte_order": "little",
+    "bytes": 27291824,
+    "elf_class": 64,
+    "elf_machine": 62,
+    "elf_type": "ET_EXEC",
+    "i915_attachment_present": false,
+    "i915_config_selected": false,
+    "i915_objects_selected": false,
+    "i915_symbols_linked": false,
+    "ieee80211_crypto_encap_symbol_type": "T",
+    "native_global_definitions_retained": 321,
+    "native_global_definitions_sha256": "4e6ff3af622adc6e1b0fae8219cb6c841646a71ac37585841c6f326512590cd2",
+    "native_selected_units": 48,
+    "native_tx_object_references_actual_crypto": true,
+    "path": "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-net80211-tx-20261110/obj/netbsd",
+    "required_symbols": {
+      "rtwn8723be_native_ca": "D",
+      "rtwn8723be_net80211_tx_complete": "T",
+      "rtwn8723be_net80211_tx_owner": "T",
+      "rtwn8723be_net80211_tx_start": "T"
+    },
+    "sha256": "fc31520e392e615e0c546e4605f07548d42c4c628d3daccebf4da4d19912c5d7",
+    "undefined_symbols": 0
+  },
+  "kernel_state": "BUILT_NOT_TESTREADY",
+  "limits": [
+    "AES computation and OS/DMA boundaries are fixture mocks; real target crypto API body and kernel link are verified.",
+    "register_ieee80211, bt_prepare, dm_init and full hardware lifecycle remain OPEN.",
+    "Parser rejects null-data/control/WDS/fragmented/HT-control; DATAPAD and hardware crypto fail closed.",
+    "No physical RX/scan/association/traffic, DMA/IRQ/SMP/STOP timing or PM acceptance.",
+    "Native private kernel and map are uninstalled and unbooted; F77/boot and prior protected artifacts unchanged."
+  ],
+  "map": {
+    "bytes": 12476831,
+    "path": "/home/andreas/rtwn8723be0-netbsd-20261109/rtl-kconfig-net80211-tx-20261110/obj/netbsd.map",
+    "sha256": "a7fe973fd9540d3b23fa6cbbbede7426f7bc77943eb1be1ec47051d34b05a9fb"
+  },
+  "parent_port": "PARTIAL",
+  "physical_wlan_acceptance": "NOT_RUN / OPEN",
+  "preserved_private_initial_mutation_core_count": 10,
+  "private_test_core_status": "PRESERVED_PRIVATE_RUNNER_CORRECTED; no raw core publication",
+  "production_identity": "Publication contains identical verified production file hashes; no self-commit hash is required.",
+  "production_inputs": {
+    "src/rtwn8723be_datapath.c": "7d7fd02420ad6ebc310e462d90ab2baeb4955ead35390e82b03e50d5df9cb434",
+    "src/rtwn8723be_net80211.c": "3fa72d1657959eeec7acef5c082a99fa6d177f3a391195dca870a929b7cc21a9",
+    "src/rtwn8723be_net80211.h": "9874c5cb3a8ccc44f65b66e7bac261fd50851cadfb01e7151addb5238df142ac"
+  },
+  "project_id": "HP-RTL8723BE",
+  "report": "docs/NET80211_TX_CONSUMER_20261110.md",
+  "schema_version": 1,
+  "source_current_matches_kernel_inputs": true,
+  "staged_project_dependencies_verified": 113,
+  "step_id": "HP-RTL-NET80211-TX-20261110",
+  "target_sdk_evidence": "Actual installed NetBSD 11 headers/source hashes and toolchain; no installed-tree Git metadata.",
+  "target_sdk_git_pin": "UNVERIFIED",
+  "unbound_linux_callbacks": [
+    "register_ieee80211",
+    "bt_prepare",
+    "dm_init"
+  ],
+  "verification": "PASS_SOURCE_FIXTURES_NATIVE_KERNEL_ONLY",
+  "verified_at": "2026-11-10T01:49:08.066840+00:00"
+}

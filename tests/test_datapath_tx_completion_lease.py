@@ -46,7 +46,12 @@ def contract(done_src: str, stop_src: str, unprepare_src: str,
     unlock2 = done_src.index("mutex_exit(&dp->tx_lock);", dec)
     assert inc < unlock < notify < reacquire < dec < unlock2
     assert "KASSERT(dp->tx_callback_active != 0);" in done_src
-    assert "if (error == 0 && reclaimed != 0 && dp->tx_complete != NULL)" in done_src
+    assert "if (error == 0 && reclaimed != 0)" in done_src
+    assert "native = rtwn8723be_net80211_tx_owner(dp->sc);" in done_src
+    assert "if (dp->tx_complete != NULL || native != NULL)" in done_src
+    assert "if (leased)" in done_src
+    native_call = done_src.index("rtwn8723be_net80211_tx_complete(native, qid, reclaimed);")
+    assert unlock < native_call < notify
     assert "state->stage = R23BE_STAGE_STOPPING;" in stop_src
     assert "dp->tx_enabled = false;" in stop_src
     assert stop_src.index("mutex_enter(&dp->tx_lock);") < (
@@ -72,8 +77,8 @@ controls = (
     (done.replace("dp->tx_callback_active++;", "", 1), stop, unprepare, HDR),
     (done.replace("dp->tx_callback_active--;", "", 1), stop, unprepare, HDR),
     (done.replace("KASSERT(dp->tx_callback_active != 0);", "", 1), stop, unprepare, HDR),
-    (done.replace("if (error == 0 && reclaimed != 0 && dp->tx_complete != NULL)",
-                  "if (reclaimed != 0 && dp->tx_complete != NULL)", 1), stop, unprepare, HDR),
+    (done.replace("if (error == 0 && reclaimed != 0)",
+                  "if (reclaimed != 0)", 1), stop, unprepare, HDR),
     (done, stop, unprepare.replace(
         "dp->tx_callback_active != 0 || dp->rx_callback_active != 0",
         "dp->rx_callback_active != 0", 1), HDR),
@@ -233,6 +238,18 @@ int main(void)
     return 0;
 }
 '''
+
+# This older fixture supplies only its external completion callback. The native
+# owner branch executes with the real getter in test_net80211_tx_consumer.py.
+prefix += r'''
+struct rtwn8723be_net80211;
+static struct rtwn8723be_net80211 *
+rtwn8723be_net80211_tx_owner(struct rtwn8723be_softc *sc)
+{ assert(sc != NULL); return NULL; }
+static void rtwn8723be_net80211_tx_complete(void *n, unsigned int q, size_t count)
+{ (void)n; (void)q; (void)count; assert(!"unexpected native owner"); }
+'''
+
 with tempfile.TemporaryDirectory(prefix="rtl-tx-lease-") as td:
     source = Path(td) / "check.c"
     exe = Path(td) / "check"

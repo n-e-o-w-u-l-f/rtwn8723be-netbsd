@@ -121,7 +121,16 @@ struct rtwn8723be_net80211 {
     struct rtwn8723be_softc *sc;
     struct rtwn8723be_net80211_methods methods;
     bool registered;
+    bool tx_busy;
+    unsigned int tx_key_update_depth;
 };
+/* Empty pending baseline for this older lifecycle fixture. Actual paired
+ * pending cleanup/key hooks execute in test_net80211_tx_consumer.py. */
+static void rtwn8723be_n80211_tx_purge(struct rtwn8723be_net80211 *n)
+{ assert(n && !n->tx_busy && n->tx_key_update_depth == 0); }
+static int rtwn8723be_n80211_tx_remove(struct rtwn8723be_net80211 *n)
+{ assert(n && !n->tx_busy && n->tx_key_update_depth == 0); return 0; }
+
 static int stop_calls, stop_mode, net80211_detaches, if_detaches, spl_enters, spl_exits;
 static int splnet(void)
 { spl_enters++; return 1; }

@@ -20,6 +20,8 @@ Version **0.1.0** remains experimental. F77 is the verified HP recovery
 kernel; it is not evidence that the current source tree is a working WLAN
 driver.
 
+The native net80211 management/data TX consumer now implements explicit packet/node ownership, real software-CCMP preparation, ring-full retention and completion wakeup, key/context invalidation, and validated legacy rate/protection policy. Its exact source passed 24 focused regressions, a fresh 48-object native HP build and an independently verified full private kernel link. All 321 selected RTL global definitions are retained, with zero final undefined symbols; no hardware WLAN result is claimed. See the [TX checkpoint](docs/NET80211_TX_CONSUMER_20261110.md) and [current status](STATUS.md).
+
 The current private manifest selects 48 C units. The conservative
 world-regdomain unit represents Linux's safe baseline: channels 1–11 are
 active CCK/OFDM, 12–13 are passive CCK/OFDM, and channel 14 is passive
@@ -43,12 +45,14 @@ i915 input. All 47 selected objects are nonempty, the original PCI source
 manifest stayed intact, and the separate kernel identifies as
 `RTWN8723BE-NATIVE-SHADOW`. Its SHA-256 is
 `390a3905b41463dee6b0395138ed406dee37051d6506a696c8f764fb0024ac38`.
-The 48-unit source selection requires its own isolated private object and
-kernel-link gate before any later runtime work. No candidate from this state
-was installed or booted, and no i915 action occurred. See [STATUS.md](STATUS.md),
-the [native object checkpoint](docs/HP_NATIVE_OBJECT_CHECKPOINT_20261011.md),
-and the [Shadow H record](docs/HP_NATIVE_SHADOW_H_20261011.md). Shadow G
-remains the retained historical 46-unit build record.
+The earlier 48-unit source at d96edb70 passed its own complete private kernel
+link; see the [accepted prior gate](docs/HP_NATIVE_KERNEL_GATE_20261109.md)
+and [receipt](docs/evidence/HP_NATIVE_KERNEL_GATE_20261109.json). The current
+TX source also passed its matching fresh 48-object build, full private kernel
+link and independent source-selection/symbol proof. No candidate from either state was installed or
+booted, and no i915 action occurred. The [native object history](docs/HP_NATIVE_OBJECT_CHECKPOINT_20261011.md),
+[Shadow H record](docs/HP_NATIVE_SHADOW_H_20261011.md), and historical 46-unit
+Shadow G result remain retained as source-specific evidence.
 
 Complete native lifecycle ownership, callback binding, PCI/IRQ admission and
 physical WLAN acceptance remain open. An object build or portable C test is

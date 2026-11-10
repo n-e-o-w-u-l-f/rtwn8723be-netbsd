@@ -5,10 +5,15 @@
 #include <sys/types.h>
 #include "rtwn8723be_os_compat.h"
 #include "rtwn8723be_rx_decode.h"
+#include "rtwn8723be_tx_desc.h"
 
 /* The public lifecycle declaration layer owns no PCI softc definition. */
 struct rtwn8723be_softc;
 struct ifnet;
+struct mbuf;
+struct ieee80211_node;
+struct ieee80211com;
+struct ieee80211_channel;
 
 /*
  * NetBSD 11 ifnet/net80211 glue, independent of native PCI attach.
@@ -17,8 +22,8 @@ struct ifnet;
  * serialization, net80211 TX framing and recovery. Supplying a no-op
  * merely to register an ifnet violates the full port contract.
  *
- * tx_start must drain management and normal ifnet queues and ensure each
- * transmitted 802.11 frame owns a node reference until TX completion.
+ * A NULL tx_start selects the real native management/data queue consumer.
+ * A supplied method must preserve the same frame/node/lifetime contract.
  */
 struct rtwn8723be_net80211_methods {
     int (*hw_start)(struct rtwn8723be_softc *);
@@ -30,7 +35,40 @@ struct rtwn8723be_net80211 {
     struct rtwn8723be_softc *sc;
     struct rtwn8723be_net80211_methods methods;
     bool registered;
+    /*
+     * Legacy non-MPSAFE ifnet and NET softint serialize these fields with
+     * the kernel lock and splnet. Never perform crypto/callbacks under
+     * datapath tx_lock. The existing TX-start lease excludes hardware STOP.
+     */
+    bool tx_busy;
+    bool tx_again;
+    struct mbuf *tx_pending_m;
+    struct ieee80211_node *tx_pending_ni;
+    struct rtwn8723be_tx_params tx_pending_rate;
+    uint64_t tx_key_epoch;
+    uint64_t tx_pending_key_epoch;
+    unsigned int tx_key_update_depth;
+    void (*tx_key_begin_saved)(struct ieee80211com *);
+    void (*tx_key_end_saved)(struct ieee80211com *);
+    struct ieee80211_channel *tx_pending_channel;
+    uint16_t tx_pending_channel_freq;
+    uint16_t tx_pending_channel_flags;
+    uint16_t tx_pending_defkey;
+    int tx_pending_state;
+    int tx_pending_mode;
+    uint32_t tx_pending_security_flags;
+    uint8_t tx_pending_bssid[6];
 };
+
+/*
+ * Real native TX method; if_start holds the datapath TX-start lifetime lease.
+ * Completion is called outside its TX mutex under the completion lease.
+ * tx_owner is a nonblocking, callback-free exact owner lookup.
+ */
+void rtwn8723be_net80211_tx_start(struct rtwn8723be_softc *, struct ifnet *);
+void rtwn8723be_net80211_tx_complete(void *, unsigned int, size_t);
+struct rtwn8723be_net80211 *rtwn8723be_net80211_tx_owner(
+    struct rtwn8723be_softc *);
 
 int rtwn8723be_net80211_register(struct rtwn8723be_net80211 *,
     struct rtwn8723be_softc *,

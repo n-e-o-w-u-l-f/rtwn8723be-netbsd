@@ -45,7 +45,7 @@ def contract(start_body: str, done_body: str) -> None:
     entry = "if (!dp->tx_enabled || dp->sc == NULL ||"
     stop_stage = "dp->sc->sc_linux.stage != R23BE_STAGE_RUNNING"
     reclaim = "error = rtwn8723be_tx_native_reclaim("
-    notify_capture = "if (error == 0 && reclaimed != 0 && dp->tx_complete != NULL)"
+    notify_capture = "if (error == 0 && reclaimed != 0)"
     callback = "notify(notify_arg, qid, reclaimed);"
     assert done_body.index(lock) < done_body.index(entry)
     for token in (
@@ -62,6 +62,11 @@ def contract(start_body: str, done_body: str) -> None:
     assert done_body.index(callback) < done_body.index("dp->tx_callback_active--;")
     assert done_body.index("dp->tx_callback_active--;") < done_body.rindex(unlock)
     assert "if (notify != NULL)" in done_body
+    assert "native = rtwn8723be_net80211_tx_owner(dp->sc);" in done_body
+    assert "if (dp->tx_complete != NULL || native != NULL)" in done_body
+    assert "if (leased)" in done_body
+    native_call = done_body.index("rtwn8723be_net80211_tx_complete(native, qid, reclaimed);")
+    assert first_release < native_call < done_body.index(callback)
 
 contract(start, done)
 
@@ -76,10 +81,10 @@ controls = (
                   "false", 1), start),
     (done.replace("dp->sc->sc_datapath != dp", "false", 1), start),
     (done.replace("dp->sc->sc_irq_arg != dp", "false", 1), start),
-    (done.replace("if (error == 0 && reclaimed != 0 && dp->tx_complete != NULL)",
-                  "if (reclaimed != 0 && dp->tx_complete != NULL)", 1), start),
-    (done.replace("if (notify != NULL) {\n        notify(",
-                  "if (true) {\n        notify(", 1), start),
+    (done.replace("if (error == 0 && reclaimed != 0)",
+                  "if (reclaimed != 0)", 1), start),
+    (done.replace("if (notify != NULL)\n            notify(",
+                  "if (true)\n            notify(", 1), start),
 )
 for i, (changed_a, changed_b) in enumerate(controls, 1):
     # the last seven controls target done; first four target start
@@ -284,6 +289,18 @@ int main(void)
     return 0;
 }
 '''
+
+# This older fixture supplies only its external completion callback. The native
+# owner branch executes with the real getter in test_net80211_tx_consumer.py.
+pre += r'''
+struct rtwn8723be_net80211;
+static struct rtwn8723be_net80211 *
+rtwn8723be_net80211_tx_owner(struct rtwn8723be_softc *sc)
+{ assert(sc != NULL); return NULL; }
+static void rtwn8723be_net80211_tx_complete(void *n, unsigned int q, size_t count)
+{ (void)n; (void)q; (void)count; assert(!"unexpected native owner"); }
+'''
+
 with tempfile.TemporaryDirectory(prefix="r23be-tx-complete-") as td:
     c = Path(td) / "test.c"
     exe = Path(td) / "test"

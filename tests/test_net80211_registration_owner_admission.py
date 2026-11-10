@@ -86,11 +86,17 @@ def contract(p: str, r: str) -> None:
         assert refuse < r.index(token), token
     for clause in (
         "methods->hw_start == NULL", "methods->hw_stop == NULL",
-        "methods->tx_start == NULL",
     ):
         assert r.index(clause) < guard, clause
     assert r.index("n->registered") < guard
     assert "return ENOSYS;" in r[:guard]
+    # NULL TX now binds the real consumer after all mandatory pre-effect gates.
+    assign = r.index("n->methods = *methods;")
+    native = r.index("n->methods.tx_start = rtwn8723be_net80211_tx_start;")
+    assert assign < r.index("if (n->methods.tx_start == NULL)") < native
+    assert native < r.index("if_initialize(ifp);")
+    assert r.index("ieee80211_ifattach(ic);") < r.index(
+        "rtwn8723be_n80211_tx_install(n);") < r.index("if_register(ifp);")
 
 contract(PRED, REG)
 mutants = (

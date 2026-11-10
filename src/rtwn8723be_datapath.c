@@ -14,6 +14,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <sys/mbuf.h>
 
 #include "rtwn8723be_datapath.h"
+#include "rtwn8723be_net80211.h"
 #include "rtwn8723be_tx_frame.h"
 
 static void
@@ -64,6 +65,8 @@ static void
 rtwn8723be_dp_tx_done(void *arg, unsigned int qid)
 {
     struct rtwn8723be_datapath *dp = arg;
+    struct rtwn8723be_net80211 *native = NULL;
+    bool leased = false;
     void (*notify)(void *, unsigned int, size_t) = NULL;
     void *notify_arg = NULL;
     size_t reclaimed = 0;
@@ -91,21 +94,25 @@ rtwn8723be_dp_tx_done(void *arg, unsigned int qid)
     if (error != 0 && dp->tx_error == 0)
         dp->tx_error = error;
     dp->tx_reclaimed += reclaimed;
-    if (error == 0 && reclaimed != 0 && dp->tx_complete != NULL) {
-        /*
-         * Publish a lifetime reference BEFORE releasing the TX lock.
-         * A concurrent unprepare may not retire the callback or destroy
-         * this lock until the externally executing callback returns.
-         */
-        dp->tx_callback_active++;
-        notify = dp->tx_complete;
-        notify_arg = dp->tx_complete_arg;
+    if (error == 0 && reclaimed != 0) {
+        /* Pure owner lookup; never enter net80211 under the TX mutex. */
+        native = rtwn8723be_net80211_tx_owner(dp->sc);
+        if (dp->tx_complete != NULL || native != NULL) {
+            /* Both native wake and optional notification borrow this lease. */
+            dp->tx_callback_active++;
+            notify = dp->tx_complete;
+            notify_arg = dp->tx_complete_arg;
+            leased = true;
+        }
     }
     mutex_exit(&dp->tx_lock);
 
     /* Never invoke a reentrant net80211 completion under the TX lock. */
-    if (notify != NULL) {
-        notify(notify_arg, qid, reclaimed);
+    if (leased) {
+        if (native != NULL)
+            rtwn8723be_net80211_tx_complete(native, qid, reclaimed);
+        if (notify != NULL)
+            notify(notify_arg, qid, reclaimed);
         mutex_enter(&dp->tx_lock);
         KASSERT(dp->tx_callback_active != 0);
         dp->tx_callback_active--;
