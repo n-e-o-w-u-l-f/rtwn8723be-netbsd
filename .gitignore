@@ -1,3 +1,5 @@
 # Generated local Python bytecode/cache; never a driver source artifact.
 __pycache__/
 *.py[cod]
+
+/.agents/
